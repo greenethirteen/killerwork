@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OnlyPortfolios Page Editor</title>
+  <link rel="stylesheet" href="/ui.css" />
+</head>
+<body>
+  <main class="editor-shell">
+    <aside class="editor-sidebar">
+      <a class="back-home" href="/">OnlyPortfolios</a>
+      <h1>Edit pages</h1>
+      <p>Update titles and text blocks, add captions near media, then save to rebuild the preview and ZIP.</p>
+      <div id="pageList" class="page-list"></div>
+    </aside>
+    <section class="editor-main">
+      <div class="editor-toolbar">
+        <input id="titleInput" type="text" placeholder="Select a page" />
+        <div class="editor-actions">
+          <a id="pagePreview" class="button ghost" target="_blank">Preview</a>
+          <button id="savePage" type="button">Save page</button>
+        </div>
+      </div>
+      <div id="editorStatus" class="editor-status">Choose a page to edit.</div>
+      <div id="blockEditor" class="block-editor"></div>
+    </section>
+  </main>
+  <script src="/editor.js"></script>
+</body>
+</html>

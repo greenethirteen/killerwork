@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OnlyPortfolios Importer</title>
+  <link rel="stylesheet" href="/ui.css" />
+</head>
+<body>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+  <main class="shell">
+    <header class="hero">
+      <div class="eyebrow">OnlyPortfolios Migration Engine v7 + AI</div>
+      <h1>Move your portfolio out of Squarespace.</h1>
+      <p>Paste a portfolio link. We crawl the work pages, clean duplicate assets, preserve video embeds and poster frames, optionally use AI to pair titles with the right images, then package a downloadable ZIP.</p>
+    </header>
+
+    <section class="glass launch-card">
+      <form id="importForm" class="url-form">
+        <input id="urlInput" type="url" placeholder="https://www.abdullahfarouk.com" required />
+        <button id="startBtn" type="submit">Start import</button>
+      </form>
+      <label class="ai-toggle"><input id="aiCleanup" type="checkbox" checked> <span>Use AI cleanup if OPENAI_API_KEY is set</span></label>
+      <div class="hint">Best for Squarespace-style ad portfolios with /work/ project pages.</div>
+    </section>
+
+    <section id="progressPanel" class="glass progress-panel hidden">
+      <div class="panel-top">
+        <div><span class="status-pill" id="statusPill">Waiting</span><h2 id="stageTitle">Ready to import</h2><p id="stageDetail">Paste a URL to begin.</p></div>
+        <div class="percent" id="percentText">0%</div>
+      </div>
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      <div class="steps">
+        <div class="step" data-step="scan">Scan homepage</div>
+        <div class="step" data-step="crawl">Crawl projects</div>
+        <div class="step" data-step="assets">Download assets</div>
+        <div class="step" data-step="build">Build site</div>
+        <div class="step" data-step="validate">Validate</div>
+        <div class="step" data-step="zip">ZIP</div>
+      </div>
+      <pre id="logBox" class="logs"></pre>
+      <div id="actions" class="actions hidden">
+        <a id="previewLink" class="button" target="_blank">Preview site</a>
+        <a id="editorLink" class="button secondary" target="_blank">Edit pages</a>
+        <a id="reviewLink" class="button secondary" target="_blank">Review import</a>
+        <a id="manifestLink" class="button ghost" target="_blank">Manifest</a>
+        <a id="downloadLink" class="button hot">Download ZIP</a>
+      </div>
+    </section>
+
+    <section class="features">
+      <article><b>Cleaner extraction</b><span>Uses homepage project links as truth and avoids nav/footer pollution.</span></article>
+      <article><b>Asset dedupe</b><span>Filters Squarespace responsive duplicates and broken bare filenames.</span></article>
+      <article><b>Video aware</b><span>Ignores blob/stream segments, preserves embeds, and supports HLS playback.</span></article>
+      <article><b>AI cleanup</b><span>Pairs titles with images, cleans metadata, and builds editorial/article sections.</span></article>
+    </section>
+  </main>
+  <script src="/ui.js"></script>
+</body>
+</html>
