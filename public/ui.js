@@ -18,7 +18,6 @@ const editorLink = document.getElementById('editorLink');
 const reviewLink = document.getElementById('reviewLink');
 const manifestLink = document.getElementById('manifestLink');
 const downloadLink = document.getElementById('downloadLink');
-const aiCleanup = document.getElementById('aiCleanup');
 const steps = [...document.querySelectorAll('.step')];
 let timer;
 let activeButton = startBtn;
@@ -72,7 +71,7 @@ form.addEventListener('submit', async (e) => {
   startBtn.disabled = true;
   startBtn.textContent = 'Importing...';
   bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting import'; detail.textContent = urlInput.value;
-  const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: urlInput.value, aiCleanup: !!aiCleanup?.checked }) });
+  const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: urlInput.value, aiCleanup: true }) });
   const data = await res.json();
   if(!res.ok){ detail.textContent = data.error || 'Could not start import'; startBtn.disabled=false; return; }
   clearInterval(timer);
@@ -92,7 +91,7 @@ uploadForm.addEventListener('submit', async (e) => {
 
   const body = new FormData();
   body.append('title', uploadTitle.value || '');
-  body.append('aiCleanup', aiCleanup?.checked ? '1' : '');
+  body.append('aiCleanup', '1');
   [...uploadFiles.files].forEach(file => body.append('files', file));
 
   const res = await fetch('/api/upload-build', { method: 'POST', body });

@@ -9,8 +9,10 @@
 <body>
   <div class="orb orb-a"></div><div class="orb orb-b"></div>
   <main class="shell">
+    <nav class="topbar" aria-label="KillerWork">
+      <a class="logo" href="/">KillerWork™</a>
+    </nav>
     <header class="hero">
-      <div class="eyebrow">KillerWork™ Migration Engine v7 + AI</div>
       <h1>Move your portfolio out of Squarespace.</h1>
       <p>Import your existing portfolio from Squarespace, preserve the original work pages, media, videos, and captions, then export a static site that can be hosted anywhere without locking your archive behind another monthly website subscription.</p>
     </header>
@@ -20,17 +22,20 @@
         <input id="urlInput" type="url" placeholder="https://www.abdullahfarouk.com" required />
         <button id="startBtn" type="submit">Start import</button>
       </form>
-      <label class="ai-toggle"><input id="aiCleanup" type="checkbox" checked> <span>Use AI cleanup if OPENAI_API_KEY is set</span></label>
       <div class="hint">Best for Squarespace-style ad portfolios with /work/ project pages.</div>
     </section>
 
-    <section class="glass launch-card upload-card">
+    <section class="glass upload-card">
+      <div class="upload-copy">
+        <span>Build from raw work</span>
+        <h2>Upload the ads. Get a portfolio.</h2>
+        <p>Drop in campaign images, case boards, films, and PDFs. KillerWork™ analyzes the work, groups related pieces, writes clean page structure, and generates an editable portfolio.</p>
+      </div>
       <form id="uploadForm" class="upload-form">
         <input id="uploadTitle" type="text" placeholder="Portfolio name, e.g. Jack Prozac" />
         <input id="uploadFiles" type="file" multiple accept="image/*,video/*,application/pdf" required />
         <button id="buildUploadBtn" type="submit">Build from files</button>
       </form>
-      <div class="hint">Upload campaign images, case boards, films, or PDFs. AI analyzes the work, groups related pieces, and builds editable portfolio pages.</div>
     </section>
 
     <section id="progressPanel" class="glass progress-panel hidden">
@@ -63,6 +68,11 @@
       <article><b>Video aware</b><span>Ignores blob/stream segments, preserves embeds, and supports HLS playback.</span></article>
       <article><b>AI cleanup</b><span>Pairs titles with images, cleans metadata, and builds editorial/article sections.</span></article>
     </section>
+
+    <footer class="site-footer">
+      <b>KillerWork™</b>
+      <span>Portfolio migration and generation for advertising creatives.</span>
+    </footer>
   </main>
   <script src="/ui.js"></script>
 </body>
