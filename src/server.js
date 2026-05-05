@@ -67,7 +67,7 @@ app.get('/api/jobs/:id', (req, res) => {
 app.get('/api/download/:id', async (req, res) => {
   const zip = path.join(root, 'generated', req.params.id, 'site.zip');
   if (!(await fs.pathExists(zip))) return res.status(404).send('ZIP not ready');
-  res.download(zip, 'onlyportfolios-import.zip');
+  res.download(zip, 'killerwork-import.zip');
 });
 
 function jobDir(id) {
@@ -164,4 +164,4 @@ app.put('/api/editor/:id/pages/:slug', async (req, res) => {
   res.json({ ok: true, validation, page: publicProject(project), preview: `/generated/${id}/site/work/${project.slug}/index.html` });
 });
 
-app.listen(PORT, () => console.log(`OnlyPortfolios Importer running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`KillerWork™ Importer running on http://localhost:${PORT}`));

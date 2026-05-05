@@ -604,7 +604,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
 
   progress('Starting import', url);
   const browser = await launchBrowser(progress);
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1200 }, userAgent: 'Mozilla/5.0 OnlyPortfoliosImporter/0.7' });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1200 }, userAgent: 'Mozilla/5.0 KillerWorkImporter/0.8' });
   const page = await context.newPage();
   const siteUrl = new URL(url);
 

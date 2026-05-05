@@ -1,7 +1,7 @@
 {
-  "name": "onlyportfolios-importer-web-v8-ai",
+  "name": "killerwork-importer-web-v8-ai",
   "version": "0.8.0",
-  "description": "OnlyPortfolios importer web UI with optional AI cleanup, structured sections, title/image pairing, video handling, validation, and ZIP export.",
+  "description": "KillerWork importer web UI with optional AI cleanup, structured sections, title/image pairing, video handling, validation, and ZIP export.",
   "type": "module",
   "scripts": {
     "web": "node src/server.js",

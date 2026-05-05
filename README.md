@@ -1,4 +1,4 @@
-# OnlyPortfolios Squarespace Importer Web v8 — AI Cleanup
+# KillerWork™ Squarespace Importer Web v8 - AI Cleanup
 
 A local SaaS-style MVP that imports Squarespace-style advertising portfolios, downloads accessible assets, preserves video embeds/HLS streams, runs an optional AI cleanup pass, generates a review page, validates output, and packages a ZIP.
 
@@ -6,8 +6,8 @@ A local SaaS-style MVP that imports Squarespace-style advertising portfolios, do
 
 ```bash
 cd ~/Downloads
-unzip -o onlyportfolios-squarespace-importer-web-v8-ai.zip
-cd onlyportfolios-importer-web-v8
+unzip -o killerwork-squarespace-importer-web-v8-ai.zip
+cd killerwork-importer-web-v8
 cp .env.example .env
 # Add your OpenAI key to .env if you want AI cleanup
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
