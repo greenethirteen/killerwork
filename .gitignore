@@ -4,6 +4,7 @@
 
 node_modules/
 generated/
+.uploads-tmp/
 
 .DS_Store
 npm-debug.log*

@@ -18,6 +18,7 @@ function setStatus(text, tone = '') {
 function mediaLabel(item) {
   if (item.type === 'image') return `Image ${item.imageIndex + 1}`;
   if (item.type === 'video') return `Video ${item.videoIndex + 1}`;
+  if (item.type === 'document') return `PDF ${item.documentIndex + 1}`;
   if (item.type === 'gallery') return `Slider (${item.imageIndexes.length} images)`;
   return 'Text';
 }
@@ -80,6 +81,9 @@ function renderBlocks() {
       } else if (item.type === 'video') {
         const video = currentPage.videos[item.videoIndex];
         meta.textContent = video?.original || video?.src || 'Video';
+      } else if (item.type === 'document') {
+        const document = currentPage.documents[item.documentIndex];
+        meta.textContent = document?.original || document?.src || 'PDF';
       } else {
         meta.textContent = item.imageIndexes.map(i => currentPage.images[i]?.localFile || `image ${i + 1}`).join(', ');
       }

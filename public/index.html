@@ -24,6 +24,15 @@
       <div class="hint">Best for Squarespace-style ad portfolios with /work/ project pages.</div>
     </section>
 
+    <section class="glass launch-card upload-card">
+      <form id="uploadForm" class="upload-form">
+        <input id="uploadTitle" type="text" placeholder="Portfolio name, e.g. Jack Prozac" />
+        <input id="uploadFiles" type="file" multiple accept="image/*,video/*,application/pdf" required />
+        <button id="buildUploadBtn" type="submit">Build from files</button>
+      </form>
+      <div class="hint">Upload campaign images, case boards, films, or PDFs. AI analyzes the work, groups related pieces, and builds editable portfolio pages.</div>
+    </section>
+
     <section id="progressPanel" class="glass progress-panel hidden">
       <div class="panel-top">
         <div><span class="status-pill" id="statusPill">Waiting</span><h2 id="stageTitle">Ready to import</h2><p id="stageDetail">Paste a URL to begin.</p></div>

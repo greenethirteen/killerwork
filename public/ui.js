@@ -1,6 +1,10 @@
 const form = document.getElementById('importForm');
+const uploadForm = document.getElementById('uploadForm');
 const urlInput = document.getElementById('urlInput');
+const uploadTitle = document.getElementById('uploadTitle');
+const uploadFiles = document.getElementById('uploadFiles');
 const startBtn = document.getElementById('startBtn');
+const buildUploadBtn = document.getElementById('buildUploadBtn');
 const panel = document.getElementById('progressPanel');
 const pill = document.getElementById('statusPill');
 const title = document.getElementById('stageTitle');
@@ -17,10 +21,11 @@ const downloadLink = document.getElementById('downloadLink');
 const aiCleanup = document.getElementById('aiCleanup');
 const steps = [...document.querySelectorAll('.step')];
 let timer;
+let activeButton = startBtn;
 
 function setStep(stage){
   const s = String(stage).toLowerCase();
-  const map = s.includes('scan') ? 'scan' : s.includes('crawl') ? 'crawl' : s.includes('asset') || s.includes('download') ? 'assets' : s.includes('build') || s.includes('generate') ? 'build' : s.includes('validat') ? 'validate' : s.includes('zip') ? 'zip' : '';
+  const map = s.includes('scan') ? 'scan' : s.includes('crawl') || s.includes('analyz') || s.includes('organizing') ? 'crawl' : s.includes('asset') || s.includes('download') || s.includes('saving') ? 'assets' : s.includes('build') || s.includes('generate') ? 'build' : s.includes('validat') ? 'validate' : s.includes('zip') ? 'zip' : '';
   steps.forEach(el => el.classList.toggle('active', el.dataset.step === map));
 }
 
@@ -46,20 +51,21 @@ async function poll(id){
     reviewLink.href = job.links.review;
     manifestLink.href = job.links.manifest;
     downloadLink.href = job.links.zip;
-    startBtn.disabled = false;
-    startBtn.textContent = 'Start another import';
+    activeButton.disabled = false;
+    activeButton.textContent = activeButton === buildUploadBtn ? 'Build another portfolio' : 'Start another import';
   }
   if(job.status === 'error'){
     clearInterval(timer);
     pill.textContent = 'Error';
     detail.textContent = job.error || 'Import failed';
-    startBtn.disabled = false;
-    startBtn.textContent = 'Try again';
+    activeButton.disabled = false;
+    activeButton.textContent = 'Try again';
   }
 }
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  activeButton = startBtn;
   actions.classList.add('hidden');
   logs.textContent = '';
   panel.classList.remove('hidden');
@@ -69,6 +75,29 @@ form.addEventListener('submit', async (e) => {
   const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: urlInput.value, aiCleanup: !!aiCleanup?.checked }) });
   const data = await res.json();
   if(!res.ok){ detail.textContent = data.error || 'Could not start import'; startBtn.disabled=false; return; }
+  clearInterval(timer);
+  timer = setInterval(() => poll(data.id), 1000);
+  poll(data.id);
+});
+
+uploadForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  activeButton = buildUploadBtn;
+  actions.classList.add('hidden');
+  logs.textContent = '';
+  panel.classList.remove('hidden');
+  buildUploadBtn.disabled = true;
+  buildUploadBtn.textContent = 'Building...';
+  bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting upload build'; detail.textContent = `${uploadFiles.files.length} file(s)`;
+
+  const body = new FormData();
+  body.append('title', uploadTitle.value || '');
+  body.append('aiCleanup', aiCleanup?.checked ? '1' : '');
+  [...uploadFiles.files].forEach(file => body.append('files', file));
+
+  const res = await fetch('/api/upload-build', { method: 'POST', body });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok){ detail.textContent = data.error || 'Could not start upload build'; buildUploadBtn.disabled=false; buildUploadBtn.textContent='Try again'; return; }
   clearInterval(timer);
   timer = setInterval(() => poll(data.id), 1000);
   poll(data.id);

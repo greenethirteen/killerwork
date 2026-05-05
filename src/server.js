@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
+import multer from 'multer';
 import path from 'path';
 import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
+import { runUploadBuild } from './uploadBuilder.js';
 import { hash } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -11,6 +13,16 @@ const root = path.join(__dirname, '..');
 const app = express();
 const PORT = process.env.PORT || 8787;
 const jobs = new Map();
+const tmpUploadsDir = path.join(root, '.uploads-tmp');
+const upload = multer({
+  dest: tmpUploadsDir,
+  limits: { files: 60, fileSize: 250 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const type = String(file.mimetype || '');
+    if (type.startsWith('image/') || type.startsWith('video/') || type === 'application/pdf') return cb(null, true);
+    cb(new Error('Only images, videos, and PDFs are supported.'));
+  }
+});
 
 app.use(express.json({ limit: '2mb' }));
 app.use('/', express.static(path.join(root, 'public')));
@@ -58,6 +70,48 @@ app.post('/api/import', async (req, res) => {
   }
 });
 
+app.post('/api/upload-build', upload.array('files', 60), async (req, res) => {
+  const title = String(req.body?.title || '').trim();
+  const aiCleanup = !!req.body?.aiCleanup;
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ error: 'Upload at least one image, video, or PDF.' });
+  const id = `${Date.now()}-${hash(`${title}:${files.map(f => f.originalname).join('|')}`)}`;
+  const outDir = path.join(root, 'generated', id);
+  const job = { id, url: 'uploaded-files', aiCleanup, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  jobs.set(id, job);
+  res.json({ id });
+
+  const stages = ['Saving uploaded assets','Analyzing uploaded work','AI analyzing asset','AI organizing portfolio','Raw manifest saved','Building static portfolio','Generated static site','Validating output','Validation passed','Validation warnings','ZIP ready'];
+  const updatePercent = (stage) => {
+    const idx = stages.findIndex(s => stage.startsWith(s));
+    if (idx >= 0) job.percent = Math.max(job.percent, Math.round(((idx + 1) / stages.length) * 100));
+  };
+
+  try {
+    await runUploadBuild({ files, outDir, title, aiCleanup, onProgress: (evt) => {
+      updatePercent(evt.stage);
+      job.progress.push(evt);
+      if (job.progress.length > 300) job.progress.shift();
+    }});
+    job.status = 'done';
+    job.percent = 100;
+    job.links = {
+      preview: `/generated/${id}/site/index.html`,
+      review: `/generated/${id}/site/import-review.html`,
+      manifest: `/generated/${id}/manifest.json`,
+      rawManifest: `/generated/${id}/manifest.raw.json`,
+      cleanedManifest: `/generated/${id}/manifest.cleaned.json`,
+      validation: `/generated/${id}/reports/validation.json`,
+      zip: `/api/download/${id}`
+    };
+  } catch (e) {
+    job.status = 'error';
+    job.error = e.stack || e.message;
+    job.progress.push({ stage: 'Build failed', detail: e.message, at: new Date().toISOString() });
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+  }
+});
+
 app.get('/api/jobs/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -87,6 +141,7 @@ function publicProject(project) {
     url: project.url,
     images: project.images || [],
     videos: project.videos || [],
+    documents: project.documents || [],
     contentItems: project.contentItems || []
   };
 }
@@ -117,6 +172,7 @@ app.get('/api/editor/:id/pages/:slug', async (req, res) => {
 function sanitizeContentItems(items, project) {
   const imageMax = (project.images || []).length;
   const videoMax = (project.videos || []).length;
+  const documentMax = (project.documents || []).length;
   const safe = [];
   items.forEach((item, idx) => {
     const order = idx + 1;
@@ -131,6 +187,10 @@ function sanitizeContentItems(items, project) {
     }
     if (item.type === 'video' && Number.isInteger(item.videoIndex) && item.videoIndex >= 0 && item.videoIndex < videoMax) {
       safe.push({ type: 'video', order, title: String(item.title || '').slice(0, 500), videoIndex: item.videoIndex, original: item.original || project.videos[item.videoIndex]?.original || '' });
+      return;
+    }
+    if (item.type === 'document' && Number.isInteger(item.documentIndex) && item.documentIndex >= 0 && item.documentIndex < documentMax) {
+      safe.push({ type: 'document', order, title: String(item.title || '').slice(0, 500), documentIndex: item.documentIndex, original: item.original || project.documents[item.documentIndex]?.original || '' });
       return;
     }
     if (item.type === 'gallery' && Array.isArray(item.imageIndexes)) {
