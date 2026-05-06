@@ -30,7 +30,8 @@ function setStep(stage){
 }
 
 async function poll(id){
-  const res = await fetch(`/api/jobs/${id}`);
+  const headers = await window.KillerWorkAuth.authHeaders();
+  const res = await fetch(`/api/jobs/${id}`, { headers });
   const job = await res.json();
   const last = job.progress?.[job.progress.length-1];
   panel.classList.remove('hidden');
@@ -72,9 +73,19 @@ form.addEventListener('submit', async (e) => {
   logs.textContent = '';
   panel.classList.remove('hidden');
   startBtn.disabled = true;
-  startBtn.textContent = 'Importing...';
+  startBtn.textContent = 'Signing in...';
   bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting import'; detail.textContent = urlInput.value;
-  const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: urlInput.value, aiCleanup: true }) });
+  let token = '';
+  try {
+    token = await window.KillerWorkAuth.requireToken();
+  } catch (err) {
+    detail.textContent = err.message || 'Sign in required.';
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start import';
+    return;
+  }
+  startBtn.textContent = 'Importing...';
+  const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json', Authorization: `Bearer ${token}`}, body: JSON.stringify({ url: urlInput.value, aiCleanup: true }) });
   const data = await res.json();
   if(!res.ok){ detail.textContent = data.error || 'Could not start import'; startBtn.disabled=false; return; }
   clearInterval(timer);
@@ -90,15 +101,25 @@ if (uploadForm) {
     logs.textContent = '';
     panel.classList.remove('hidden');
     buildUploadBtn.disabled = true;
-    buildUploadBtn.textContent = 'Building...';
+    buildUploadBtn.textContent = 'Signing in...';
     bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting upload build'; detail.textContent = `${uploadFiles.files.length} file(s)`;
+    let token = '';
+    try {
+      token = await window.KillerWorkAuth.requireToken();
+    } catch (err) {
+      detail.textContent = err.message || 'Sign in required.';
+      buildUploadBtn.disabled = false;
+      buildUploadBtn.textContent = 'Build from files';
+      return;
+    }
+    buildUploadBtn.textContent = 'Building...';
 
     const body = new FormData();
     body.append('title', uploadTitle.value || '');
     body.append('aiCleanup', '1');
     [...uploadFiles.files].forEach(file => body.append('files', file));
 
-    const res = await fetch('/api/upload-build', { method: 'POST', body });
+    const res = await fetch('/api/upload-build', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
     const data = await res.json().catch(() => ({}));
     if(!res.ok){ detail.textContent = data.error || 'Could not start upload build'; buildUploadBtn.disabled=false; buildUploadBtn.textContent='Try again'; return; }
     clearInterval(timer);

@@ -24,6 +24,11 @@ let draggedIndex = -1;
 let dirty = false;
 let pendingUploadType = '';
 
+async function authHeaders() {
+  const token = await window.KillerWorkAuth.requireToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
 function setStatus(text, tone = '') {
   statusBox.textContent = text;
   statusBox.dataset.tone = tone;
@@ -445,8 +450,16 @@ async function uploadMedia(file) {
   const form = new FormData();
   form.append('file', file);
   setStatus('Uploading media and rebuilding preview...');
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
   const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}/assets`, {
     method: 'POST',
+    headers,
     body: form
   });
   const data = await res.json();
@@ -479,7 +492,14 @@ async function loadPage(slug) {
   selectedIndex = -1;
   dirty = false;
   setStatus('Loading page...');
-  const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(slug)}`);
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(slug)}`, { headers });
   currentPage = await res.json();
   if (!res.ok) {
     setStatus(currentPage.error || 'Could not load page.', 'error');
@@ -500,7 +520,14 @@ async function loadPages() {
     return;
   }
   if (managePortfolio) managePortfolio.href = `/manage.html?job=${encodeURIComponent(jobId)}`;
-  const res = await fetch(`/api/editor/${jobId}/pages`);
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/editor/${jobId}/pages`, { headers });
   const data = await res.json();
   if (!res.ok) {
     setStatus(data.error || 'Could not load import.', 'error');
@@ -543,9 +570,18 @@ savePage.addEventListener('click', async () => {
     title: titleInput.value,
     contentItems: currentPage.contentItems.map((item, idx) => ({ ...item, order: idx + 1 }))
   };
+  let headers;
+  try {
+    headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    savePage.disabled = false;
+    savePage.textContent = 'Save page';
+    return;
+  }
   const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body)
   });
   const data = await res.json();

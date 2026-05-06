@@ -13,6 +13,11 @@ const projectList = document.getElementById('projectList');
 
 let portfolio = null;
 
+async function authHeaders() {
+  const token = await window.KillerWorkAuth.requireToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
 function setStatus(text, tone = '') {
   managerStatus.textContent = text;
   managerStatus.dataset.tone = tone;
@@ -70,7 +75,14 @@ async function loadPortfolio() {
     setStatus('Missing job id. Open this page from a completed portfolio build.', 'error');
     return;
   }
-  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}`);
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}`, { headers });
   const data = await res.json();
   if (!res.ok) {
     setStatus(data.error || 'Could not load portfolio.', 'error');
@@ -85,9 +97,18 @@ savePortfolio.addEventListener('click', async () => {
   savePortfolio.disabled = true;
   savePortfolio.textContent = 'Saving...';
   setStatus('Saving and rebuilding preview/ZIP...');
+  let headers;
+  try {
+    headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    savePortfolio.disabled = false;
+    savePortfolio.textContent = 'Save portfolio';
+    return;
+  }
   const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       ownerName: ownerNameInput.value,
       siteTitle: siteTitleInput.value
@@ -107,7 +128,14 @@ savePortfolio.addEventListener('click', async () => {
 async function deleteProject(project) {
   if (!confirm(`Delete "${project.title}" from this portfolio?`)) return;
   setStatus(`Deleting ${project.title}...`);
-  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}/projects/${encodeURIComponent(project.slug)}`, { method: 'DELETE' });
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}/projects/${encodeURIComponent(project.slug)}`, { method: 'DELETE', headers });
   const data = await res.json();
   if (!res.ok) {
     setStatus(data.error || 'Delete failed.', 'error');
@@ -120,7 +148,14 @@ async function deleteProject(project) {
 deletePortfolio.addEventListener('click', async () => {
   if (!portfolio) return;
   if (!confirm('Delete this entire generated portfolio and its stored assets?')) return;
-  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}`, { method: 'DELETE', headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     setStatus(data.error || 'Delete failed.', 'error');

@@ -76,6 +76,27 @@ async function verifiedFirebaseUser(req) {
   };
 }
 
+async function requireFirebaseAuth(req, res, next) {
+  try {
+    const user = await verifiedFirebaseUser(req);
+    if (!user) return res.status(firebaseAdmin ? 401 : 503).json({ error: firebaseAdmin ? 'Sign in required.' : 'Firebase authentication is not configured.' });
+    req.user = user;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Sign in required.' });
+  }
+}
+
+function attachOwner(manifest, user) {
+  manifest.ownerUid = user.uid;
+  manifest.owner = { uid: user.uid };
+  return manifest;
+}
+
+function canAccessPortfolio(manifest, user) {
+  return !manifest.ownerUid || manifest.ownerUid === user.uid;
+}
+
 app.get('/api/firebase-config', (req, res) => {
   const config = firebaseWebConfig();
   res.json({
@@ -98,13 +119,13 @@ app.get('/api/me', async (req, res) => {
   }
 });
 
-app.post('/api/import', async (req, res) => {
+app.post('/api/import', requireFirebaseAuth, async (req, res) => {
   const url = String(req.body?.url || '').trim();
   const aiCleanup = !!req.body?.aiCleanup;
   if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Enter a valid http/https URL.' });
   const id = `${Date.now()}-${hash(url)}`;
   const outDir = path.join(root, 'generated', id);
-  const job = { id, url, aiCleanup, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  const job = { id, url, aiCleanup, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
   jobs.set(id, job);
   res.json({ id });
 
@@ -122,6 +143,8 @@ app.post('/api/import', async (req, res) => {
       job.progress.push(evt);
       if (job.progress.length > 300) job.progress.shift();
     }});
+    attachOwner(result.manifest, req.user);
+    await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
     job.percent = 100;
     job.links = {
@@ -140,14 +163,14 @@ app.post('/api/import', async (req, res) => {
   }
 });
 
-app.post('/api/upload-build', upload.array('files', 60), async (req, res) => {
+app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), async (req, res) => {
   const title = String(req.body?.title || '').trim();
   const aiCleanup = !!req.body?.aiCleanup;
   const files = req.files || [];
   if (!files.length) return res.status(400).json({ error: 'Upload at least one image, video, or PDF.' });
   const id = `${Date.now()}-${hash(`${title}:${files.map(f => f.originalname).join('|')}`)}`;
   const outDir = path.join(root, 'generated', id);
-  const job = { id, url: 'uploaded-files', aiCleanup, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  const job = { id, url: 'uploaded-files', aiCleanup, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
   jobs.set(id, job);
   res.json({ id });
 
@@ -158,11 +181,13 @@ app.post('/api/upload-build', upload.array('files', 60), async (req, res) => {
   };
 
   try {
-    await runUploadBuild({ files, outDir, title, aiCleanup, onProgress: (evt) => {
+    const result = await runUploadBuild({ files, outDir, title, aiCleanup, onProgress: (evt) => {
       updatePercent(evt.stage);
       job.progress.push(evt);
       if (job.progress.length > 300) job.progress.shift();
     }});
+    attachOwner(result.manifest, req.user);
+    await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
     job.percent = 100;
     job.links = {
@@ -182,7 +207,7 @@ app.post('/api/upload-build', upload.array('files', 60), async (req, res) => {
   }
 });
 
-app.post('/api/campaign-build', upload.any(), async (req, res) => {
+app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, res) => {
   const title = String(req.body?.title || '').trim();
   let campaigns = [];
   try {
@@ -196,7 +221,7 @@ app.post('/api/campaign-build', upload.any(), async (req, res) => {
 
   const id = `${Date.now()}-${hash(`${title}:${campaigns.map(c => c.title || c.campaign || '').join('|')}:${files.map(f => f.originalname).join('|')}`)}`;
   const outDir = path.join(root, 'generated', id);
-  const job = { id, url: 'campaign-builder', aiCleanup: true, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  const job = { id, url: 'campaign-builder', aiCleanup: true, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
   jobs.set(id, job);
   res.json({ id });
 
@@ -207,11 +232,13 @@ app.post('/api/campaign-build', upload.any(), async (req, res) => {
   };
 
   try {
-    await runCampaignBuild({ files, campaigns, outDir, title, aiCleanup: true, onProgress: (evt) => {
+    const result = await runCampaignBuild({ files, campaigns, outDir, title, aiCleanup: true, onProgress: (evt) => {
       updatePercent(evt.stage);
       job.progress.push(evt);
       if (job.progress.length > 300) job.progress.shift();
     }});
+    attachOwner(result.manifest, req.user);
+    await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
     job.percent = 100;
     job.links = {
@@ -231,9 +258,10 @@ app.post('/api/campaign-build', upload.any(), async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:id', (req, res) => {
+app.get('/api/jobs/:id', requireFirebaseAuth, (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (job.ownerUid && job.ownerUid !== req.user.uid) return res.status(403).json({ error: 'Not your portfolio.' });
   res.json(job);
 });
 
@@ -348,16 +376,18 @@ async function saveManifestAndRebuild(id, manifest) {
   return validation;
 }
 
-app.get('/api/manage/:id', async (req, res) => {
+app.get('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   const manifest = await readManifest(req.params.id);
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   res.json(publicPortfolio(req.params.id, manifest));
 });
 
-app.put('/api/manage/:id', async (req, res) => {
+app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   const siteTitle = String(req.body?.siteTitle || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   const ownerName = String(req.body?.ownerName || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   if (siteTitle) manifest.siteTitle = siteTitle;
@@ -366,10 +396,11 @@ app.put('/api/manage/:id', async (req, res) => {
   res.json(publicPortfolio(id, manifest, validation));
 });
 
-app.delete('/api/manage/:id/projects/:slug', async (req, res) => {
+app.delete('/api/manage/:id/projects/:slug', requireFirebaseAuth, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   const before = (manifest.projects || []).length;
   manifest.projects = (manifest.projects || []).filter(project => project.slug !== req.params.slug);
   if (manifest.projects.length === before) return res.status(404).json({ error: 'Project not found.' });
@@ -377,17 +408,20 @@ app.delete('/api/manage/:id/projects/:slug', async (req, res) => {
   res.json(publicPortfolio(id, manifest, validation));
 });
 
-app.delete('/api/manage/:id', async (req, res) => {
+app.delete('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   const dir = jobDir(req.params.id);
   if (!(await fs.pathExists(dir))) return res.status(404).json({ error: 'Portfolio not found.' });
+  const manifest = await readManifest(req.params.id);
+  if (manifest && !canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   await fs.remove(dir);
   jobs.delete(req.params.id);
   res.json({ ok: true });
 });
 
-app.get('/api/editor/:id/pages', async (req, res) => {
+app.get('/api/editor/:id/pages', requireFirebaseAuth, async (req, res) => {
   const manifest = await readManifest(req.params.id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   res.json({
     id: req.params.id,
     siteTitle: manifest.siteTitle,
@@ -400,20 +434,25 @@ app.get('/api/editor/:id/pages', async (req, res) => {
   });
 });
 
-app.get('/api/editor/:id/pages/:slug', async (req, res) => {
+app.get('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => {
   const manifest = await readManifest(req.params.id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
   res.json(publicProject(project));
 });
 
-app.post('/api/editor/:id/pages/:slug/assets', upload.single('file'), async (req, res) => {
+app.post('/api/editor/:id/pages/:slug/assets', requireFirebaseAuth, upload.single('file'), async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) {
     if (req.file) await fs.remove(req.file.path).catch(() => {});
     return res.status(404).json({ error: 'Import not found.' });
+  }
+  if (!canAccessPortfolio(manifest, req.user)) {
+    if (req.file) await fs.remove(req.file.path).catch(() => {});
+    return res.status(403).json({ error: 'Not your portfolio.' });
   }
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) {
@@ -540,10 +579,11 @@ function sanitizeContentItems(items, project) {
   return safe;
 }
 
-app.put('/api/editor/:id/pages/:slug', async (req, res) => {
+app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
 

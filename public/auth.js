@@ -12,6 +12,32 @@ const manageLatestLinks = [...document.querySelectorAll('[data-manage-latest]')]
 const authLinks = [...document.querySelectorAll('[data-auth-link]')];
 const logoutButtons = [...document.querySelectorAll('[data-auth-logout]')];
 const userBadges = [...document.querySelectorAll('[data-user-badge]')];
+let authInstance = null;
+let authReadyResolve;
+let authReadyDone = false;
+const authReady = new Promise(resolve => { authReadyResolve = resolve; });
+
+window.KillerWorkAuth = {
+  ready: authReady,
+  async currentToken() {
+    await authReady;
+    const user = authInstance?.currentUser;
+    return user ? user.getIdToken() : '';
+  },
+  async requireToken() {
+    await authReady;
+    if (!authInstance) throw new Error('Firebase sign-in is not configured.');
+    if (!authInstance.currentUser) {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(authInstance, provider);
+    }
+    return authInstance.currentUser.getIdToken();
+  },
+  async authHeaders() {
+    const token = await this.currentToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+};
 
 manageLatestLinks.forEach(link => {
   if (latestJobId) {
@@ -49,11 +75,13 @@ async function initFirebaseAuth() {
   const data = await res.json();
   if (!data.configured) {
     setSignedOut('Firebase Web App config is missing.');
+    authReadyResolve();
     return;
   }
 
   const app = initializeApp(data.config);
   const auth = getAuth(app);
+  authInstance = auth;
   const provider = new GoogleAuthProvider();
 
   authLinks.forEach(link => {
@@ -70,6 +98,10 @@ async function initFirebaseAuth() {
   });
 
   onAuthStateChanged(auth, async user => {
+    if (!authReadyDone) {
+      authReadyDone = true;
+      authReadyResolve();
+    }
     if (!user) {
       setSignedOut();
       return;
@@ -80,4 +112,7 @@ async function initFirebaseAuth() {
   });
 }
 
-initFirebaseAuth().catch(() => setSignedOut('Firebase sign-in could not start.'));
+initFirebaseAuth().catch(() => {
+  setSignedOut('Firebase sign-in could not start.');
+  authReadyResolve();
+});

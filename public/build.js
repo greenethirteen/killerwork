@@ -67,7 +67,8 @@ function campaignData(card) {
 }
 
 async function poll(id) {
-  const res = await fetch(`/api/jobs/${id}`);
+  const headers = await window.KillerWorkAuth.authHeaders();
+  const res = await fetch(`/api/jobs/${id}`, { headers });
   const job = await res.json();
   const last = job.progress?.[job.progress.length - 1];
   pill.textContent = job.status;
@@ -123,14 +124,24 @@ form.addEventListener('submit', async event => {
   panel.classList.remove('hidden');
   logBox.textContent = '';
   buildCampaigns.disabled = true;
-  buildCampaigns.textContent = 'Building...';
+  buildCampaigns.textContent = 'Signing in...';
   pill.textContent = 'running';
   stageTitle.textContent = 'Starting campaign build';
   stageDetail.textContent = `${campaigns.length} campaign page(s), ${totalFiles} asset(s)`;
   progressBar.style.width = '2%';
   percentText.textContent = '2%';
+  let token = '';
+  try {
+    token = await window.KillerWorkAuth.requireToken();
+  } catch (err) {
+    stageDetail.textContent = err.message || 'Sign in required.';
+    buildCampaigns.disabled = false;
+    buildCampaigns.textContent = 'Build portfolio';
+    return;
+  }
+  buildCampaigns.textContent = 'Building...';
 
-  const res = await fetch('/api/campaign-build', { method: 'POST', body });
+  const res = await fetch('/api/campaign-build', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     stageDetail.textContent = data.error || 'Could not start build';
