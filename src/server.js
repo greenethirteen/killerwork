@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
+import admin from 'firebase-admin';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { hash } from './utils.js';
@@ -27,6 +28,75 @@ const upload = multer({
 app.use(express.json({ limit: '2mb' }));
 app.use('/', express.static(path.join(root, 'public')));
 app.use('/generated', express.static(path.join(root, 'generated')));
+
+function firebaseServiceAccount() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    return {
+      project_id: process.env.FIREBASE_PROJECT_ID,
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    };
+  }
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
+    return fs.readJsonSync(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+  }
+  return null;
+}
+
+const firebaseAccount = firebaseServiceAccount();
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || firebaseAccount?.project_id || '';
+const firebaseAdmin = firebaseAccount ? admin.initializeApp({
+  credential: admin.credential.cert(firebaseAccount),
+  projectId: firebaseProjectId
+}) : null;
+
+function firebaseWebConfig() {
+  const projectId = process.env.FIREBASE_PROJECT_ID || firebaseProjectId;
+  return {
+    apiKey: process.env.FIREBASE_WEB_API_KEY || '',
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : ''),
+    projectId,
+    appId: process.env.FIREBASE_WEB_APP_ID || '',
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID || ''
+  };
+}
+
+async function verifiedFirebaseUser(req) {
+  if (!firebaseAdmin) return null;
+  const header = String(req.get('authorization') || '');
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token) return null;
+  const decoded = await firebaseAdmin.auth().verifyIdToken(token);
+  return {
+    uid: decoded.uid,
+    email: decoded.email || '',
+    name: decoded.name || '',
+    picture: decoded.picture || ''
+  };
+}
+
+app.get('/api/firebase-config', (req, res) => {
+  const config = firebaseWebConfig();
+  res.json({
+    configured: !!(config.apiKey && config.authDomain && config.projectId),
+    adminConfigured: !!firebaseAdmin,
+    config
+  });
+});
+
+app.get('/api/me', async (req, res) => {
+  try {
+    const user = await verifiedFirebaseUser(req);
+    res.json({
+      authenticated: !!user,
+      user,
+      firebaseConfigured: !!(firebaseWebConfig().apiKey && firebaseAdmin)
+    });
+  } catch {
+    res.json({ authenticated: false, user: null, firebaseConfigured: !!(firebaseWebConfig().apiKey && firebaseAdmin) });
+  }
+});
 
 app.post('/api/import', async (req, res) => {
   const url = String(req.body?.url || '').trim();

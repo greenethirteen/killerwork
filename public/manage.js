@@ -1,5 +1,6 @@
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');
+if (jobId) localStorage.setItem('killerwork:lastJobId', jobId);
 const ownerNameInput = document.getElementById('ownerNameInput');
 const siteTitleInput = document.getElementById('siteTitleInput');
 const savePortfolio = document.getElementById('savePortfolio');

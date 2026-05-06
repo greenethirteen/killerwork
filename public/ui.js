@@ -47,6 +47,7 @@ async function poll(id){
     pill.textContent = 'Complete';
     actions.classList.remove('hidden');
     previewLink.href = job.links.preview;
+    localStorage.setItem('killerwork:lastJobId', job.id);
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
     editorLink.href = `/editor.html?job=${encodeURIComponent(job.id)}`;
     reviewLink.href = job.links.review;

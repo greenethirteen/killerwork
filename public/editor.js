@@ -1,5 +1,6 @@
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');
+if (jobId) localStorage.setItem('killerwork:lastJobId', jobId);
 const pageList = document.getElementById('pageList');
 const titleInput = document.getElementById('titleInput');
 const pagePreview = document.getElementById('pagePreview');
