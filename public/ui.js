@@ -14,6 +14,7 @@ const pct = document.getElementById('percentText');
 const logs = document.getElementById('logBox');
 const actions = document.getElementById('actions');
 const previewLink = document.getElementById('previewLink');
+const manageLink = document.getElementById('manageLink');
 const editorLink = document.getElementById('editorLink');
 const reviewLink = document.getElementById('reviewLink');
 const manifestLink = document.getElementById('manifestLink');
@@ -46,6 +47,7 @@ async function poll(id){
     pill.textContent = 'Complete';
     actions.classList.remove('hidden');
     previewLink.href = job.links.preview;
+    manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
     editorLink.href = `/editor.html?job=${encodeURIComponent(job.id)}`;
     reviewLink.href = job.links.review;
     manifestLink.href = job.links.manifest;

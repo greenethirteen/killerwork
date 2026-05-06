@@ -6,6 +6,7 @@ const pagePreview = document.getElementById('pagePreview');
 const savePage = document.getElementById('savePage');
 const statusBox = document.getElementById('editorStatus');
 const blockEditor = document.getElementById('blockEditor');
+const managePortfolio = document.getElementById('managePortfolio');
 
 let currentSlug = '';
 let currentPage = null;
@@ -115,6 +116,7 @@ async function loadPages() {
     setStatus('Missing job id. Open this from a completed import.', 'error');
     return;
   }
+  if (managePortfolio) managePortfolio.href = `/manage.html?job=${encodeURIComponent(jobId)}`;
   const res = await fetch(`/api/editor/${jobId}/pages`);
   const data = await res.json();
   if (!res.ok) {
@@ -130,7 +132,9 @@ async function loadPages() {
     btn.addEventListener('click', () => loadPage(page.slug));
     pageList.appendChild(btn);
   });
-  if (data.pages[0]) loadPage(data.pages[0].slug);
+  const requestedPage = params.get('page');
+  if (requestedPage && data.pages.some(page => page.slug === requestedPage)) loadPage(requestedPage);
+  else if (data.pages[0]) loadPage(data.pages[0].slug);
 }
 
 savePage.addEventListener('click', async () => {

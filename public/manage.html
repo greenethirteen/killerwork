@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KillerWork™ Project Manager</title>
+  <link rel="stylesheet" href="/ui.css" />
+</head>
+<body>
+  <main class="manager-shell">
+    <header class="manager-header">
+      <a class="back-home" href="/">KillerWork™</a>
+      <div>
+        <h1>Manage projects</h1>
+        <p>Rename the portfolio, open project editors, delete unwanted projects, and rebuild the preview and ZIP.</p>
+      </div>
+    </header>
+
+    <section class="glass manager-panel">
+      <div class="manager-form">
+        <label>
+          <span>Portfolio name</span>
+          <input id="ownerNameInput" type="text" placeholder="Portfolio name" />
+        </label>
+        <label>
+          <span>Site title</span>
+          <input id="siteTitleInput" type="text" placeholder="Site title" />
+        </label>
+        <button id="savePortfolio" type="button">Save portfolio</button>
+      </div>
+      <div class="manager-actions">
+        <a id="portfolioPreview" class="button" target="_blank">Preview site</a>
+        <a id="portfolioEditor" class="button secondary" target="_blank">Edit pages</a>
+        <a id="portfolioZip" class="button hot">Download ZIP</a>
+        <button id="deletePortfolio" class="danger-button" type="button">Delete portfolio</button>
+      </div>
+      <div id="managerStatus" class="editor-status">Loading portfolio...</div>
+    </section>
+
+    <section id="projectList" class="project-manager-list"></section>
+  </main>
+  <script src="/manage.js"></script>
+</body>
+</html>

@@ -146,6 +146,82 @@ function publicProject(project) {
   };
 }
 
+function projectSummary(project, id) {
+  return {
+    title: project.title,
+    slug: project.slug,
+    images: (project.images || []).length,
+    videos: (project.videos || []).length,
+    documents: (project.documents || []).length,
+    preview: `/generated/${id}/site/work/${project.slug}/index.html`,
+    editor: `/editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`
+  };
+}
+
+function publicPortfolio(id, manifest, validation = null) {
+  return {
+    id,
+    siteTitle: manifest.siteTitle || '',
+    ownerName: manifest.ownerName || '',
+    sourceUrl: manifest.sourceUrl || '',
+    generatedAt: manifest.generatedAt || '',
+    preview: `/generated/${id}/site/index.html`,
+    review: `/generated/${id}/site/import-review.html`,
+    manifest: `/generated/${id}/manifest.json`,
+    zip: `/api/download/${id}`,
+    editor: `/editor.html?job=${encodeURIComponent(id)}`,
+    projects: (manifest.projects || []).map(project => projectSummary(project, id)),
+    validation
+  };
+}
+
+async function saveManifestAndRebuild(id, manifest) {
+  const outDir = jobDir(id);
+  await fs.writeJson(path.join(outDir, 'manifest.json'), manifest, { spaces: 2 });
+  await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), manifest, { spaces: 2 });
+  const siteDir = await generateSite(manifest, outDir);
+  const validation = await validateSite(siteDir);
+  await zipDir(siteDir, path.join(outDir, 'site.zip'));
+  return validation;
+}
+
+app.get('/api/manage/:id', async (req, res) => {
+  const manifest = await readManifest(req.params.id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  res.json(publicPortfolio(req.params.id, manifest));
+});
+
+app.put('/api/manage/:id', async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  const siteTitle = String(req.body?.siteTitle || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const ownerName = String(req.body?.ownerName || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (siteTitle) manifest.siteTitle = siteTitle;
+  if (ownerName) manifest.ownerName = ownerName;
+  const validation = await saveManifestAndRebuild(id, manifest);
+  res.json(publicPortfolio(id, manifest, validation));
+});
+
+app.delete('/api/manage/:id/projects/:slug', async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  const before = (manifest.projects || []).length;
+  manifest.projects = (manifest.projects || []).filter(project => project.slug !== req.params.slug);
+  if (manifest.projects.length === before) return res.status(404).json({ error: 'Project not found.' });
+  const validation = await saveManifestAndRebuild(id, manifest);
+  res.json(publicPortfolio(id, manifest, validation));
+});
+
+app.delete('/api/manage/:id', async (req, res) => {
+  const dir = jobDir(req.params.id);
+  if (!(await fs.pathExists(dir))) return res.status(404).json({ error: 'Portfolio not found.' });
+  await fs.remove(dir);
+  jobs.delete(req.params.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/editor/:id/pages', async (req, res) => {
   const manifest = await readManifest(req.params.id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
@@ -216,11 +292,7 @@ app.put('/api/editor/:id/pages/:slug', async (req, res) => {
   }
 
   const outDir = jobDir(id);
-  await fs.writeJson(path.join(outDir, 'manifest.json'), manifest, { spaces: 2 });
-  await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), manifest, { spaces: 2 });
-  const siteDir = await generateSite(manifest, outDir);
-  const validation = await validateSite(siteDir);
-  await zipDir(siteDir, path.join(outDir, 'site.zip'));
+  const validation = await saveManifestAndRebuild(id, manifest);
   res.json({ ok: true, validation, page: publicProject(project), preview: `/generated/${id}/site/work/${project.slug}/index.html` });
 });
 
