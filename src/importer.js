@@ -212,19 +212,30 @@ async function getHomepageProjects(page, url, progress) {
 
   return page.evaluate(() => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+    const cleanTitle = (s) => clean(String(s || '')
+      .replace(/<img\b[^>]*>/ig, ' ')
+      .replace(/^\d+\s+/, ' ')
+      .replace(/\s+/g, ' '));
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const origin = location.origin;
+    const currentPath = location.pathname.replace(/\/$/, '') || '/';
+    const excluded = new Set(['/', '/art', '/about', '/contact', '/contact-us', '/shop', '/store', '/blog']);
     const map = new Map();
     document.querySelectorAll('a[href]').forEach(a => {
       const href = abs(a.getAttribute('href'));
       if (!href || !href.startsWith(origin)) return;
       const u = new URL(href);
-      if (!u.pathname.startsWith('/work/')) return;
-      const slug = u.pathname.replace(/^\/work\//, '').replace(/\/$/, '');
-      if (!slug) return;
-      let title = clean(a.innerText) || clean(a.getAttribute('aria-label')) || slug.replace(/-/g, ' ');
-      let thumb = '';
+      const path = u.pathname.replace(/\/$/, '') || '/';
+      if (u.hash && path === currentPath) return;
+      if (excluded.has(path)) return;
       const img = a.querySelector('img') || a.closest('article,section,div')?.querySelector('img');
+      const hasThumb = !!img;
+      const isWorkPath = path.startsWith('/work/');
+      if (!isWorkPath && !hasThumb) return;
+      const slug = path.replace(/^\/work\//, '').replace(/^\//, '').replace(/\/$/, '');
+      if (!slug) return;
+      let title = cleanTitle(a.innerText) || cleanTitle(a.textContent) || cleanTitle(a.getAttribute('aria-label')) || slug.replace(/-/g, ' ');
+      let thumb = '';
       if (img) thumb = abs(img.currentSrc || img.src || img.getAttribute('data-src') || img.getAttribute('data-image'));
       map.set(slug, { slug, title, url: href, thumbnailUrl: thumb });
     });
@@ -362,6 +373,20 @@ function renderVideo(v, projectSlug, posterAsset = null) {
     return `<figure class="media video"><video class="hls-video" controls playsinline${posterAttr} data-hls-src="${htmlEscape(src)}"></video></figure>`;
   }
   return `<figure class="media video"><video controls playsinline${posterAttr} src="${htmlEscape(src)}"></video></figure>`;
+}
+
+function canonicalVideoKey(src = '', kind = '') {
+  let key = String(src || '').replace(/&amp;/g, '&').trim();
+  for (let i = 0; i < 2; i++) {
+    try {
+      const decoded = decodeURIComponent(key);
+      if (decoded === key) break;
+      key = decoded;
+    } catch {
+      break;
+    }
+  }
+  return `${kind}:${key.toLowerCase()}`;
 }
 
 function renderDocument(doc, projectSlug) {
@@ -687,7 +712,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       if (!src || isBadMediaUrl(src)) { if (String(v.src).startsWith('blob:')) warnings.push('Blob video ignored'); continue; }
       const type = mediaType(src);
       if (!['youtube','vimeo','hls','video'].includes(type) && v.kind !== 'iframe') continue;
-      const key = `${v.kind}:${src}`;
+      const key = canonicalVideoKey(src, v.kind);
       if (seenVid.has(key)) continue;
       seenVid.add(key);
       if (type === 'video') {
@@ -707,7 +732,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     }
 
     rawManifest.projects.push({
-      title: cleanTitle(data.title || base.title),
+      title: cleanTitle(base.title || data.title),
       slug,
       url: base.url,
       thumbnail,
