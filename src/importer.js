@@ -9,6 +9,17 @@ import { cleanupManifestWithAI } from './ai.js';
 import { safeSlug, hash, extFromUrl, normalizeUrl, canonicalImageKey, isBadMediaUrl, mediaType } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MAX_PROJECTS = 80;
+const EXCLUDED_DISCOVERY_PATHS = new Set([
+  '/', '/about', '/about-us', '/art', '/contact', '/contact-us', '/shop', '/store',
+  '/blog', '/journal', '/news', '/press', '/resume', '/cv', '/privacy', '/terms',
+  '/cart', '/checkout', '/search', '/login', '/account'
+]);
+const EXCLUDED_DISCOVERY_SEGMENTS = new Set([
+  'about', 'about-us', 'art', 'contact', 'contact-us', 'shop', 'store', 'blog',
+  'journal', 'news', 'press', 'resume', 'cv', 'privacy', 'terms', 'cart',
+  'checkout', 'search', 'login', 'account', 'category', 'tag', 'author'
+]);
 
 async function launchBrowser(progress) {
   const candidates = [
@@ -35,6 +46,61 @@ function cleanTitle(title = '', owner = '') {
   let t = String(title || '').replace(/\s*[—|-]\s*Abdullah.*$/i, '').replace(/\s*—\s*Imported Portfolio$/i, '').trim();
   if (owner) t = t.replace(new RegExp(`\\s*[—|-]\\s*${owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*$`, 'i'), '').trim();
   return t || 'Untitled';
+}
+
+function titleFromSlug(slug = 'project') {
+  return String(slug || 'project')
+    .split('/')
+    .filter(Boolean)
+    .pop()
+    ?.replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim() || 'Project';
+}
+
+function normalizeDiscoveryPath(url) {
+  try {
+    const u = new URL(url);
+    return u.pathname.replace(/\/+$/, '') || '/';
+  } catch {
+    return '/';
+  }
+}
+
+function isLikelyProjectPath(pathname = '/') {
+  const path = String(pathname || '/').replace(/\/+$/, '') || '/';
+  if (EXCLUDED_DISCOVERY_PATHS.has(path)) return false;
+  if (/\.(jpe?g|png|webp|gif|svg|pdf|zip|mp4|webm|mov|m3u8|css|js|json|xml|txt)$/i.test(path)) return false;
+  const parts = path.split('/').filter(Boolean);
+  if (!parts.length || parts.some(part => EXCLUDED_DISCOVERY_SEGMENTS.has(part.toLowerCase()))) return false;
+  return parts.length <= 4;
+}
+
+function mergeProjectCandidates(candidates = []) {
+  const bySlug = new Map();
+  for (const candidate of candidates) {
+    if (!candidate?.url) continue;
+    const path = normalizeDiscoveryPath(candidate.url);
+    if (!candidate.force && !isLikelyProjectPath(path)) continue;
+    const slug = candidate.slug || path.replace(/^\/work\//, '').replace(/^\//, '').replace(/\/$/, '');
+    if (!slug) continue;
+    const current = bySlug.get(slug);
+    const normalized = {
+      slug,
+      title: cleanTitle(candidate.title || titleFromSlug(slug)),
+      url: candidate.url,
+      thumbnailUrl: candidate.thumbnailUrl || '',
+      strategy: candidate.strategy || 'unknown',
+      score: Number(candidate.score || 0)
+    };
+    if (!current || normalized.score > current.score || (!current.thumbnailUrl && normalized.thumbnailUrl)) {
+      bySlug.set(slug, normalized);
+    }
+  }
+  return [...bySlug.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_PROJECTS)
+    .map(({ score, strategy, force, ...project }) => project);
 }
 
 async function extractPage(page, url, siteOrigin, progress) {
@@ -210,37 +276,138 @@ async function getHomepageProjects(page, url, progress) {
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(900);
 
-  return page.evaluate(() => {
+  const domCandidates = await page.evaluate(() => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const cleanTitle = (s) => clean(String(s || '')
       .replace(/<img\b[^>]*>/ig, ' ')
       .replace(/^\d+\s+/, ' ')
+      .replace(/^(view|open|see|watch)\s+(project|case study|work)\s*/i, ' ')
       .replace(/\s+/g, ' '));
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const origin = location.origin;
     const currentPath = location.pathname.replace(/\/$/, '') || '/';
-    const excluded = new Set(['/', '/art', '/about', '/contact', '/contact-us', '/shop', '/store', '/blog']);
+    const excluded = new Set(['/', '/art', '/about', '/about-us', '/contact', '/contact-us', '/shop', '/store', '/blog', '/journal', '/news', '/press', '/resume', '/cv', '/privacy', '/terms', '/cart', '/checkout', '/search', '/login', '/account']);
+    const excludedSegments = new Set(['about', 'about-us', 'art', 'contact', 'contact-us', 'shop', 'store', 'blog', 'journal', 'news', 'press', 'resume', 'cv', 'privacy', 'terms', 'cart', 'checkout', 'search', 'login', 'account', 'category', 'tag', 'author']);
     const map = new Map();
+    const likelyProjectPath = (path) => {
+      if (excluded.has(path)) return false;
+      if (/\.(jpe?g|png|webp|gif|svg|pdf|zip|mp4|webm|mov|m3u8|css|js|json|xml|txt)$/i.test(path)) return false;
+      const parts = path.split('/').filter(Boolean);
+      if (!parts.length || parts.some(part => excludedSegments.has(part.toLowerCase()))) return false;
+      return parts.length <= 4;
+    };
+    const bgImage = (el) => {
+      const nodes = [el, ...el.querySelectorAll?.('*') || []].slice(0, 12);
+      for (const node of nodes) {
+        const style = node.getAttribute?.('style') || '';
+        const m = style.match(/url\(["']?([^"')]+)["']?\)/i);
+        if (m) return abs(m[1]);
+      }
+      return '';
+    };
+    const thumbFor = (a) => {
+      const img = a.querySelector('img,picture source') || a.closest('article,section,div,li')?.querySelector('img,picture source');
+      const raw = img?.currentSrc || img?.src || img?.getAttribute?.('data-src') || img?.getAttribute?.('data-image') || img?.getAttribute?.('data-image-src') || img?.getAttribute?.('srcset')?.split(',')[0]?.trim()?.split(/\s+/)[0] || '';
+      return abs(raw) || bgImage(a.closest('article,section,div,li') || a);
+    };
+    const textFor = (a, slug) => {
+      const scope = a.closest('article,section,li,[class*="card"],[class*="grid"],[class*="item"],[class*="project"],[class*="work"],[class*="portfolio"]') || a;
+      const heading = scope.querySelector?.('h1,h2,h3,h4,[class*="title"],[class*="Title"],[class*="name"],[class*="Name"]');
+      const img = a.querySelector('img') || scope.querySelector?.('img');
+      return cleanTitle(heading?.textContent)
+        || cleanTitle(a.innerText)
+        || cleanTitle(a.textContent)
+        || cleanTitle(a.getAttribute('aria-label'))
+        || cleanTitle(a.getAttribute('title'))
+        || cleanTitle(img?.getAttribute('alt'))
+        || slug.replace(/-/g, ' ');
+    };
     document.querySelectorAll('a[href]').forEach(a => {
       const href = abs(a.getAttribute('href'));
       if (!href || !href.startsWith(origin)) return;
       const u = new URL(href);
       const path = u.pathname.replace(/\/$/, '') || '/';
       if (u.hash && path === currentPath) return;
-      if (excluded.has(path)) return;
-      const img = a.querySelector('img') || a.closest('article,section,div')?.querySelector('img');
-      const hasThumb = !!img;
+      if (!likelyProjectPath(path)) return;
+      const thumbnailUrl = thumbFor(a);
+      const hasThumb = !!thumbnailUrl;
       const isWorkPath = path.startsWith('/work/');
-      if (!isWorkPath && !hasThumb) return;
+      const classText = `${a.className || ''} ${a.closest('article,section,div,li')?.className || ''}`;
+      const looksLikePortfolioItem = /(project|portfolio|work|case|grid|gallery|thumb|card|item)/i.test(classText);
+      if (!isWorkPath && !hasThumb && !looksLikePortfolioItem) return;
       const slug = path.replace(/^\/work\//, '').replace(/^\//, '').replace(/\/$/, '');
       if (!slug) return;
-      let title = cleanTitle(a.innerText) || cleanTitle(a.textContent) || cleanTitle(a.getAttribute('aria-label')) || slug.replace(/-/g, ' ');
-      let thumb = '';
-      if (img) thumb = abs(img.currentSrc || img.src || img.getAttribute('data-src') || img.getAttribute('data-image'));
-      map.set(slug, { slug, title, url: href, thumbnailUrl: thumb });
+      const title = textFor(a, slug);
+      const score = (isWorkPath ? 80 : 0) + (hasThumb ? 60 : 0) + (looksLikePortfolioItem ? 30 : 0) + (title ? 10 : 0);
+      map.set(slug, { slug, title, url: href, thumbnailUrl, strategy: isWorkPath ? 'work-path' : hasThumb ? 'thumbnail-link' : 'portfolio-link', score });
     });
     return [...map.values()];
   });
+
+  const projects = mergeProjectCandidates(domCandidates);
+  progress?.('Project discovery', `${projects.length} homepage project candidate(s)`);
+  return projects;
+}
+
+async function discoverSitemapProjects(url, progress) {
+  const origin = new URL(url).origin;
+  const queue = [`${origin}/sitemap.xml`, `${origin}/sitemap_index.xml`];
+  const visited = new Set();
+  const urls = [];
+
+  while (queue.length && visited.size < 8 && urls.length < MAX_PROJECTS * 3) {
+    const sitemapUrl = queue.shift();
+    if (!sitemapUrl || visited.has(sitemapUrl)) continue;
+    visited.add(sitemapUrl);
+    try {
+      const res = await fetch(sitemapUrl, { redirect: 'follow' });
+      if (!res.ok || !/xml|text/i.test(res.headers.get('content-type') || '')) continue;
+      const text = await res.text();
+      const locs = [...text.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map(m => m[1].trim().replace(/&amp;/g, '&'));
+      for (const loc of locs) {
+        let parsed;
+        try { parsed = new URL(loc); } catch { continue; }
+        if (parsed.origin !== origin) continue;
+        if (/sitemap/i.test(parsed.pathname) && visited.size < 8) {
+          queue.push(parsed.href);
+          continue;
+        }
+        if (isLikelyProjectPath(parsed.pathname)) urls.push(parsed.href);
+      }
+    } catch (e) {
+      progress?.('Sitemap discovery warning', `${sitemapUrl}: ${e.message}`);
+    }
+  }
+
+  const candidates = urls.map(projectUrl => {
+    const path = normalizeDiscoveryPath(projectUrl);
+    const slug = path.replace(/^\/work\//, '').replace(/^\//, '');
+    const parts = path.split('/').filter(Boolean);
+    const score = (path.startsWith('/work/') ? 80 : 0) + (parts.length > 1 ? 25 : 10);
+    return {
+      slug,
+      title: titleFromSlug(slug),
+      url: projectUrl,
+      thumbnailUrl: '',
+      strategy: 'sitemap',
+      score
+    };
+  });
+  const projects = mergeProjectCandidates(candidates);
+  progress?.('Sitemap discovery', `${projects.length} sitemap project candidate(s)`);
+  return projects;
+}
+
+function singlePageProject(url, siteUrl) {
+  const hostTitle = siteUrl.hostname.replace(/^www\./, '');
+  return {
+    slug: safeSlug(hostTitle || 'portfolio'),
+    title: hostTitle || 'Portfolio',
+    url,
+    thumbnailUrl: '',
+    strategy: 'single-page',
+    force: true
+  };
 }
 
 async function downloadAsset(url, assetsDir, progress, cache) {
@@ -659,10 +826,14 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   progress('Scanning homepage', url);
   let projects = await getHomepageProjects(page, url, progress);
   if (!projects.length) {
-    const data = await extractPage(page, url, siteUrl.origin, progress);
-    projects = data.links.filter(l => l.href.startsWith(siteUrl.origin + '/work/')).map(l => ({ url: l.href, title: l.text || l.href.split('/').filter(Boolean).pop(), slug: l.href.split('/').filter(Boolean).pop(), thumbnailUrl: '' }));
+    progress('Scanning sitemap', siteUrl.origin);
+    projects = await discoverSitemapProjects(url, progress);
   }
-  projects = [...new Map(projects.map(p => [p.slug, p])).values()];
+  if (!projects.length) {
+    progress('Project discovery fallback', 'No project index detected; importing the submitted page as a portfolio page');
+    projects = [singlePageProject(url, siteUrl)];
+  }
+  projects = mergeProjectCandidates(projects);
   progress('Found projects', `${projects.length} project pages`);
 
   const cache = new Map();
