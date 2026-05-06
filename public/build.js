@@ -1,5 +1,4 @@
 const form = document.getElementById('campaignBuilder');
-const portfolioTitle = document.getElementById('portfolioTitle');
 const campaignList = document.getElementById('campaignList');
 const addCampaign = document.getElementById('addCampaign');
 const buildCampaigns = document.getElementById('buildCampaigns');
@@ -19,23 +18,50 @@ const downloadLink = document.getElementById('downloadLink');
 
 let timer;
 
+function renumberCampaigns() {
+  [...campaignList.querySelectorAll('.campaign-card')].forEach((card, index) => {
+    card.querySelector('[data-campaign-number]').textContent = String(index + 1);
+    card.querySelector('.remove-campaign').classList.toggle('hidden', campaignList.children.length === 1);
+  });
+}
+
+function updateFileSummary(card) {
+  const input = card.querySelector('[data-field="files"]');
+  const summary = card.querySelector('[data-file-summary]');
+  const count = input.files?.length || 0;
+  summary.textContent = count ? `${count} file${count === 1 ? '' : 's'} selected` : 'No files selected';
+}
+
 function addCampaignCard() {
   const node = template.content.firstElementChild.cloneNode(true);
   node.querySelector('.remove-campaign').addEventListener('click', () => {
-    if (campaignList.children.length > 1) node.remove();
+    if (campaignList.children.length > 1) {
+      node.remove();
+      renumberCampaigns();
+    }
   });
+  const drop = node.querySelector('.asset-drop');
+  const input = node.querySelector('[data-field="files"]');
+  input.addEventListener('change', () => updateFileSummary(node));
+  ['dragenter', 'dragover'].forEach(type => drop.addEventListener(type, event => {
+    event.preventDefault();
+    drop.classList.add('dragging');
+  }));
+  ['dragleave', 'drop'].forEach(type => drop.addEventListener(type, event => {
+    event.preventDefault();
+    drop.classList.remove('dragging');
+  }));
   campaignList.appendChild(node);
+  renumberCampaigns();
+  node.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function campaignData(card) {
   const read = field => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
+  const number = [...campaignList.children].indexOf(card) + 1;
   return {
-    title: read('title'),
-    brand: read('brand'),
-    campaign: read('campaign'),
-    agency: read('agency'),
-    role: read('role'),
-    awards: read('awards'),
+    title: `Campaign ${number}`,
+    campaign: `Campaign ${number}`,
     notes: read('notes')
   };
 }
@@ -85,7 +111,7 @@ form.addEventListener('submit', async event => {
   }
 
   const body = new FormData();
-  body.append('title', portfolioTitle.value.trim());
+  body.append('title', 'Uploaded Portfolio');
   body.append('campaigns', JSON.stringify(campaigns));
   cards.forEach((card, index) => {
     const files = card.querySelector('[data-field="files"]')?.files || [];
