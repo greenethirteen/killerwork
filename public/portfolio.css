@@ -6,4 +6,5 @@
 .media.document iframe{aspect-ratio:4/5;min-height:720px}
 .media.document figcaption{text-align:center;margin-top:12px;color:var(--muted)}
 .media.audio{max-width:780px;margin-left:auto;margin-right:auto;border:1px solid var(--line);border-radius:24px;background:#15151c;padding:22px}.media.audio figcaption{margin:0 0 14px;color:#ded8ce;font-weight:800}.media.audio audio{width:100%}
+.source-clone{width:100%;margin:0 auto}.source-clone img,.source-clone video,.source-clone iframe{max-width:100%;height:auto}
 @media(max-width:650px){.media.document iframe{min-height:520px}}

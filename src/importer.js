@@ -13,6 +13,7 @@ const MAX_PROJECTS = 80;
 const EXCLUDED_DISCOVERY_PATHS = new Set([
   '/', '/about', '/about-us', '/art', '/contact', '/contact-us', '/shop', '/store',
   '/blog', '/journal', '/news', '/press', '/resume', '/cv', '/privacy', '/terms',
+  '/work', '/portfolio', '/portfolios', '/projects', '/new-products', '/produce',
   '/cart', '/checkout', '/search', '/login', '/account'
 ]);
 const EXCLUDED_DISCOVERY_SEGMENTS = new Set([
@@ -100,7 +101,35 @@ function mergeProjectCandidates(candidates = []) {
   return [...bySlug.values()]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_PROJECTS)
-    .map(({ score, strategy, force, ...project }) => project);
+    .map(({ score, force, ...project }) => project);
+}
+
+function scoreAssetRef(ref = {}) {
+  const visible = ref.visible === false ? 0 : 1;
+  const area = Number(ref.area || 0);
+  const width = Number(ref.width || 0);
+  const height = Number(ref.height || 0);
+  const order = Number(ref.order || 0);
+  return (visible * 1e10) + (area * 1000) + (width * 10) + height - order;
+}
+
+function pickBestAssetRef(current, candidate) {
+  if (!current) return candidate;
+  return scoreAssetRef(candidate) > scoreAssetRef(current) ? candidate : current;
+}
+
+function submittedProjectCandidate(url) {
+  const path = normalizeDiscoveryPath(url);
+  const slug = path.replace(/^\/work\//, '').replace(/^\//, '').replace(/\/$/, '');
+  return {
+    slug: safeSlug(slug || titleFromSlug(path)),
+    title: titleFromSlug(slug || path),
+    url,
+    thumbnailUrl: '',
+    strategy: 'submitted-project',
+    score: 1000,
+    force: true
+  };
 }
 
 async function extractPage(page, url, siteOrigin, progress) {
@@ -130,20 +159,46 @@ async function extractPage(page, url, siteOrigin, progress) {
 
     const pageTitle = clean(document.querySelector('h1')?.innerText) || clean(document.title).replace(/\s*[—|-]\s*Abdullah.*$/i, '') || 'Untitled';
     const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.querySelector('.Main') || document.body;
+    main.querySelectorAll('*').forEach((node, index) => node.setAttribute('data-killerwork-node', String(index + 1)));
     const clone = main.cloneNode(true);
     removeSelectors.forEach(sel => clone.querySelectorAll(sel).forEach(n => n.remove()));
+    const bodyStyle = getComputedStyle(document.body);
+    const mainStyle = getComputedStyle(main);
 
     const images = [];
     const videos = [];
     const copyBlocks = [];
     const contentItems = [];
 
-    function addImage(raw, alt, order, { content = true } = {}) {
+    const pageStyle = {
+      backgroundColor: clean(mainStyle.backgroundColor && mainStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' ? mainStyle.backgroundColor : bodyStyle.backgroundColor),
+      textColor: clean(mainStyle.color || bodyStyle.color),
+      contentWidth: Math.round(main.getBoundingClientRect().width || 0)
+    };
+
+    function mediaMetaFrom(el) {
+      const rect = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
+      const style = el ? getComputedStyle(el) : null;
+      const width = Math.round(rect.width || 0);
+      const height = Math.round(rect.height || 0);
+      const visible = !!style
+        && style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && Number(style.opacity || 1) !== 0
+        && !el.closest?.('[aria-hidden="true"], [hidden], .hidden, .visually-hidden')
+        && width > 0
+        && height > 0;
+      return { width, height, area: width * height, visible };
+    }
+
+    function addImage(raw, alt, order, { content = true, meta = null } = {}) {
       const full = abs(raw);
       if (!full || full.startsWith('data:') || full.startsWith('blob:')) return;
-      images.push({ url: full, alt: clean(alt), order });
-      if (content) contentItems.push({ type: 'image', url: full, alt: clean(alt), order });
-      return { url: full, alt: clean(alt), order };
+      if (meta?.width && meta?.height && meta.width < 48 && meta.height < 48) return;
+      const payload = { url: full, alt: clean(alt), order, ...(meta || {}) };
+      images.push(payload);
+      if (content) contentItems.push({ type: 'image', url: full, alt: clean(alt), order, ...(meta || {}) });
+      return payload;
     }
 
     function addText(el, order) {
@@ -156,7 +211,7 @@ async function extractPage(page, url, siteOrigin, progress) {
       contentItems.push({ type: 'text', ...item });
     }
 
-    function addVideo(kind, raw, title, order) {
+    function addVideo(kind, raw, title, order, meta = null) {
       if (!raw) return;
       let value = String(raw).trim().replace(/&amp;/g, '&');
       let src = abs(value);
@@ -164,11 +219,11 @@ async function extractPage(page, url, siteOrigin, progress) {
         try { src = abs(decodeURIComponent(value)); } catch {}
       }
       if (!src) return;
-      videos.push({ kind, src, title: clean(title), order });
-      contentItems.push({ type: 'video', kind, src, title: clean(title), order });
+      videos.push({ kind, src, title: clean(title), order, ...(meta || {}) });
+      contentItems.push({ type: 'video', kind, src, title: clean(title), order, ...(meta || {}) });
     }
 
-    function addVideosFromText(raw, order, title = '') {
+    function addVideosFromText(raw, order, title = '', meta = null) {
       const text = String(raw || '').replace(/\\\//g, '/').replace(/&amp;/g, '&');
       const candidates = [text];
       try {
@@ -178,12 +233,12 @@ async function extractPage(page, url, siteOrigin, progress) {
       for (const candidate of candidates) {
         for (const m of candidate.matchAll(videoUrlPattern)) {
           const kind = /\.(m3u8|mp4|webm|mov)(\?|$)/i.test(m[0]) ? 'video' : 'iframe';
-          addVideo(kind, m[0], title, order);
+          addVideo(kind, m[0], title, order, meta);
         }
       }
     }
 
-    function addNativeVideoConfig(raw, order, title = '') {
+    function addNativeVideoConfig(raw, order, title = '', meta = null) {
       if (!raw) return;
       let text = String(raw).replace(/&quot;/g, '"').replace(/&amp;/g, '&');
       try { text = decodeURIComponent(text); } catch {}
@@ -191,10 +246,10 @@ async function extractPage(page, url, siteOrigin, progress) {
         const config = JSON.parse(text);
         const template = config.alexandriaUrl || '';
         if (template.includes('{variant}')) {
-          addVideo('video', template.replace('{variant}', 'playlist.m3u8'), title || config.id || '', order);
+          addVideo('video', template.replace('{variant}', 'playlist.m3u8'), title || config.id || '', order, meta);
         }
       } catch {
-        addVideosFromText(text, order, title);
+        addVideosFromText(text, order, title, meta);
       }
     }
 
@@ -203,7 +258,7 @@ async function extractPage(page, url, siteOrigin, progress) {
       const items = [...imageScope.querySelectorAll('img')]
         .map(img => {
           const raw = img.getAttribute('data-src') || img.getAttribute('data-image') || img.getAttribute('src') || img.currentSrc || img.src || '';
-          const added = addImage(raw, img.getAttribute('alt') || pageTitle, order, { content: false });
+          const added = addImage(raw, img.getAttribute('alt') || pageTitle, order, { content: false, meta: mediaMetaFrom(img) });
           return added ? { url: added.url, alt: added.alt } : null;
         })
         .filter(Boolean);
@@ -223,11 +278,14 @@ async function extractPage(page, url, siteOrigin, progress) {
     while (walker.nextNode()) {
       const el = walker.currentNode;
       order += 1;
+      const nodeId = el.getAttribute?.('data-killerwork-node');
+      const liveEl = nodeId ? document.querySelector(`[data-killerwork-node="${nodeId}"]`) : null;
+      const mediaMeta = mediaMetaFrom(liveEl);
       const tag = el.tagName.toLowerCase();
       const gallerySelector = '[data-test="gallery-slideshow-simple"], .gallery-slideshow-simple, .sqs-gallery-design-slideshow';
       const galleryRoot = el.matches?.(gallerySelector);
       if (galleryRoot && ![...el.querySelectorAll(gallerySelector)].some(child => child !== el)) {
-        addGallery(el, order);
+        addGallery(liveEl || el, order);
         continue;
       }
       if (el.closest?.(gallerySelector)) continue;
@@ -236,25 +294,25 @@ async function extractPage(page, url, siteOrigin, progress) {
         ['src','currentSrc','data-src','data-image','data-image-src','srcset','data-srcset'].forEach(a => {
           let v = a === 'currentSrc' ? el.currentSrc : el.getAttribute(a);
           if (!v) return;
-          String(v).split(',').forEach(part => addImage(part.trim().split(/\s+/)[0], el.getAttribute('alt') || pageTitle, order));
+          String(v).split(',').forEach(part => addImage(part.trim().split(/\s+/)[0], el.getAttribute('alt') || pageTitle, order, { meta: mediaMeta }));
         });
       }
       const style = el.getAttribute('style') || '';
       if (style.includes('background')) {
-        [...style.matchAll(/url\(["']?([^"')]+)["']?\)/g)].forEach(m => addImage(m[1], pageTitle, order));
+        [...style.matchAll(/url\(["']?([^"')]+)["']?\)/g)].forEach(m => addImage(m[1], pageTitle, order, { meta: mediaMeta }));
       }
       if (tag === 'iframe') {
-        ['src','data-src','data-url','data-embed-url','data-video-url'].forEach(a => addVideo('iframe', el.getAttribute(a), el.getAttribute('title'), order));
-        addVideosFromText(el.getAttribute('srcdoc'), order, el.getAttribute('title'));
+        ['src','data-src','data-url','data-embed-url','data-video-url'].forEach(a => addVideo('iframe', el.getAttribute(a), el.getAttribute('title'), order, mediaMeta));
+        addVideosFromText(el.getAttribute('srcdoc'), order, el.getAttribute('title'), mediaMeta);
       }
       if (tag === 'video' || (tag === 'source' && el.closest('video'))) {
-        ['src','currentSrc','data-src','data-url','data-video-url'].forEach(a => addVideo('video', a === 'currentSrc' ? el.currentSrc : el.getAttribute(a), '', order));
-        if (tag === 'video') el.querySelectorAll('source[src],source[data-src]').forEach(source => addVideo('video', source.getAttribute('src') || source.getAttribute('data-src'), '', order));
+        ['src','currentSrc','data-src','data-url','data-video-url'].forEach(a => addVideo('video', a === 'currentSrc' ? el.currentSrc : el.getAttribute(a), '', order, mediaMeta));
+        if (tag === 'video') el.querySelectorAll('source[src],source[data-src]').forEach(source => addVideo('video', source.getAttribute('src') || source.getAttribute('data-src'), '', order, mediaMeta));
       }
-      addNativeVideoConfig(el.getAttribute('data-config-video'), order, clean(el.getAttribute('title') || el.getAttribute('aria-label')));
+      addNativeVideoConfig(el.getAttribute('data-config-video'), order, clean(el.getAttribute('title') || el.getAttribute('aria-label')), mediaMeta);
       ['data-html','data-url','data-video-url','data-embed-url','data-config','data-block-json','data-provider-url'].forEach(a => {
         const value = el.getAttribute(a);
-        if (value) addVideosFromText(value, order, clean(el.getAttribute('title') || el.getAttribute('aria-label')));
+        if (value) addVideosFromText(value, order, clean(el.getAttribute('title') || el.getAttribute('aria-label')), mediaMeta);
       });
     }
 
@@ -262,12 +320,115 @@ async function extractPage(page, url, siteOrigin, progress) {
       addVideosFromText(script.textContent, order + i + 1, pageTitle);
     });
 
+    function serializeStyle(style) {
+      return Array.from(style || [])
+        .map(prop => `${prop}:${style.getPropertyValue(prop)}${style.getPropertyPriority(prop) ? ' !important' : ''};`)
+        .join('');
+    }
+
+    function canonicalSourceAsset(raw = '') {
+      const value = String(raw || '').trim();
+      if (!value) return '';
+      try {
+        const u = new URL(value, location.href);
+        u.hash = '';
+        u.searchParams.delete('format');
+        return u.href.toLowerCase();
+      } catch {
+        return value.split('?')[0].toLowerCase();
+      }
+    }
+
+    const styledClone = main.cloneNode(true);
+    removeSelectors.forEach(sel => styledClone.querySelectorAll(sel).forEach(n => n.remove()));
+    const originalsById = new Map(
+      [...main.querySelectorAll('[data-killerwork-node]')].map(node => [node.getAttribute('data-killerwork-node'), node])
+    );
+    const bestImages = new Map();
+    main.querySelectorAll('img').forEach(img => {
+      const key = canonicalSourceAsset(img.currentSrc || img.getAttribute('data-image') || img.getAttribute('data-src') || img.getAttribute('src') || '');
+      if (!key) return;
+      const meta = mediaMetaFrom(img);
+      if (meta.width < 48 && meta.height < 48) return;
+      const current = bestImages.get(key);
+      if (!current || meta.area > current.area) bestImages.set(key, { id: img.getAttribute('data-killerwork-node'), area: meta.area });
+    });
+    [styledClone, ...styledClone.querySelectorAll('*')].forEach(node => {
+      const id = node.getAttribute?.('data-killerwork-node');
+      const source = id ? originalsById.get(id) : main;
+      if (!source) {
+        node.remove?.();
+        return;
+      }
+      const tag = node.tagName?.toLowerCase() || '';
+      const meta = mediaMetaFrom(source);
+      const className = String(node.getAttribute?.('class') || '');
+      const textContent = clean(node.textContent || '');
+      if (/tiny-thumb/i.test(className) || ((meta.width < 48 && meta.height < 48) && !textContent && !['img', 'video', 'iframe'].includes(tag))) {
+        node.remove();
+        return;
+      }
+      if (tag === 'img') {
+        const resolved = source.currentSrc || source.getAttribute('data-image') || source.getAttribute('data-src') || source.getAttribute('src') || '';
+        const key = canonicalSourceAsset(resolved);
+        const best = bestImages.get(key);
+        if ((meta.width < 48 && meta.height < 48) || (best && best.id !== id)) {
+          node.remove();
+          return;
+        }
+        node.setAttribute('src', resolved);
+        node.removeAttribute('srcset');
+        node.removeAttribute('sizes');
+        if (meta.width) node.setAttribute('width', String(meta.width));
+        if (meta.height) node.setAttribute('height', String(meta.height));
+      }
+      if (tag === 'source') {
+        const resolved = source.currentSrc || source.getAttribute('src') || source.getAttribute('data-src') || '';
+        if (resolved) node.setAttribute('src', resolved);
+        node.removeAttribute('srcset');
+        node.removeAttribute('sizes');
+      }
+      if (tag === 'video') {
+        const resolved = source.currentSrc || source.getAttribute('src') || source.getAttribute('data-src') || '';
+        if (resolved) node.setAttribute('src', resolved);
+        node.setAttribute('controls', '');
+        node.setAttribute('playsinline', '');
+      }
+      if (tag === 'iframe') {
+        const resolved = source.getAttribute('src') || source.getAttribute('data-src') || source.getAttribute('data-embed-url') || source.getAttribute('data-video-url') || '';
+        if (resolved) node.setAttribute('src', resolved);
+      }
+      node.setAttribute('style', serializeStyle(getComputedStyle(source)));
+      [...(node.getAttributeNames?.() || [])].forEach(name => {
+        if (name.startsWith('data-') && name !== 'data-killerwork-node') node.removeAttribute(name);
+      });
+      node.removeAttribute('data-killerwork-node');
+      node.removeAttribute('loading');
+      node.removeAttribute('decoding');
+    });
+
     const links = [...document.querySelectorAll('a[href]')].map(a => ({ href: abs(a.getAttribute('href')), text: clean(a.innerText) }));
-    return { title: pageTitle, copyBlocks, images, videos, contentItems, links };
+    return {
+      title: pageTitle,
+      copyBlocks,
+      images,
+      videos,
+      contentItems,
+      links,
+      pageStyle,
+      sourceCloneHtml: styledClone.innerHTML,
+      sourceCloneStyle: serializeStyle(getComputedStyle(main))
+    };
   }, siteOrigin);
 
   progress?.('Extracted page', `${data.title} — ${data.images.length} image refs, ${data.videos.length} video refs`);
   return data;
+}
+
+function looksLikeNotFoundPage(data = {}) {
+  const text = (data.copyBlocks || []).map(block => block.text || '').join('\n').toLowerCase();
+  return text.includes("we couldn't find the page you were looking for")
+    || text.includes('the page you are looking for has been moved or deleted');
 }
 
 async function getHomepageProjects(page, url, progress) {
@@ -532,14 +693,15 @@ function renderVideo(v, projectSlug, posterAsset = null) {
   const src = relFromPage(projectSlug, v.src);
   const poster = posterAsset?.src ? relFromPage(projectSlug, posterAsset.src) : '';
   const posterAttr = poster ? ` poster="${htmlEscape(poster)}"` : '';
+  const style = v?.width ? ` style="max-width:${Math.round(v.width)}px"` : '';
   if (!src || src.startsWith('blob:') || src.includes('mpegts-') || src.endsWith('.bin') || src.endsWith('.ts')) return '';
   if (v.kind === 'iframe' || v.type === 'iframe' || mediaType(src) === 'youtube' || mediaType(src) === 'vimeo') {
-    return `<figure class="media video"><iframe src="${htmlEscape(src)}" title="Video" loading="lazy" allowfullscreen></iframe></figure>`;
+    return `<figure class="media video"${style}><iframe src="${htmlEscape(src)}" title="Video" loading="lazy" allowfullscreen></iframe></figure>`;
   }
   if (v.type === 'hls' || mediaType(src) === 'hls') {
-    return `<figure class="media video"><video class="hls-video" controls playsinline${posterAttr} data-hls-src="${htmlEscape(src)}"></video></figure>`;
+    return `<figure class="media video"${style}><video class="hls-video" controls playsinline${posterAttr} data-hls-src="${htmlEscape(src)}"></video></figure>`;
   }
-  return `<figure class="media video"><video controls playsinline${posterAttr} src="${htmlEscape(src)}"></video></figure>`;
+  return `<figure class="media video"${style}><video controls playsinline${posterAttr} src="${htmlEscape(src)}"></video></figure>`;
 }
 
 function canonicalVideoKey(src = '', kind = '') {
@@ -560,7 +722,8 @@ function renderDocument(doc, projectSlug) {
   if (!doc?.src) return '';
   const src = relFromPage(projectSlug, doc.src);
   const title = doc.title || doc.original || 'PDF';
-  return `<figure class="media document"><iframe src="${htmlEscape(src)}" title="${htmlEscape(title)}" loading="lazy"></iframe><figcaption><a href="${htmlEscape(src)}" target="_blank" rel="noopener">Open PDF</a></figcaption></figure>`;
+  const style = doc?.width ? ` style="max-width:${Math.round(doc.width)}px"` : '';
+  return `<figure class="media document"${style}><iframe src="${htmlEscape(src)}" title="${htmlEscape(title)}" loading="lazy"></iframe><figcaption><a href="${htmlEscape(src)}" target="_blank" rel="noopener">Open PDF</a></figcaption></figure>`;
 }
 
 function renderAudio(audio, projectSlug) {
@@ -572,7 +735,10 @@ function renderAudio(audio, projectSlug) {
 
 function renderImage(img, projectSlug, title) {
   if (!img?.src) return '';
-  return `<figure class="media image"><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="lazy"></figure>`;
+  const size = img?.width ? ` style="max-width:${Math.round(img.width)}px"` : '';
+  const widthAttr = img?.width ? ` width="${Math.round(img.width)}"` : '';
+  const heightAttr = img?.height ? ` height="${Math.round(img.height)}"` : '';
+  return `<figure class="media image"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="lazy"${widthAttr}${heightAttr}></figure>`;
 }
 
 function renderGallery(imageIndexes = [], project) {
@@ -652,13 +818,13 @@ function renderOrderedContent(project) {
       const key = item.type === 'gallery'
         ? `gallery:${item.order}:${(item.imageIndexes || []).join(',')}`
         : item.type === 'image'
-          ? `image:${item.order}:${item.imageIndex}`
+          ? `image:${item.imageIndex}`
           : item.type === 'video'
-            ? `video:${item.order}:${item.videoIndex}`
+            ? `video:${item.videoIndex}`
             : item.type === 'document'
-              ? `document:${item.order}:${item.documentIndex}`
+              ? `document:${item.documentIndex}`
               : item.type === 'audio'
-                ? `audio:${item.order}:${item.audioIndex}`
+                ? `audio:${item.audioIndex}`
               : `text:${item.order}:${String(item.text || '').toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -677,6 +843,22 @@ function renderOrderedContent(project) {
     return '';
   }).filter(Boolean).join('\n');
   return html ? `<section class="media-stack source-order">${html}</section>` : renderFallbackMedia(project);
+}
+
+function renderSourceClone(project) {
+  if (!project.sourceCloneHtml) return '';
+  const wrapperStyle = project.sourceCloneStyle ? ` style="${htmlEscape(project.sourceCloneStyle)}"` : '';
+  return `<section class="source-clone"${wrapperStyle}>${project.sourceCloneHtml}</section>`;
+}
+
+function rewriteCloneAssetUrls(html, replacements = []) {
+  let out = String(html || '');
+  for (const { from, to } of replacements) {
+    if (!from || !to) continue;
+    const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(escaped, 'g'), to);
+  }
+  return out;
 }
 
 export async function generateSite(manifest, outDir, progress) {
@@ -715,15 +897,25 @@ export async function generateSite(manifest, outDir, progress) {
     p.videos = p.videos || [];
     p.audios = p.audios || [];
     p.documents = p.documents || [];
-    const mediaHtml = renderOrderedContent(p);
+    const cloneHtml = renderSourceClone(p);
+    const mediaHtml = cloneHtml || renderOrderedContent(p);
     const meta = renderMetaBlocks(p);
-    const hasInlineText = (p.contentItems || []).some(item => item.type === 'text');
+    const hasInlineText = cloneHtml || (p.contentItems || []).some(item => item.type === 'text');
     const showMeta = !hasInlineText ? meta : '';
     const intro = '';
-    const needsHls = p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls');
+    const needsHls = !cloneHtml && p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls');
     const needsGallery = (p.contentItems || []).some(item => item.type === 'gallery');
     const sourceNote = p.url && p.url !== '#uploaded' ? `<footer class="source-note"><a href="${htmlEscape(p.url)}">Original page</a></footer>` : '';
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project"><header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header><main class="project-page"><header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1>${htmlEscape(p.title)}</h1>${intro}</header>${mediaHtml}${showMeta}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+    const pageVars = [
+      p.pageStyle?.backgroundColor ? `--bg:${p.pageStyle.backgroundColor}` : '',
+      p.pageStyle?.textColor ? `--fg:${p.pageStyle.textColor}` : '',
+      p.pageStyle?.textColor ? `--muted:${p.pageStyle.textColor}` : ''
+    ].filter(Boolean).join(';');
+    const mainStyle = p.pageStyle?.contentWidth ? ` style="max-width:${Math.max(760, Math.round(p.pageStyle.contentWidth))}px"` : '';
+    const headerHtml = cloneHtml
+      ? ''
+      : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a></header>`;
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header><main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
@@ -787,10 +979,26 @@ function enrichContentItems(items, imageIndexByKey, videoIndexBySrc) {
   const enriched = (items || []).map(item => {
     if (item.type === 'image') {
       const key = canonicalImageKey(item.url);
-      return { type: 'image', order: item.order, alt: item.alt || '', imageIndex: imageIndexByKey.get(key), original: item.url };
+      return {
+        type: 'image',
+        order: item.order,
+        alt: item.alt || '',
+        imageIndex: imageIndexByKey.get(key),
+        original: item.url,
+        width: Number(item.width || 0),
+        height: Number(item.height || 0)
+      };
     }
     if (item.type === 'video') {
-      return { type: 'video', order: item.order, title: item.title || '', videoIndex: videoIndexBySrc.get(item.src), original: item.src };
+      return {
+        type: 'video',
+        order: item.order,
+        title: item.title || '',
+        videoIndex: videoIndexBySrc.get(item.src),
+        original: item.src,
+        width: Number(item.width || 0),
+        height: Number(item.height || 0)
+      };
     }
     if (item.type === 'gallery') {
       const imageIndexes = (item.images || [])
@@ -804,16 +1012,28 @@ function enrichContentItems(items, imageIndexByKey, videoIndexBySrc) {
   const out = [];
   const seen = new Set();
   const hasVideo = videoIndexBySrc.size > 0;
+  const galleryIndexes = new Set(enriched.filter(item => item.type === 'gallery').flatMap(item => item.imageIndexes || []));
+  const seenImageIndexes = new Set();
+  const seenVideoIndexes = new Set();
   for (const item of enriched) {
     if (item.type === 'image' && hasVideo && /video\.squarespace-cdn\.com\/.+\/thumbnail(?:\?|$)/i.test(item.original || '')) {
       continue;
     }
+    if (item.type === 'image' && galleryIndexes.has(item.imageIndex)) continue;
+    if (item.type === 'image') {
+      if (seenImageIndexes.has(item.imageIndex)) continue;
+      seenImageIndexes.add(item.imageIndex);
+    }
+    if (item.type === 'video') {
+      if (seenVideoIndexes.has(item.videoIndex)) continue;
+      seenVideoIndexes.add(item.videoIndex);
+    }
     const key = item.type === 'gallery'
       ? `gallery:${item.order}:${item.imageIndexes.join(',')}`
       : item.type === 'image'
-        ? `image:${item.order}:${item.imageIndex}`
+        ? `image:${item.imageIndex}`
         : item.type === 'video'
-          ? `video:${item.order}:${item.videoIndex}`
+          ? `video:${item.videoIndex}`
           : `text:${item.order}:${String(item.text || '').toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -835,16 +1055,23 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   const context = await browser.newContext({ viewport: { width: 1440, height: 1200 }, userAgent: 'Mozilla/5.0 KillerWorkImporter/0.8' });
   const page = await context.newPage();
   const siteUrl = new URL(url);
+  const inputPath = normalizeDiscoveryPath(url);
 
-  progress('Scanning homepage', url);
-  let projects = await getHomepageProjects(page, url, progress);
-  if (!projects.length) {
-    progress('Scanning sitemap', siteUrl.origin);
-    projects = await discoverSitemapProjects(url, progress);
-  }
-  if (!projects.length) {
-    progress('Project discovery fallback', 'No project index detected; importing the submitted page as a portfolio page');
-    projects = [singlePageProject(url, siteUrl)];
+  let projects = [];
+  if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
+    progress('Submitted project URL', url);
+    projects = [submittedProjectCandidate(url)];
+  } else {
+    progress('Scanning homepage', url);
+    projects = await getHomepageProjects(page, url, progress);
+    if (!projects.length) {
+      progress('Scanning sitemap', siteUrl.origin);
+      projects = await discoverSitemapProjects(url, progress);
+    }
+    if (!projects.length) {
+      progress('Project discovery fallback', 'No project index detected; importing the submitted page as a portfolio page');
+      projects = [singlePageProject(url, siteUrl)];
+    }
   }
   projects = mergeProjectCandidates(projects);
   progress('Found projects', `${projects.length} project pages`);
@@ -853,10 +1080,21 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   const rawManifest = { sourceUrl: url, siteTitle: 'Imported Portfolio', ownerName: siteUrl.hostname.replace(/^www\./, ''), projects: [], generatedAt: new Date().toISOString() };
 
   for (let i = 0; i < projects.length; i++) {
-    const base = projects[i];
+    const base = { ...projects[i] };
     const pProgress = `${i + 1}/${projects.length}`;
     progress(`Crawling project ${pProgress}`, base.title);
-    const data = await extractPage(page, base.url, siteUrl.origin, progress);
+    let data = await extractPage(page, base.url, siteUrl.origin, progress);
+    if (base.strategy === 'submitted-project' && looksLikeNotFoundPage(data) && normalizeDiscoveryPath(base.url).startsWith('/work/')) {
+      const fallbackSlug = normalizeDiscoveryPath(base.url).replace(/^\/work\//, '').replace(/\/$/, '');
+      const fallbackUrl = `${siteUrl.origin}/${fallbackSlug}/`;
+      progress(`Retrying project ${pProgress}`, fallbackUrl);
+      const retried = await extractPage(page, fallbackUrl, siteUrl.origin, progress);
+      if (!looksLikeNotFoundPage(retried) && (retried.images?.length || retried.videos?.length)) {
+        base.url = fallbackUrl;
+        base.slug = safeSlug(fallbackSlug || base.slug);
+        data = retried;
+      }
+    }
     const slug = base.slug || safeSlug(data.title);
     const warnings = [];
 
@@ -865,7 +1103,17 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       const u = normalizeUrl(img.url, base.url);
       if (!u || isBadMediaUrl(u)) continue;
       const key = canonicalImageKey(u);
-      if (!imageMap.has(key)) imageMap.set(key, { url: u, alt: img.alt || data.title, order: img.order || 0, key });
+      const next = {
+        url: u,
+        alt: img.alt || data.title,
+        order: img.order || 0,
+        key,
+        width: Number(img.width || 0),
+        height: Number(img.height || 0),
+        area: Number(img.area || 0),
+        visible: img.visible !== false
+      };
+      imageMap.set(key, pickBestAssetRef(imageMap.get(key), next));
     }
     let imageRefs = [...imageMap.values()].sort((a,b) => a.order - b.order).slice(0, 100);
     if (imageMap.size > 100) warnings.push(`Image list capped at 100 from ${imageMap.size} unique refs`);
@@ -877,7 +1125,15 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       const dl = await downloadAsset(img.url, assetsDir, progress, cache);
       if (dl?.src && dl.type === 'image') {
         imageIndexByKey.set(img.key, downloadedImages.length);
-        downloadedImages.push({ src: dl.src, localFile: dl.localFile, alt: img.alt, original: img.url, order: img.order });
+        downloadedImages.push({
+          src: dl.src,
+          localFile: dl.localFile,
+          alt: img.alt,
+          original: img.url,
+          order: img.order,
+          width: img.width,
+          height: img.height
+        });
       }
     }
 
@@ -889,7 +1145,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     if (!thumbnail && downloadedImages[0]) thumbnail = { src: downloadedImages[0].src, original: downloadedImages[0].original };
 
     const videos = [];
-    const seenVid = new Set();
+    const videoMap = new Map();
     const videoIndexBySrc = new Map();
     for (const v of data.videos) {
       const src = normalizeUrl(v.src, base.url);
@@ -897,28 +1153,48 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       const type = mediaType(src);
       if (!['youtube','vimeo','hls','video'].includes(type) && v.kind !== 'iframe') continue;
       const key = canonicalVideoKey(src, v.kind);
-      if (seenVid.has(key)) continue;
-      seenVid.add(key);
+      videoMap.set(key, pickBestAssetRef(videoMap.get(key), {
+        ...v,
+        src,
+        type,
+        width: Number(v.width || 0),
+        height: Number(v.height || 0),
+        area: Number(v.area || 0),
+        visible: v.visible !== false
+      }));
+    }
+    for (const v of [...videoMap.values()].sort((a, b) => (a.order || 0) - (b.order || 0))) {
+      const src = v.src;
+      const type = v.type;
       if (type === 'video') {
         const dl = await downloadAsset(src, assetsDir, progress, cache);
         if (dl?.src) {
           videoIndexBySrc.set(src, videos.length);
-          videos.push({ kind: 'video', type: 'video', src: dl.src, original: src, order: v.order || 0 });
+          videos.push({ kind: 'video', type: 'video', src: dl.src, original: src, order: v.order || 0, width: v.width, height: v.height });
         }
       } else if (type === 'hls') {
         videoIndexBySrc.set(src, videos.length);
-        videos.push({ kind: 'video', type: 'hls', src, original: src, order: v.order || 0 });
+        videos.push({ kind: 'video', type: 'hls', src, original: src, order: v.order || 0, width: v.width, height: v.height });
         warnings.push('HLS video stream preserved with player');
       } else {
         videoIndexBySrc.set(src, videos.length);
-        videos.push({ kind: 'iframe', type: 'iframe', src, original: src, order: v.order || 0 });
+        videos.push({ kind: 'iframe', type: 'iframe', src, original: src, order: v.order || 0, width: v.width, height: v.height });
       }
     }
+
+    const cloneReplacements = [
+      ...downloadedImages.map(img => ({ from: img.original, to: relFromPage(slug, img.src) })),
+      ...videos.filter(v => v.type === 'video' && v.original && v.src).map(v => ({ from: v.original, to: relFromPage(slug, v.src) }))
+    ];
+    const sourceCloneHtml = rewriteCloneAssetUrls(data.sourceCloneHtml || '', cloneReplacements);
 
     rawManifest.projects.push({
       title: cleanTitle(base.title || data.title),
       slug,
       url: base.url,
+      pageStyle: data.pageStyle || {},
+      sourceCloneHtml,
+      sourceCloneStyle: data.sourceCloneStyle || '',
       thumbnail,
       copyBlocks: data.copyBlocks,
       contentItems: enrichContentItems(data.contentItems, imageIndexByKey, videoIndexBySrc),
