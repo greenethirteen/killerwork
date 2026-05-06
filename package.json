@@ -4,6 +4,7 @@
   "description": "KillerWork importer web UI with optional AI cleanup, structured sections, title/image pairing, video handling, validation, and ZIP export.",
   "type": "module",
   "scripts": {
+    "postinstall": "playwright install --with-deps chromium",
     "web": "node src/server.js",
     "start": "node src/server.js",
     "import": "node src/cli.js import",
