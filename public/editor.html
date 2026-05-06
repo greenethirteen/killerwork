@@ -10,8 +10,7 @@
   <main class="editor-shell">
     <aside class="editor-sidebar">
       <a class="back-home" href="/">KillerWork™</a>
-      <h1>Edit pages</h1>
-      <p>Update titles and text blocks, add captions near media, then save to rebuild the preview and ZIP.</p>
+      <h1>Editor</h1>
       <a id="managePortfolio" class="button ghost sidebar-action" href="/">Manage projects</a>
       <div id="pageList" class="page-list"></div>
     </aside>
@@ -24,7 +23,22 @@
         </div>
       </div>
       <div id="editorStatus" class="editor-status">Choose a page to edit.</div>
-      <div id="blockEditor" class="block-editor"></div>
+      <div class="editor-workspace">
+        <section class="editor-canvas-panel">
+          <div class="canvas-actions">
+            <button id="addTextBlock" class="button secondary" type="button">Add text</button>
+            <button id="addImageBlock" class="button secondary" type="button">Add image</button>
+            <button id="addVideoBlock" class="button secondary" type="button">Add video</button>
+            <button id="addAudioBlock" class="button secondary" type="button">Add audio</button>
+            <button id="addPdfBlock" class="button secondary" type="button">Add PDF</button>
+          </div>
+          <div id="blockEditor" class="block-editor"></div>
+        </section>
+        <aside class="inspector-panel">
+          <div id="inspector" class="inspector-empty">Select a block.</div>
+          <input id="mediaUpload" class="hidden" type="file" />
+        </aside>
+      </div>
     </section>
   </main>
   <script src="/editor.js"></script>

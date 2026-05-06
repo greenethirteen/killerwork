@@ -563,6 +563,13 @@ function renderDocument(doc, projectSlug) {
   return `<figure class="media document"><iframe src="${htmlEscape(src)}" title="${htmlEscape(title)}" loading="lazy"></iframe><figcaption><a href="${htmlEscape(src)}" target="_blank" rel="noopener">Open PDF</a></figcaption></figure>`;
 }
 
+function renderAudio(audio, projectSlug) {
+  if (!audio?.src) return '';
+  const src = relFromPage(projectSlug, audio.src);
+  const title = audio.title || audio.original || 'Audio';
+  return `<figure class="media audio"><figcaption>${htmlEscape(title)}</figcaption><audio controls preload="metadata" src="${htmlEscape(src)}"></audio></figure>`;
+}
+
 function renderImage(img, projectSlug, title) {
   if (!img?.src) return '';
   return `<figure class="media image"><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="lazy"></figure>`;
@@ -620,14 +627,16 @@ function renderCleanedSections(project) {
 function renderFallbackMedia(project) {
   const images = project.images || [];
   const videos = project.videos || [];
+  const audios = project.audios || [];
   const documents = project.documents || [];
   const hasVideo = videos.length > 0;
   const poster = hasVideo && images[0] ? images[0] : null;
   const pageImages = hasVideo && poster ? images.slice(1) : images;
   const vids = videos.map((v, idx) => renderVideo(v, project.slug, idx === 0 ? poster : null)).join('\n');
   const imgs = pageImages.map(img => renderImage(img, project.slug, project.title)).join('\n');
+  const audioHtml = audios.map(audio => renderAudio(audio, project.slug)).join('\n');
   const docs = documents.map(doc => renderDocument(doc, project.slug)).join('\n');
-  return `<section class="media-stack">${vids}${imgs}${docs}</section>`;
+  return `<section class="media-stack">${vids}${imgs}${audioHtml}${docs}</section>`;
 }
 
 function renderOrderedContent(project) {
@@ -648,6 +657,8 @@ function renderOrderedContent(project) {
             ? `video:${item.order}:${item.videoIndex}`
             : item.type === 'document'
               ? `document:${item.order}:${item.documentIndex}`
+              : item.type === 'audio'
+                ? `audio:${item.order}:${item.audioIndex}`
               : `text:${item.order}:${String(item.text || '').toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -660,6 +671,7 @@ function renderOrderedContent(project) {
     if (item.type === 'text') return renderInlineText(item.text, project.title);
     if (item.type === 'image') return renderImage(project.images?.[item.imageIndex], project.slug, project.title);
     if (item.type === 'video') return renderVideo(project.videos?.[item.videoIndex], project.slug, item.videoIndex === 0 ? poster : null);
+    if (item.type === 'audio') return renderAudio(project.audios?.[item.audioIndex], project.slug);
     if (item.type === 'document') return renderDocument(project.documents?.[item.documentIndex], project.slug);
     if (item.type === 'gallery') return renderGallery(item.imageIndexes, project);
     return '';
@@ -701,6 +713,7 @@ export async function generateSite(manifest, outDir, progress) {
     await fs.ensureDir(dir);
     p.images = p.images || [];
     p.videos = p.videos || [];
+    p.audios = p.audios || [];
     p.documents = p.documents || [];
     const mediaHtml = renderOrderedContent(p);
     const meta = renderMetaBlocks(p);
@@ -713,9 +726,9 @@ export async function generateSite(manifest, outDir, progress) {
     await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project"><header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header><main class="project-page"><header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1>${htmlEscape(p.title)}</h1>${intro}</header>${mediaHtml}${showMeta}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
-  const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
-  const sourceHtml = manifest.sourceUrl === 'uploaded-files' ? 'Source: uploaded files' : `Source: <a href="${htmlEscape(manifest.sourceUrl)}">${htmlEscape(manifest.sourceUrl)}</a>`;
-  await fs.writeFile(path.join(siteDir, 'import-review.html'), `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Import Review</title><link rel="stylesheet" href="styles.css"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a></nav></header><main class="project-page"><h1>Import Review</h1><p>${sourceHtml}</p><p>AI cleanup: ${manifest.aiCleanup ? 'On' : 'Off'}</p><table><thead><tr><th>Project</th><th>Images</th><th>Videos</th><th>PDFs</th><th>Type</th><th>Warnings</th></tr></thead><tbody>${rows}</tbody></table></main></body></html>`);
+  const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
+  const sourceHtml = manifest.sourceUrl === 'uploaded-files' || manifest.sourceUrl === 'campaign-builder' ? 'Source: uploaded files' : `Source: <a href="${htmlEscape(manifest.sourceUrl)}">${htmlEscape(manifest.sourceUrl)}</a>`;
+  await fs.writeFile(path.join(siteDir, 'import-review.html'), `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Import Review</title><link rel="stylesheet" href="styles.css"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a></nav></header><main class="project-page"><h1>Import Review</h1><p>${sourceHtml}</p><p>AI cleanup: ${manifest.aiCleanup ? 'On' : 'Off'}</p><table><thead><tr><th>Project</th><th>Images</th><th>Videos</th><th>Audio</th><th>PDFs</th><th>Type</th><th>Warnings</th></tr></thead><tbody>${rows}</tbody></table></main></body></html>`);
 
   progress?.('Generated static site', siteDir);
   return siteDir;

@@ -12,6 +12,7 @@ function compactProjectForAI(project) {
     rawTextBlocks: (project.copyBlocks || []).map((b, i) => ({ i, tag: b.tag, text: b.text })).slice(0, 80),
     media: [
       ...(project.videos || []).map((v, i) => ({ kind: 'video', i, type: v.type || v.kind, src: v.original || v.src })),
+      ...(project.audios || []).map((a, i) => ({ kind: 'audio', i, type: a.type || a.kind, src: a.original || a.src, title: a.title || '' })),
       ...(project.images || []).map((img, i) => ({ kind: 'image', i, alt: img.alt || '', filename: img.localFile || (img.src || '').split('/').pop(), original: img.original || '' }))
     ].slice(0, 140),
     contentItems: (project.contentItems || []).slice(0, 160)

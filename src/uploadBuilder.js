@@ -39,6 +39,7 @@ function safeAssetFileName(file) {
 function kindForMime(type = '') {
   if (type.startsWith('image/')) return 'image';
   if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('audio/')) return 'audio';
   if (type === 'application/pdf') return 'document';
   return 'file';
 }
@@ -69,7 +70,7 @@ function fallbackAnalysis(asset) {
   return normalizeAnalysis(asset, {
     title: titleFromFilename(asset.originalName),
     medium: asset.kind === 'document' ? 'PDF' : asset.kind,
-    captionLines: [titleFromFilename(asset.originalName), asset.kind === 'document' ? 'PDF' : asset.kind]
+    captionLines: [titleFromFilename(asset.originalName), asset.kind === 'document' ? 'PDF' : asset.kind === 'audio' ? 'Audio' : asset.kind]
   });
 }
 
@@ -268,6 +269,7 @@ function buildManifestFromGroups(groups, assets, { title }) {
     const slugBase = group.title || `Project ${projectIndex + 1}`;
     const images = [];
     const videos = [];
+    const audios = [];
     const documents = [];
     const contentItems = [];
     let order = 1;
@@ -284,6 +286,10 @@ function buildManifestFromGroups(groups, assets, { title }) {
         const videoIndex = videos.length;
         videos.push({ kind: 'video', type: 'video', src, localFile: asset.fileName, title: asset.analysis.title || group.title, original: asset.originalName, order });
         contentItems.push({ type: 'video', order: order++, videoIndex, original: asset.originalName });
+      } else if (asset.kind === 'audio') {
+        const audioIndex = audios.length;
+        audios.push({ kind: 'audio', type: 'audio', src, localFile: asset.fileName, title: asset.analysis.title || group.title, original: asset.originalName, order });
+        contentItems.push({ type: 'audio', order: order++, audioIndex, original: asset.originalName });
       } else if (asset.kind === 'document') {
         const documentIndex = documents.length;
         documents.push({ src, localFile: asset.fileName, title: asset.analysis.title || group.title, original: asset.originalName, order });
@@ -307,6 +313,7 @@ function buildManifestFromGroups(groups, assets, { title }) {
       contentItems,
       images,
       videos,
+      audios,
       documents,
       warnings: []
     };
@@ -322,19 +329,36 @@ function buildManifestFromGroups(groups, assets, { title }) {
   };
 }
 
-export async function runUploadBuild({ files, outDir, title = '', aiCleanup = false, onProgress } = {}) {
-  const progress = (stage, detail = '') => onProgress?.({ stage, detail, at: new Date().toISOString() });
-  if (!files?.length) throw new Error('Upload at least one image, video, or PDF.');
+function normalizeCampaignInput(campaign = {}, index = 0) {
+  const campaignTitle = cleanText(campaign.campaign || campaign.title);
+  const brand = cleanText(campaign.brand || campaign.client);
+  const pageTitle = cleanText(campaign.title) || [campaignTitle, brand].filter(Boolean).join(' | ') || `Campaign ${index + 1}`;
+  const lines = uniqueLines([
+    campaignTitle,
+    brand,
+    cleanText(campaign.agency),
+    cleanText(campaign.role),
+    cleanText(campaign.awards),
+    cleanText(campaign.notes)
+  ]);
+  return {
+    index,
+    title: pageTitle,
+    assetIndexes: [],
+    captionLines: lines,
+    description: cleanText(campaign.notes)
+  };
+}
 
-  await fs.ensureDir(outDir);
+async function saveUploadedAssets(files, outDir, progress, stage = 'Saving uploaded assets') {
   const assetsDir = path.join(outDir, 'assets-imported');
   await fs.ensureDir(assetsDir);
-  progress('Saving uploaded assets', `${files.length} file(s)`);
+  progress(stage, `${files.length} file(s)`);
 
   const assets = [];
   for (const file of files) {
     const kind = kindForMime(file.mimetype || '');
-    if (!['image', 'video', 'document'].includes(kind)) {
+    if (!['image', 'video', 'audio', 'document'].includes(kind)) {
       await fs.remove(file.path).catch(() => {});
       continue;
     }
@@ -343,6 +367,7 @@ export async function runUploadBuild({ files, outDir, title = '', aiCleanup = fa
     await fs.move(file.path, absPath, { overwrite: true });
     assets.push({
       originalName: file.originalname,
+      fieldName: file.fieldname,
       fileName,
       absPath,
       src: `assets/imported/${fileName}`,
@@ -351,8 +376,11 @@ export async function runUploadBuild({ files, outDir, title = '', aiCleanup = fa
       kind
     });
   }
-  if (!assets.length) throw new Error('No supported files were uploaded. Use images, videos, or PDFs.');
+  if (!assets.length) throw new Error('No supported files were uploaded. Use images, videos, audio files, or PDFs.');
+  return assets;
+}
 
+async function analyzeAssets(assets, progress) {
   progress('Analyzing uploaded work', `${assets.length} supported asset(s)`);
   for (const asset of assets) {
     try {
@@ -363,6 +391,30 @@ export async function runUploadBuild({ files, outDir, title = '', aiCleanup = fa
       progress('AI analysis warning', `${asset.originalName}: ${e.message}`);
     }
   }
+}
+
+function groupsFromCampaigns(campaigns, assets) {
+  const groups = campaigns.map(normalizeCampaignInput);
+  assets.forEach((asset, assetIndex) => {
+    const match = String(asset.fieldName || '').match(/^campaignFiles-(\d+)$/);
+    const campaignIndex = match ? Number(match[1]) : 0;
+    const group = groups[campaignIndex] || groups[0];
+    if (group) group.assetIndexes.push(assetIndex);
+  });
+  return {
+    ownerName: 'Uploaded Portfolio',
+    siteTitle: 'Uploaded Portfolio',
+    projects: groups.filter(group => group.assetIndexes.length)
+  };
+}
+
+export async function runUploadBuild({ files, outDir, title = '', aiCleanup = false, onProgress } = {}) {
+  const progress = (stage, detail = '') => onProgress?.({ stage, detail, at: new Date().toISOString() });
+  if (!files?.length) throw new Error('Upload at least one image, video, or PDF.');
+
+  await fs.ensureDir(outDir);
+  const assets = await saveUploadedAssets(files, outDir, progress);
+  await analyzeAssets(assets, progress);
 
   let groups;
   try {
@@ -378,6 +430,44 @@ export async function runUploadBuild({ files, outDir, title = '', aiCleanup = fa
   }
 
   const rawManifest = buildManifestFromGroups(groups, assets, { title });
+  await fs.writeJson(path.join(outDir, 'manifest.raw.json'), rawManifest, { spaces: 2 });
+  progress('Raw manifest saved', 'manifest.raw.json');
+
+  const finalManifest = await cleanupManifestWithAI(rawManifest, { enabled: aiCleanup, progress });
+  await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), finalManifest, { spaces: 2 });
+  await fs.writeJson(path.join(outDir, 'manifest.json'), finalManifest, { spaces: 2 });
+
+  progress('Building static portfolio', 'Generating HTML/CSS');
+  const siteDir = await generateSite(finalManifest, outDir, progress);
+  progress('Validating output', 'Checking broken local links/assets');
+  const validation = await validateSite(siteDir);
+  progress(validation.ok ? 'Validation passed' : 'Validation warnings', `${validation.errors.length} issue(s)`);
+  const zipPath = path.join(outDir, 'site.zip');
+  await zipDir(siteDir, zipPath);
+  progress('ZIP ready', zipPath);
+  return { manifest: finalManifest, siteDir, zipPath, validation };
+}
+
+export async function runCampaignBuild({ files, campaigns = [], outDir, title = '', aiCleanup = true, onProgress } = {}) {
+  const progress = (stage, detail = '') => onProgress?.({ stage, detail, at: new Date().toISOString() });
+  if (!files?.length) throw new Error('Upload at least one image, video, audio file, or PDF.');
+  if (!Array.isArray(campaigns) || !campaigns.length) throw new Error('Add at least one campaign.');
+
+  await fs.ensureDir(outDir);
+  const assets = await saveUploadedAssets(files, outDir, progress, 'Saving campaign assets');
+  await analyzeAssets(assets, (stage, detail) => {
+    progress(stage === 'AI analyzing asset' ? 'AI analyzing campaign asset' : stage, detail);
+  });
+
+  const groups = groupsFromCampaigns(campaigns, assets);
+  if (!groups.projects.length) throw new Error('Add at least one asset to a campaign.');
+
+  progress('Building campaign pages', `${groups.projects.length} campaign page(s)`);
+  const rawManifest = buildManifestFromGroups(groups, assets, { title });
+  rawManifest.sourceUrl = 'campaign-builder';
+  rawManifest.siteTitle = cleanText(title) || 'Uploaded Portfolio';
+  rawManifest.ownerName = cleanText(title) || 'Uploaded Portfolio';
+  rawManifest.buildMode = 'campaign-builder';
   await fs.writeJson(path.join(outDir, 'manifest.raw.json'), rawManifest, { spaces: 2 });
   progress('Raw manifest saved', 'manifest.raw.json');
 

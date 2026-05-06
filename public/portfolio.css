@@ -5,4 +5,5 @@
 .work-card-placeholder{min-height:230px;display:grid;place-items:center;color:var(--muted);font-size:42px;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#181821,#101016)}
 .media.document iframe{aspect-ratio:4/5;min-height:720px}
 .media.document figcaption{text-align:center;margin-top:12px;color:var(--muted)}
+.media.audio{max-width:780px;margin-left:auto;margin-right:auto;border:1px solid var(--line);border-radius:24px;background:#15151c;padding:22px}.media.audio figcaption{margin:0 0 14px;color:#ded8ce;font-weight:800}.media.audio audio{width:100%}
 @media(max-width:650px){.media.document iframe{min-height:520px}}

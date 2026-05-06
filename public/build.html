@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Build a KillerWork™ Portfolio</title>
+  <link rel="stylesheet" href="/ui.css" />
+</head>
+<body>
+  <main class="builder-shell">
+    <nav class="topbar" aria-label="KillerWork">
+      <a class="logo" href="/">KillerWork™</a>
+    </nav>
+
+    <header class="builder-header">
+      <a class="back-home" href="/">← Home</a>
+      <h1>Build from campaign pages.</h1>
+      <p>Give each campaign its own context and assets. KillerWork™ builds the first version, then sends you into the editor for manual polish.</p>
+    </header>
+
+    <form id="campaignBuilder" class="builder-layout">
+      <section class="glass builder-panel">
+        <label class="builder-field">
+          <span>Portfolio name</span>
+          <input id="portfolioTitle" type="text" placeholder="Jack Prozac" required />
+        </label>
+        <div id="campaignList" class="campaign-list"></div>
+        <div class="builder-actions">
+          <button id="addCampaign" class="button secondary" type="button">Add campaign page</button>
+          <button id="buildCampaigns" type="submit">Build portfolio</button>
+        </div>
+      </section>
+
+      <aside class="glass builder-side">
+        <h2>Better inputs, better pages.</h2>
+        <p>Upload only the work for that campaign inside each page card. Add brand, agency, role, awards, and notes so the AI formats real information instead of guessing.</p>
+        <ul>
+          <li>Images, case boards, videos, PDFs, and radio/audio spots are supported.</li>
+          <li>Related image sets stay together on the same campaign page.</li>
+          <li>The generated site opens directly in the visual editor.</li>
+        </ul>
+      </aside>
+    </form>
+
+    <section id="progressPanel" class="glass progress-panel hidden">
+      <div class="panel-top">
+        <div><span class="status-pill" id="statusPill">Waiting</span><h2 id="stageTitle">Ready to build</h2><p id="stageDetail">Add a campaign to begin.</p></div>
+        <div class="percent" id="percentText">0%</div>
+      </div>
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      <pre id="logBox" class="logs"></pre>
+      <div id="actions" class="actions hidden">
+        <a id="editorLink" class="button" target="_blank">Edit generated site</a>
+        <a id="previewLink" class="button secondary" target="_blank">Preview site</a>
+        <a id="manageLink" class="button secondary" target="_blank">Manage projects</a>
+        <a id="downloadLink" class="button hot">Download ZIP</a>
+      </div>
+    </section>
+  </main>
+  <template id="campaignTemplate">
+    <article class="campaign-card">
+      <div class="campaign-card-top">
+        <h2>Campaign page</h2>
+        <button class="mini-button danger remove-campaign" type="button">Remove</button>
+      </div>
+      <div class="campaign-grid">
+        <label><span>Page title</span><input data-field="title" type="text" placeholder="Some things are meant to be in pairs" required></label>
+        <label><span>Brand/client</span><input data-field="brand" type="text" placeholder="Sri Lanka Cancer Society"></label>
+        <label><span>Campaign</span><input data-field="campaign" type="text" placeholder="Testicular Cancer Awareness"></label>
+        <label><span>Agency</span><input data-field="agency" type="text" placeholder="Ogilvy Sri Lanka"></label>
+        <label><span>Your role</span><input data-field="role" type="text" placeholder="Copywriter / Art Director"></label>
+        <label><span>Awards/publications</span><input data-field="awards" type="text" placeholder="Cannes, D&AD, One Show"></label>
+      </div>
+      <label class="builder-field">
+        <span>Notes for AI</span>
+        <textarea data-field="notes" placeholder="Explain the idea, what order the assets should appear in, and whether this should be a slider, case study, film page, radio page, etc."></textarea>
+      </label>
+      <label class="asset-drop">
+        <span>Campaign assets</span>
+        <input data-field="files" type="file" multiple accept="image/*,video/*,audio/*,application/pdf" required>
+      </label>
+    </article>
+  </template>
+  <script src="/build.js"></script>
+</body>
+</html>

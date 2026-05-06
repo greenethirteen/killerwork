@@ -81,25 +81,27 @@ form.addEventListener('submit', async (e) => {
   poll(data.id);
 });
 
-uploadForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  activeButton = buildUploadBtn;
-  actions.classList.add('hidden');
-  logs.textContent = '';
-  panel.classList.remove('hidden');
-  buildUploadBtn.disabled = true;
-  buildUploadBtn.textContent = 'Building...';
-  bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting upload build'; detail.textContent = `${uploadFiles.files.length} file(s)`;
+if (uploadForm) {
+  uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    activeButton = buildUploadBtn;
+    actions.classList.add('hidden');
+    logs.textContent = '';
+    panel.classList.remove('hidden');
+    buildUploadBtn.disabled = true;
+    buildUploadBtn.textContent = 'Building...';
+    bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting upload build'; detail.textContent = `${uploadFiles.files.length} file(s)`;
 
-  const body = new FormData();
-  body.append('title', uploadTitle.value || '');
-  body.append('aiCleanup', '1');
-  [...uploadFiles.files].forEach(file => body.append('files', file));
+    const body = new FormData();
+    body.append('title', uploadTitle.value || '');
+    body.append('aiCleanup', '1');
+    [...uploadFiles.files].forEach(file => body.append('files', file));
 
-  const res = await fetch('/api/upload-build', { method: 'POST', body });
-  const data = await res.json().catch(() => ({}));
-  if(!res.ok){ detail.textContent = data.error || 'Could not start upload build'; buildUploadBtn.disabled=false; buildUploadBtn.textContent='Try again'; return; }
-  clearInterval(timer);
-  timer = setInterval(() => poll(data.id), 1000);
-  poll(data.id);
-});
+    const res = await fetch('/api/upload-build', { method: 'POST', body });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ detail.textContent = data.error || 'Could not start upload build'; buildUploadBtn.disabled=false; buildUploadBtn.textContent='Try again'; return; }
+    clearInterval(timer);
+    timer = setInterval(() => poll(data.id), 1000);
+    poll(data.id);
+  });
+}
