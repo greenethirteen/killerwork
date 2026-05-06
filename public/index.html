@@ -9,16 +9,25 @@
 <body>
   <div class="orb orb-a"></div><div class="orb orb-b"></div>
   <main class="shell">
-    <nav class="topbar" aria-label="KillerWork">
-      <a class="logo" href="/">KillerWork™</a>
+    <nav class="topbar landing-topbar" aria-label="KillerWork">
       <div class="topnav-actions">
-        <a href="/build.html">Build</a>
         <a data-manage-latest class="hidden" href="#">Manage portfolio</a>
         <span data-user-badge class="user-badge hidden"></span>
-        <a data-auth-link class="auth-button" href="#">Sign up / sign in</a>
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
+      <a class="logo" href="/">KillerWork™</a>
     </nav>
+    <section class="glass upload-card">
+      <div class="upload-copy">
+        <span>Build from raw work</span>
+        <h2>Upload the ads. Get a portfolio.</h2>
+        <p>Drop in campaign images, case boards, films, and PDFs. KillerWork™ analyzes the work, groups related pieces, writes clean page structure, and generates an editable portfolio.</p>
+      </div>
+      <div class="upload-form upload-cta-row">
+        <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
+        <a data-auth-link class="button secondary upload-signin" href="#">Sign in</a>
+      </div>
+    </section>
     <header class="hero">
       <h1>Move your portfolio out of Squarespace.</h1>
       <p>Import your existing portfolio from Squarespace, preserve the original work pages, media, videos, and captions, then export a static site that can be hosted anywhere without locking your archive behind another monthly website subscription.</p>
@@ -30,17 +39,6 @@
         <button id="startBtn" type="submit">Start import</button>
       </form>
       <div class="hint">Best for Squarespace-style ad portfolios with /work/ project pages.</div>
-    </section>
-
-    <section class="glass upload-card">
-      <div class="upload-copy">
-        <span>Build from raw work</span>
-        <h2>Upload the ads. Get a portfolio.</h2>
-        <p>Drop in campaign images, case boards, films, and PDFs. KillerWork™ analyzes the work, groups related pieces, writes clean page structure, and generates an editable portfolio.</p>
-      </div>
-      <div class="upload-form">
-        <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
-      </div>
     </section>
 
     <section id="progressPanel" class="glass progress-panel hidden">
