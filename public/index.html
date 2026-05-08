@@ -78,7 +78,8 @@
       <span>Portfolio migration and generation for advertising creatives.</span>
     </footer>
   </main>
-  <script type="module" src="/auth.js"></script>
-  <script src="/ui.js"></script>
+  <script type="module">
+    import('/auth.js').then(() => import('/ui.js'));
+  </script>
 </body>
 </html>

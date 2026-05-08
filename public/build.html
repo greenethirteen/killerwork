@@ -65,7 +65,8 @@
       </label>
     </article>
   </template>
-  <script type="module" src="/auth.js"></script>
-  <script src="/build.js"></script>
+  <script type="module">
+    import('/auth.js').then(() => import('/build.js'));
+  </script>
 </body>
 </html>

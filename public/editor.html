@@ -47,7 +47,8 @@
       </div>
     </section>
   </main>
-  <script type="module" src="/auth.js"></script>
-  <script src="/editor.js"></script>
+  <script type="module">
+    import('/auth.js').then(() => import('/editor.js'));
+  </script>
 </body>
 </html>
