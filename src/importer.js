@@ -91,6 +91,7 @@ function mergeProjectCandidates(candidates = []) {
       title: cleanTitle(candidate.title || titleFromSlug(slug)),
       url: candidate.url,
       thumbnailUrl: candidate.thumbnailUrl || '',
+      description: candidate.description || '',
       strategy: candidate.strategy || 'unknown',
       score: Number(candidate.score || 0)
     };
@@ -150,7 +151,8 @@ async function extractPage(page, url, siteOrigin, progress) {
     const videoUrlPattern = /(https?:)?\/\/[^"'<>\\\s]+(?:youtube\.com|youtu\.be|vimeo\.com|\.m3u8|\.mp4|\.webm|\.mov)[^"'<>\\\s]*/ig;
     const removeSelectors = [
       'script','style','noscript','svg','header','footer','nav',
-      '.Header','.Footer','.site-header','.site-footer',
+      '#header','#footer','#footerBlock','.Header','.Footer','.header','.footer','.site-header','.site-footer',
+      '.absolute-cart-box',
       '[data-test="footer"]','[data-test="header"]',
       '.sqs-block-button','.pagination','.item-pagination','.blog-item-pagination',
       '.previous','.next','.prev-next','.collection-nav','.SocialLinks','.socialaccountlinks-v2-block',
@@ -158,7 +160,7 @@ async function extractPage(page, url, siteOrigin, progress) {
     ];
 
     const pageTitle = clean(document.querySelector('h1')?.innerText) || clean(document.title).replace(/\s*[—|-]\s*Abdullah.*$/i, '') || 'Untitled';
-    const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.querySelector('.Main') || document.body;
+    const main = document.querySelector('#canvas') || document.querySelector('main') || document.querySelector('[role="main"]') || document.querySelector('.Main') || document.body;
     main.querySelectorAll('*').forEach((node, index) => node.setAttribute('data-killerwork-node', String(index + 1)));
     const clone = main.cloneNode(true);
     removeSelectors.forEach(sel => clone.querySelectorAll(sel).forEach(n => n.remove()));
@@ -466,41 +468,57 @@ async function getHomepageProjects(page, url, progress) {
       }
       return '';
     };
-    const thumbFor = (a) => {
-      const img = a.querySelector('img,picture source') || a.closest('article,section,div,li')?.querySelector('img,picture source');
+    const thumbFor = (el) => {
+      const img = el.querySelector('img,picture source') || el.closest('article,section,div,li')?.querySelector('img,picture source');
       const raw = img?.currentSrc || img?.src || img?.getAttribute?.('data-src') || img?.getAttribute?.('data-image') || img?.getAttribute?.('data-image-src') || img?.getAttribute?.('srcset')?.split(',')[0]?.trim()?.split(/\s+/)[0] || '';
-      return abs(raw) || bgImage(a.closest('article,section,div,li') || a);
+      return abs(raw) || bgImage(el.closest('article,section,div,li') || el);
     };
-    const textFor = (a, slug) => {
-      const scope = a.closest('article,section,li,[class*="card"],[class*="grid"],[class*="item"],[class*="project"],[class*="work"],[class*="portfolio"]') || a;
+    const textFor = (el, slug) => {
+      const scope = el.closest('article,section,li,[class*="card"],[class*="grid"],[class*="item"],[class*="project"],[class*="work"],[class*="portfolio"]') || el;
       const heading = scope.querySelector?.('h1,h2,h3,h4,[class*="title"],[class*="Title"],[class*="name"],[class*="Name"]');
-      const img = a.querySelector('img') || scope.querySelector?.('img');
+      const img = el.querySelector('img') || scope.querySelector?.('img');
       return cleanTitle(heading?.textContent)
-        || cleanTitle(a.innerText)
-        || cleanTitle(a.textContent)
-        || cleanTitle(a.getAttribute('aria-label'))
-        || cleanTitle(a.getAttribute('title'))
+        || cleanTitle(el.innerText)
+        || cleanTitle(el.textContent)
+        || cleanTitle(el.getAttribute('aria-label'))
+        || cleanTitle(el.getAttribute('title'))
         || cleanTitle(img?.getAttribute('alt'))
         || slug.replace(/-/g, ' ');
     };
-    document.querySelectorAll('a[href]').forEach(a => {
-      const href = abs(a.getAttribute('href'));
+    const descriptionFor = (el, title) => {
+      const scope = el.closest('article,section,li,[class*="card"],[class*="grid"],[class*="item"],[class*="project"],[class*="work"],[class*="portfolio"]') || el;
+      const descriptionNode = scope.querySelector?.('[class*="description"],[class*="Description"],[class*="summary"],[class*="Summary"],[class*="excerpt"],[class*="Excerpt"]');
+      const text = clean(descriptionNode?.innerText || '');
+      if (!text || text.toLowerCase() === String(title || '').toLowerCase()) return '';
+      return text;
+    };
+    const addCandidate = (el, rawHref, forcedScore = 0) => {
+      const href = abs(rawHref);
       if (!href || !href.startsWith(origin)) return;
       const u = new URL(href);
       const path = u.pathname.replace(/\/$/, '') || '/';
       if (u.hash && path === currentPath) return;
       if (!likelyProjectPath(path)) return;
-      const thumbnailUrl = thumbFor(a);
+      const thumbnailUrl = thumbFor(el);
       const hasThumb = !!thumbnailUrl;
       const isWorkPath = path.startsWith('/work/');
-      const classText = `${a.className || ''} ${a.closest('article,section,div,li')?.className || ''}`;
+      const classText = `${el.className || ''} ${el.closest('article,section,div,li')?.className || ''}`;
       const looksLikePortfolioItem = /(project|portfolio|work|case|grid|gallery|thumb|card|item)/i.test(classText);
       if (!isWorkPath && !hasThumb && !looksLikePortfolioItem) return;
       const slug = path.replace(/^\/work\//, '').replace(/^\//, '').replace(/\/$/, '');
       if (!slug) return;
-      const title = textFor(a, slug);
-      const score = (isWorkPath ? 80 : 0) + (hasThumb ? 60 : 0) + (looksLikePortfolioItem ? 30 : 0) + (title ? 10 : 0);
-      map.set(slug, { slug, title, url: href, thumbnailUrl, strategy: isWorkPath ? 'work-path' : hasThumb ? 'thumbnail-link' : 'portfolio-link', score });
+      const title = textFor(el, slug);
+      const description = descriptionFor(el, title);
+      const score = forcedScore + (isWorkPath ? 80 : 0) + (hasThumb ? 60 : 0) + (looksLikePortfolioItem ? 30 : 0) + (description ? 20 : 0) + (title ? 10 : 0);
+      const current = map.get(slug);
+      const next = { slug, title, description, url: href, thumbnailUrl, strategy: isWorkPath ? 'work-path' : hasThumb ? 'thumbnail-link' : 'portfolio-link', score };
+      if (!current || next.score > current.score || (!current.description && next.description) || (!current.thumbnailUrl && next.thumbnailUrl)) map.set(slug, next);
+    };
+    document.querySelectorAll('a[href]').forEach(a => {
+      addCandidate(a, a.getAttribute('href'));
+    });
+    document.querySelectorAll('[data-url]').forEach(el => {
+      addCandidate(el, el.getAttribute('data-url'), 40);
     });
     return [...map.values()];
   });
@@ -738,7 +756,7 @@ function renderImage(img, projectSlug, title) {
   const size = img?.width ? ` style="max-width:${Math.round(img.width)}px"` : '';
   const widthAttr = img?.width ? ` width="${Math.round(img.width)}"` : '';
   const heightAttr = img?.height ? ` height="${Math.round(img.height)}"` : '';
-  return `<figure class="media image"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="lazy"${widthAttr}${heightAttr}></figure>`;
+  return `<figure class="media image"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="eager"${widthAttr}${heightAttr}></figure>`;
 }
 
 function renderGallery(imageIndexes = [], project) {
@@ -851,6 +869,38 @@ function renderSourceClone(project) {
   return `<section class="source-clone"${wrapperStyle}>${project.sourceCloneHtml}</section>`;
 }
 
+function shouldUseOrderedContent(project) {
+  const html = String(project.sourceCloneHtml || '');
+  return /gallery-slideshow|sqs-gallery|sqs-active-slide|sqs-gallery-design/i.test(html);
+}
+
+function renderSourceDescription(project) {
+  if (!project.description) return '';
+  return `<section class="source-description">${String(project.description)
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => `<p>${htmlEscape(line)}</p>`)
+    .join('')}</section>`;
+}
+
+function renderProjectFooterGrid(manifest, currentProject) {
+  if (manifest.sourceUrl === 'uploaded-files' || manifest.sourceUrl === 'campaign-builder') return '';
+  const linkedProjectSlugs = new Set((manifest.projects || []).map(p => p.slug));
+  const projects = linkedProjectSlugs.size > 1 ? manifest.projects : (manifest.relatedProjects || manifest.projects || []);
+  const cards = projects.map(p => {
+    const localThumb = p.thumbnail?.src ? relFromPage(currentProject.slug, p.thumbnail.src) : (p.images?.[0]?.src ? relFromPage(currentProject.slug, p.images[0].src) : '');
+    const thumb = localThumb || p.thumbnailUrl || '';
+    const href = p.slug === currentProject.slug ? '#' : linkedProjectSlugs.has(p.slug) ? `../${htmlEscape(p.slug)}/` : htmlEscape(p.url || '#');
+    const media = thumb
+      ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="eager">`
+      : `<div class="work-card-placeholder">${(p.videos || []).length ? 'Video' : (p.documents || []).length ? 'PDF' : 'Work'}</div>`;
+    return `<a class="work-card" href="${href}">${media}<span>${htmlEscape(p.title)}</span></a>`;
+  }).join('\n');
+  if (!cards) return '';
+  return `<section class="project-footer-grid"><a class="back-link" href="../../index.html">Back to Work</a><div class="work-grid">${cards}</div></section>`;
+}
+
 function rewriteCloneAssetUrls(html, replacements = []) {
   let out = String(html || '');
   for (const { from, to } of replacements) {
@@ -897,8 +947,10 @@ export async function generateSite(manifest, outDir, progress) {
     p.videos = p.videos || [];
     p.audios = p.audios || [];
     p.documents = p.documents || [];
-    const cloneHtml = renderSourceClone(p);
-    const mediaHtml = cloneHtml || renderOrderedContent(p);
+    const cloneHtml = shouldUseOrderedContent(p) ? '' : renderSourceClone(p);
+    const descriptionHtml = renderSourceDescription(p);
+    const mediaHtml = `${descriptionHtml}${cloneHtml || renderOrderedContent(p)}`;
+    const footerGrid = renderProjectFooterGrid(manifest, p);
     const meta = renderMetaBlocks(p);
     const hasInlineText = cloneHtml || (p.contentItems || []).some(item => item.type === 'text');
     const showMeta = !hasInlineText ? meta : '';
@@ -915,7 +967,7 @@ export async function generateSite(manifest, outDir, progress) {
     const headerHtml = cloneHtml
       ? ''
       : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a></header>`;
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header><main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header><main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
@@ -1058,9 +1110,14 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   const inputPath = normalizeDiscoveryPath(url);
 
   let projects = [];
+  let relatedProjects = [];
   if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
     progress('Submitted project URL', url);
     projects = [submittedProjectCandidate(url)];
+    relatedProjects = await getHomepageProjects(page, siteUrl.origin, progress).catch(() => []);
+    const submittedPath = normalizeDiscoveryPath(url);
+    const homepageMatch = relatedProjects.find(project => normalizeDiscoveryPath(project.url) === submittedPath);
+    if (homepageMatch) projects = [{ ...projects[0], ...homepageMatch, strategy: projects[0].strategy, score: 1000 }];
   } else {
     progress('Scanning homepage', url);
     projects = await getHomepageProjects(page, url, progress);
@@ -1077,7 +1134,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   progress('Found projects', `${projects.length} project pages`);
 
   const cache = new Map();
-  const rawManifest = { sourceUrl: url, siteTitle: 'Imported Portfolio', ownerName: siteUrl.hostname.replace(/^www\./, ''), projects: [], generatedAt: new Date().toISOString() };
+  const rawManifest = { sourceUrl: url, siteTitle: 'Imported Portfolio', ownerName: siteUrl.hostname.replace(/^www\./, ''), relatedProjects, projects: [], generatedAt: new Date().toISOString() };
 
   for (let i = 0; i < projects.length; i++) {
     const base = { ...projects[i] };
@@ -1192,6 +1249,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       title: cleanTitle(base.title || data.title),
       slug,
       url: base.url,
+      description: base.description || '',
       pageStyle: data.pageStyle || {},
       sourceCloneHtml,
       sourceCloneStyle: data.sourceCloneStyle || '',
