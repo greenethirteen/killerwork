@@ -412,6 +412,7 @@ async function extractPage(page, url, siteOrigin, progress) {
     const links = [...document.querySelectorAll('a[href]')].map(a => ({ href: abs(a.getAttribute('href')), text: clean(a.innerText) }));
     return {
       title: pageTitle,
+      sourceBrand: clean(document.title.split(/\s+[—|-]\s+/).pop()) || '',
       copyBlocks,
       images,
       videos,
@@ -901,6 +902,20 @@ function renderProjectFooterGrid(manifest, currentProject) {
   return `<section class="project-footer-grid"><a class="back-link" href="../../index.html">Back to Work</a><div class="work-grid">${cards}</div></section>`;
 }
 
+function renderImportedSourceContent(project, cloneHtml) {
+  if (cloneHtml) return cloneHtml;
+  const ordered = renderOrderedContent(project);
+  const description = renderSourceDescription(project);
+  if (!description) return ordered;
+  return `<section class="source-replica-layout"><div class="source-replica-main">${ordered}</div>${description}</section>`;
+}
+
+function renderSourceHeader(project) {
+  const brand = cleanTitle(project.sourceBrand || '').replace(/^Untitled$/i, '') || '';
+  if (!brand) return '';
+  return `<header class="source-import-header"><a href="../../index.html">${htmlEscape(brand)}</a><nav><a href="../../index.html">Work</a><span>Art</span><a href="../../about.html">About</a></nav></header>`;
+}
+
 function rewriteCloneAssetUrls(html, replacements = []) {
   let out = String(html || '');
   for (const { from, to } of replacements) {
@@ -948,8 +963,8 @@ export async function generateSite(manifest, outDir, progress) {
     p.audios = p.audios || [];
     p.documents = p.documents || [];
     const cloneHtml = shouldUseOrderedContent(p) ? '' : renderSourceClone(p);
-    const descriptionHtml = renderSourceDescription(p);
-    const mediaHtml = `${descriptionHtml}${cloneHtml || renderOrderedContent(p)}`;
+    const isSourceReplica = !!(cloneHtml || p.sourceCloneHtml);
+    const mediaHtml = renderImportedSourceContent(p, cloneHtml);
     const footerGrid = renderProjectFooterGrid(manifest, p);
     const meta = renderMetaBlocks(p);
     const hasInlineText = cloneHtml || (p.contentItems || []).some(item => item.type === 'text');
@@ -964,10 +979,12 @@ export async function generateSite(manifest, outDir, progress) {
       p.pageStyle?.textColor ? `--muted:${p.pageStyle.textColor}` : ''
     ].filter(Boolean).join(';');
     const mainStyle = p.pageStyle?.contentWidth ? ` style="max-width:${Math.max(760, Math.round(p.pageStyle.contentWidth))}px"` : '';
-    const headerHtml = cloneHtml
-      ? ''
+    const generatedHeader = `<header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header>`;
+    const sourceHeader = renderSourceHeader(p);
+    const headerHtml = isSourceReplica
+      ? sourceHeader
       : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a></header>`;
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header><main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
@@ -1251,6 +1268,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       url: base.url,
       description: base.description || '',
       pageStyle: data.pageStyle || {},
+      sourceBrand: data.sourceBrand || '',
       sourceCloneHtml,
       sourceCloneStyle: data.sourceCloneStyle || '',
       thumbnail,
