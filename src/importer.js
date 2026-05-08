@@ -529,6 +529,91 @@ async function getHomepageProjects(page, url, progress) {
   return projects;
 }
 
+async function extractHomePage(page, url, progress) {
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForLoadState('networkidle', { timeout: 25000 }).catch(() => {});
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(700);
+
+  const data = await page.evaluate(() => {
+    const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+    const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
+    const root = document.querySelector('#canvas') || document.querySelector('#siteWrapper') || document.querySelector('main') || document.body;
+    const removeSelectors = [
+      'script','style','noscript','svg',
+      '.absolute-cart-box','[data-test="cart"]','[class*="Cart"]',
+      '#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block'
+    ];
+    const serializeStyle = (style) => Array.from(style || [])
+      .map(prop => `${prop}:${style.getPropertyValue(prop)}${style.getPropertyPriority(prop) ? ' !important' : ''};`)
+      .join('');
+    const assetFrom = (el) => {
+      if (!el) return '';
+      return el.currentSrc
+        || el.getAttribute('data-image')
+        || el.getAttribute('data-src')
+        || el.getAttribute('data-image-src')
+        || el.getAttribute('src')
+        || el.getAttribute('srcset')?.split(',')[0]?.trim()?.split(/\s+/)[0]
+        || '';
+    };
+    const assets = [];
+    const addAsset = (raw) => {
+      const full = abs(raw);
+      if (!full || full.startsWith('data:') || full.startsWith('blob:')) return;
+      if (!assets.includes(full)) assets.push(full);
+    };
+
+    root.querySelectorAll('*').forEach((node, index) => node.setAttribute('data-killerwork-home-node', String(index + 1)));
+    const clone = root.cloneNode(true);
+    removeSelectors.forEach(sel => clone.querySelectorAll(sel).forEach(node => node.remove()));
+    const originalsById = new Map(
+      [...root.querySelectorAll('[data-killerwork-home-node]')].map(node => [node.getAttribute('data-killerwork-home-node'), node])
+    );
+
+    [clone, ...clone.querySelectorAll('*')].forEach(node => {
+      const id = node.getAttribute?.('data-killerwork-home-node');
+      const source = id ? originalsById.get(id) : root;
+      if (!source) {
+        node.remove?.();
+        return;
+      }
+      const tag = node.tagName?.toLowerCase() || '';
+      if (tag === 'img' || tag === 'source') {
+        const resolved = assetFrom(source);
+        if (resolved) {
+          node.setAttribute(tag === 'img' ? 'src' : 'src', resolved);
+          addAsset(resolved);
+        }
+        node.removeAttribute('srcset');
+        node.removeAttribute('sizes');
+        node.removeAttribute('loading');
+        node.removeAttribute('decoding');
+      }
+      const styleAttr = source.getAttribute?.('style') || '';
+      for (const match of styleAttr.matchAll(/url\(["']?([^"')]+)["']?\)/g)) addAsset(match[1]);
+      node.setAttribute('style', serializeStyle(getComputedStyle(source)));
+      node.removeAttribute('data-killerwork-home-node');
+    });
+
+    root.querySelectorAll('[data-killerwork-home-node]').forEach(node => node.removeAttribute('data-killerwork-home-node'));
+
+    const bodyStyle = getComputedStyle(document.body);
+    const rootStyle = getComputedStyle(root);
+    return {
+      title: clean(document.title) || clean(document.querySelector('h1')?.innerText) || 'Imported Portfolio',
+      style: serializeStyle(rootStyle),
+      backgroundColor: clean(rootStyle.backgroundColor && rootStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' ? rootStyle.backgroundColor : bodyStyle.backgroundColor),
+      textColor: clean(rootStyle.color || bodyStyle.color),
+      html: clone.innerHTML,
+      assets
+    };
+  });
+
+  progress?.('Extracted homepage', `${data.assets.length} homepage asset ref(s)`);
+  return data;
+}
+
 async function discoverSitemapProjects(url, progress) {
   const origin = new URL(url).origin;
   const queue = [`${origin}/sitemap.xml`, `${origin}/sitemap_index.xml`];
@@ -824,7 +909,8 @@ function renderFallbackMedia(project) {
   return `<section class="media-stack">${vids}${imgs}${audioHtml}${docs}</section>`;
 }
 
-function renderOrderedContent(project) {
+function renderOrderedContent(project, options = {}) {
+  const skipText = !!options.skipText;
   const seen = new Set();
   const items = (project.contentItems || [])
     .slice()
@@ -853,6 +939,7 @@ function renderOrderedContent(project) {
   const firstImage = (project.images || [])[0];
   const poster = (project.videos || []).length > 0 && firstImage ? firstImage : null;
   const html = items.map(item => {
+    if (skipText && item.type === 'text') return '';
     if (item.type === 'text') return renderInlineText(item.text, project.title);
     if (item.type === 'image') return renderImage(project.images?.[item.imageIndex], project.slug, project.title);
     if (item.type === 'video') return renderVideo(project.videos?.[item.videoIndex], project.slug, item.videoIndex === 0 ? poster : null);
@@ -904,8 +991,8 @@ function renderProjectFooterGrid(manifest, currentProject) {
 
 function renderImportedSourceContent(project, cloneHtml) {
   if (cloneHtml) return cloneHtml;
-  const ordered = renderOrderedContent(project);
   const description = renderSourceDescription(project);
+  const ordered = renderOrderedContent(project, { skipText: !!description });
   if (!description) return ordered;
   return `<section class="source-replica-layout"><div class="source-replica-main">${ordered}</div>${description}</section>`;
 }
@@ -924,6 +1011,42 @@ function rewriteCloneAssetUrls(html, replacements = []) {
     out = out.replace(new RegExp(escaped, 'g'), to);
   }
   return out;
+}
+
+function rewriteHomeLinks(html, projects = []) {
+  let out = String(html || '');
+  const byPath = new Map();
+  for (const project of projects || []) {
+    if (!project?.url || !project?.slug) continue;
+    try {
+      const path = new URL(project.url).pathname.replace(/\/$/, '') || '/';
+      byPath.set(path, `work/${project.slug}/`);
+    } catch {}
+  }
+  for (const [sourcePath, target] of byPath.entries()) {
+    const escaped = sourcePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(`(href|data-url)="${escaped}/?"`, 'g'), `$1="${target}"`);
+  }
+  out = out
+    .replace(/href="\/?"/g, 'href="index.html"')
+    .replace(/href="\/about\/?"/g, 'href="about.html"')
+    .replace(/href="\/art\/?"/g, 'href="https://kapilbhimekar.com/art"');
+  return out;
+}
+
+function renderHomePage(manifest, cards) {
+  const sourceHome = manifest.sourceHome || {};
+  if (sourceHome.html) {
+    const pageVars = [
+      sourceHome.backgroundColor ? `--bg:${sourceHome.backgroundColor}` : '',
+      sourceHome.textColor ? `--fg:${sourceHome.textColor}` : '',
+      sourceHome.textColor ? `--muted:${sourceHome.textColor}` : ''
+    ].filter(Boolean).join(';');
+    const wrapperStyle = sourceHome.style ? ` style="${htmlEscape(sourceHome.style)}"` : '';
+    const html = rewriteHomeLinks(sourceHome.html, manifest.projects);
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body class="source-home"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+  }
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="home"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
 }
 
 export async function generateSite(manifest, outDir, progress) {
@@ -951,7 +1074,7 @@ export async function generateSite(manifest, outDir, progress) {
     return `<a class="work-card" href="work/${htmlEscape(p.slug)}/">${media}<span>${htmlEscape(p.title)}</span></a>`;
   }).join('\n');
 
-  await fs.writeFile(path.join(siteDir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="home"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`);
+  await fs.writeFile(path.join(siteDir, 'index.html'), renderHomePage(manifest, cards));
 
   await fs.writeFile(path.join(siteDir, 'about.html'), `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(manifest.ownerName)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="project-page"><h1>About</h1></main></body></html>`);
 
@@ -1128,6 +1251,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
 
   let projects = [];
   let relatedProjects = [];
+  let sourceHome = null;
   if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
     progress('Submitted project URL', url);
     projects = [submittedProjectCandidate(url)];
@@ -1138,6 +1262,10 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   } else {
     progress('Scanning homepage', url);
     projects = await getHomepageProjects(page, url, progress);
+    sourceHome = await extractHomePage(page, url, progress).catch((e) => {
+      progress('Homepage clone warning', e.message);
+      return null;
+    });
     if (!projects.length) {
       progress('Scanning sitemap', siteUrl.origin);
       projects = await discoverSitemapProjects(url, progress);
@@ -1151,7 +1279,32 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   progress('Found projects', `${projects.length} project pages`);
 
   const cache = new Map();
-  const rawManifest = { sourceUrl: url, siteTitle: 'Imported Portfolio', ownerName: siteUrl.hostname.replace(/^www\./, ''), relatedProjects, projects: [], generatedAt: new Date().toISOString() };
+  const rawManifest = {
+    sourceUrl: url,
+    siteTitle: sourceHome?.title || 'Imported Portfolio',
+    ownerName: siteUrl.hostname.replace(/^www\./, ''),
+    relatedProjects,
+    sourceHome: null,
+    projects: [],
+    generatedAt: new Date().toISOString()
+  };
+
+  if (sourceHome?.html) {
+    const replacements = [];
+    const uniqueAssets = [...new Set(sourceHome.assets || [])].slice(0, 160);
+    progress('Downloading homepage assets', `${uniqueAssets.length} unique image refs`);
+    for (const assetUrl of uniqueAssets) {
+      const dl = await downloadAsset(normalizeUrl(assetUrl, url), assetsDir, progress, cache);
+      if (dl?.src && dl.type === 'image') replacements.push({ from: assetUrl, to: relFromPage('', dl.src) });
+    }
+    rawManifest.sourceHome = {
+      title: sourceHome.title,
+      style: sourceHome.style,
+      backgroundColor: sourceHome.backgroundColor,
+      textColor: sourceHome.textColor,
+      html: rewriteCloneAssetUrls(sourceHome.html, replacements)
+    };
+  }
 
   for (let i = 0; i < projects.length; i++) {
     const base = { ...projects[i] };
@@ -1266,7 +1419,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       title: cleanTitle(base.title || data.title),
       slug,
       url: base.url,
-      description: base.description || '',
+      description: base.description || (data.copyBlocks || []).map(block => block.text || '').filter(Boolean).join('\n\n'),
       pageStyle: data.pageStyle || {},
       sourceBrand: data.sourceBrand || '',
       sourceCloneHtml,
