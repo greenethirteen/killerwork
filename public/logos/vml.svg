@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 112" role="img" aria-labelledby="title">
+  <title id="title">VML</title>
+  <rect width="360" height="112" fill="none"/>
+  <g fill="#050505">
+    <path d="M22 20h29l32 32 32-32h29L97 67l47 47h-29L83 82l-32 32H22l47-47z"/>
+    <path d="M22 50h25l36 36 36-36h25l-61 61z"/>
+    <path d="M22 82h25l36-36 36 36h25l-61-61z"/>
+    <path d="M171 31h29l28 58 28-58h29l-42 80h-30z"/>
+    <path d="M283 31h27l24 50 24-50h27v80h-24V72l-19 39h-17l-19-39v39h-23z"/>
+    <path d="M398 31h25v58h47v22h-72z" transform="translate(-20 0)"/>
+  </g>
+</svg>
