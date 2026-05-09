@@ -20,8 +20,25 @@ const reviewLink = document.getElementById('reviewLink');
 const manifestLink = document.getElementById('manifestLink');
 const downloadLink = document.getElementById('downloadLink');
 const steps = [...document.querySelectorAll('.step')];
+const switcher = document.querySelector('.dual-switcher');
+const panels = [...document.querySelectorAll('.dual-panel')];
 let timer;
 let activeButton = startBtn;
+
+if (switcher && panels.length) {
+  panels.forEach(panel => {
+    const activate = () => {
+      switcher.dataset.activePanel = panel.dataset.panel;
+    };
+    panel.addEventListener('click', activate);
+    panel.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activate();
+      }
+    });
+  });
+}
 
 function setStep(stage){
   const s = String(stage).toLowerCase();

@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="orb orb-a"></div><div class="orb orb-b"></div>
-  <main class="shell">
+  <main class="shell dual-home-shell">
     <nav class="topbar landing-topbar" aria-label="MyKillerWork">
       <a class="logo" href="/">MyKillerWork™</a>
       <div class="topnav-actions">
@@ -18,18 +18,32 @@
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
-    <section class="glass migration-card">
-      <header class="hero">
-        <div class="hero-headline-row">
-          <h1>Move your portfolio<br><span class="headline-second">out of <span class="site-flip" aria-label="Squarespace, Wix, Carbonmade, Cargo, and Webflow"><span>Squarespace.</span><span>Wix.</span><span>Carbonmade.</span><span>Cargo.</span><span>Webflow.</span></span></span></h1>
-          <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
+    <section class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options">
+      <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
+        <div class="dual-panel-inner">
+          <span class="section-tab">Import your portfolio</span>
+          <div class="hero-headline-row">
+            <h1>Move your portfolio<br><span class="headline-second">out of <span class="site-flip" aria-label="Squarespace, Wix, Carbonmade, Cargo, and Webflow"><span>Squarespace.</span><span>Wix.</span><span>Carbonmade.</span><span>Cargo.</span><span>Webflow.</span></span></span></h1>
+            <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
+          </div>
+          <p>Import your existing portfolio, preserve the work pages, and stop paying high rates.</p>
+          <form id="importForm" class="url-form">
+            <input id="urlInput" type="url" placeholder="https://www.abdullahfarouk.com" required />
+            <button id="startBtn" type="submit">Start import</button>
+          </form>
         </div>
-        <p>Import your existing portfolio, preserve the work pages, and stop paying high rates.</p>
-      </header>
-      <form id="importForm" class="url-form">
-        <input id="urlInput" type="url" placeholder="https://www.abdullahfarouk.com" required />
-        <button id="startBtn" type="submit">Start import</button>
-      </form>
+      </article>
+
+      <article class="glass dual-panel dual-panel-build" data-panel="build" tabindex="0" aria-label="Build from raw work">
+        <div class="dual-panel-inner">
+          <span class="section-tab">Build from raw work</span>
+          <h2>Upload the ads.<br>Get a portfolio.</h2>
+          <p>Let AI build your portfolio in minutes, not days. Stop adding ads and typing project details one by one. Drop in the work.</p>
+          <div class="dual-actions">
+            <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
+          </div>
+        </div>
+      </article>
     </section>
 
     <section id="progressPanel" class="glass progress-panel hidden">
@@ -54,18 +68,6 @@
         <a id="reviewLink" class="button secondary" target="_blank">Review import</a>
         <a id="manifestLink" class="button ghost" target="_blank">Manifest</a>
         <a id="downloadLink" class="button hot">Download ZIP</a>
-      </div>
-    </section>
-
-    <section class="glass upload-card">
-      <div class="upload-copy">
-        <span>Build from raw work</span>
-        <h2>Upload the ads.<br>Get a portfolio.</h2>
-        <p>Stop adding ads and typing project details one by one. Drop in the work and let AI build your portfolio in minutes, not days.</p>
-      </div>
-      <div class="upload-form upload-cta-row">
-        <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
-        <a data-auth-link class="button secondary upload-signin" href="#">Sign in</a>
       </div>
     </section>
 

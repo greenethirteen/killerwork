@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MyKillerWork™ Dual Panel Test</title>
+  <link rel="stylesheet" href="/ui.css" />
+</head>
+<body>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+  <main class="shell dual-home-shell">
+    <nav class="topbar landing-topbar" aria-label="MyKillerWork">
+      <a class="logo" href="/">MyKillerWork™</a>
+      <div class="topnav-actions">
+        <a class="top-signin" href="#">Sign in</a>
+      </div>
+    </nav>
+
+    <section class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options">
+      <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
+        <div class="dual-panel-inner">
+          <span class="section-tab">Import your portfolio</span>
+          <div class="hero-headline-row">
+            <h1>Move your portfolio<br><span class="headline-second">out of <span class="site-flip" aria-label="Squarespace, Wix, Carbonmade, Cargo, and Webflow"><span>Squarespace.</span><span>Wix.</span><span>Carbonmade.</span><span>Cargo.</span><span>Webflow.</span></span></span></h1>
+            <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
+          </div>
+          <p>Import your existing portfolio, preserve the work pages, and stop paying high rates.</p>
+          <form class="url-form">
+            <input type="url" placeholder="https://www.abdullahfarouk.com" />
+            <button type="button">Start import</button>
+          </form>
+        </div>
+      </article>
+
+      <article class="glass dual-panel dual-panel-build" data-panel="build" tabindex="0" aria-label="Build from raw work">
+        <div class="dual-panel-inner">
+          <span class="section-tab">Build from raw work</span>
+          <h2>Upload the ads.<br>Get a portfolio.</h2>
+          <p>Let AI build your portfolio in minutes, not days. Stop adding ads and typing project details one by one. Drop in the work.</p>
+          <div class="dual-actions">
+            <a class="button hot" href="/build.html">Build from files</a>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const switcher = document.querySelector('.dual-switcher');
+    const panels = [...document.querySelectorAll('.dual-panel')];
+    panels.forEach(panel => {
+      const activate = () => switcher.dataset.activePanel = panel.dataset.panel;
+      panel.addEventListener('click', activate);
+      panel.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          activate();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
