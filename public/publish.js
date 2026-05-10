@@ -6,7 +6,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   const input = control.querySelector('[data-publish-input]');
   const result = control.querySelector('[data-publish-result]');
   const submit = control.querySelector('[data-publish-submit]');
-  const domain = control.dataset.publishDomain || 'killer.work';
+  const domain = control.dataset.publishDomain || 'killa.work';
 
   function clean(value) {
     return String(value || '').toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63);

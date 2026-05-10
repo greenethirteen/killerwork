@@ -1,4 +1,4 @@
-# KillerWork™ Squarespace Importer Web v8 - AI Cleanup
+# KillaWork™ Squarespace Importer Web v8 - AI Cleanup
 
 A local SaaS-style MVP that imports Squarespace-style advertising portfolios, downloads accessible assets, preserves video embeds/HLS streams, runs an optional AI cleanup pass, generates a review page, validates output, and packages a ZIP.
 
@@ -22,7 +22,7 @@ http://localhost:8787
 
 Paste your portfolio URL and turn on **AI cleanup** in the UI.
 
-You can also build a new portfolio from uploaded work. Use **Build from files** to upload campaign images, videos, and PDFs. KillerWork saves the assets, uses AI to analyze and group the work when `OPENAI_API_KEY` is configured, generates editable project pages, validates the output, and packages the ZIP.
+You can also build a new portfolio from uploaded work. Use **Build from files** to upload campaign images, videos, and PDFs. KillaWork saves the assets, uses AI to analyze and group the work when `OPENAI_API_KEY` is configured, generates editable project pages, validates the output, and packages the ZIP.
 
 ## AI cleanup
 

@@ -1,3 +1,5 @@
+import { setupPublishControl } from './publish.js';
+
 const form = document.getElementById('campaignBuilder');
 const campaignList = document.getElementById('campaignList');
 const addCampaign = document.getElementById('addCampaign');
@@ -17,6 +19,16 @@ const manageLink = document.getElementById('manageLink');
 const downloadLink = document.getElementById('downloadLink');
 
 let timer;
+let currentJobId = '';
+
+const publishControl = setupPublishControl({
+  control: document.getElementById('publishControl'),
+  getJobId: () => currentJobId,
+  setStatus: (text, tone = '') => {
+    stageDetail.textContent = text;
+    if (tone) pill.textContent = tone === 'ok' ? 'Published' : 'Error';
+  }
+});
 
 function renumberCampaigns() {
   [...campaignList.querySelectorAll('.campaign-card')].forEach((card, index) => {
@@ -83,11 +95,14 @@ async function poll(id) {
     clearInterval(timer);
     pill.textContent = 'Complete';
     actions.classList.remove('hidden');
+    currentJobId = job.id;
     localStorage.setItem('killerwork:lastJobId', job.id);
     editorLink.href = `/editor.html?job=${encodeURIComponent(job.id)}`;
     previewLink.href = job.links.preview;
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
     downloadLink.href = job.links.zip;
+    publishControl.show();
+    publishControl.setPublished(job.published);
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Build another portfolio';
   }
@@ -121,6 +136,7 @@ form.addEventListener('submit', async event => {
   });
 
   actions.classList.add('hidden');
+  publishControl.hide();
   panel.classList.remove('hidden');
   logBox.textContent = '';
   buildCampaigns.disabled = true;

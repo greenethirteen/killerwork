@@ -41,7 +41,7 @@ function setupCustomDomainControl({ control, getJobId, setStatus }) {
     if (!instructions || !dnsName || !dnsValue) return;
     instructions.classList.remove('hidden');
     dnsName.textContent = domain;
-    dnsValue.textContent = `${portfolio.published?.subdomain || 'your-subdomain'}.killer.work`;
+    dnsValue.textContent = `${portfolio.published?.subdomain || 'your-subdomain'}.killa.work`;
   }
 
   function hideInstructions() {

@@ -28,7 +28,7 @@ const upload = multer({
 app.use(express.json({ limit: '2mb' }));
 app.get('*', serveCustomDomainIfMapped);
 app.get(['/published/:subdomain', '/published/:subdomain/*'], servePublishedSite);
-app.get('*', serveKillerWorkHost);
+app.get('*', serveKillaWorkHost);
 app.use('/', express.static(path.join(root, 'public')));
 app.use('/generated', express.static(path.join(root, 'generated')));
 
@@ -101,7 +101,7 @@ function canAccessPortfolio(manifest, user) {
 }
 
 function publicHost() {
-  return process.env.PUBLIC_SITE_HOST || 'killer.work';
+  return process.env.PUBLIC_SITE_HOST || 'killa.work';
 }
 
 function normalizeSubdomain(value = '') {
@@ -178,7 +178,7 @@ async function servePublishedSite(req, res, next) {
   }
 }
 
-async function serveKillerWorkHost(req, res, next) {
+async function serveKillaWorkHost(req, res, next) {
   try {
     if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css') return next();
     const host = String(req.hostname || '').toLowerCase();
@@ -366,7 +366,7 @@ app.get('/api/jobs/:id', requireFirebaseAuth, (req, res) => {
 app.get('/api/download/:id', async (req, res) => {
   const zip = path.join(root, 'generated', req.params.id, 'site.zip');
   if (!(await fs.pathExists(zip))) return res.status(404).send('ZIP not ready');
-  res.download(zip, 'killerwork-import.zip');
+  res.download(zip, 'killawork-import.zip');
 });
 
 function jobDir(id) {
@@ -502,7 +502,7 @@ app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   const requested = normalizeSubdomain(req.body?.subdomain || '');
-  const reserved = new Set(['www', 'app', 'api', 'admin', 'assets', 'static', 'cdn', 'mail', 'support', 'help', 'killerwork']);
+  const reserved = new Set(['www', 'app', 'api', 'admin', 'assets', 'static', 'cdn', 'mail', 'support', 'help', 'killawork']);
   if (!validSubdomain(requested) || reserved.has(requested)) {
     return res.status(400).json({ error: 'Choose a valid subdomain using letters, numbers, or hyphens.' });
   }
@@ -743,4 +743,4 @@ app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => 
   res.json({ ok: true, validation, page: publicProject(project), preview: `/generated/${id}/site/work/${project.slug}/index.html` });
 });
 
-app.listen(PORT, () => console.log(`KillerWork™ Importer running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`KillaWork™ Importer running on http://localhost:${PORT}`));

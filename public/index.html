@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MyKillerWork™ Importer</title>
+  <title>MyKillaWork™ Importer</title>
   <link rel="stylesheet" href="/ui.css" />
 </head>
 <body>
   <div class="orb orb-a"></div><div class="orb orb-b"></div>
   <main class="shell dual-home-shell">
-    <nav class="topbar landing-topbar" aria-label="MyKillerWork">
-      <a class="logo" href="/">MyKillerWork™</a>
+    <nav class="topbar landing-topbar" aria-label="MyKillaWork">
+      <a class="logo" href="/">MyKillaWork™</a>
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="#">Manage portfolio</a>
         <span data-user-badge class="user-badge hidden"></span>
@@ -69,6 +69,22 @@
         <a id="reviewLink" class="button secondary" target="_blank">Review import</a>
         <a id="manifestLink" class="button ghost" target="_blank">Manifest</a>
         <a id="downloadLink" class="button hot">Download ZIP</a>
+        <div id="publishControl" class="publish-control hidden" data-publish-domain="killa.work">
+          <button class="button secondary" type="button" data-publish-toggle>Publish</button>
+          <div class="publish-panel hidden" data-publish-panel>
+            <form data-publish-form>
+              <label>
+                <span>Portfolio URL</span>
+                <div class="publish-url-field">
+                  <input data-publish-input type="text" placeholder="abdullahfarouk" autocomplete="off" />
+                  <b>.killa.work</b>
+                </div>
+              </label>
+              <button data-publish-submit type="submit">Publish</button>
+            </form>
+            <p class="publish-result hidden" data-publish-result></p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -87,12 +103,12 @@
     <section class="comparison">
       <div class="comparison-copy">
         <span>Portfolio stack check</span>
-        <h2>Why ad creatives use MyKillerWork™</h2>
+        <h2>Why ad creatives use MyKillaWork™</h2>
       </div>
-      <div class="comparison-table" role="table" aria-label="MyKillerWork versus Squarespace">
+      <div class="comparison-table" role="table" aria-label="MyKillaWork versus Squarespace">
         <div class="comparison-row comparison-head" role="row">
           <div role="columnheader">Need</div>
-          <div role="columnheader">MyKillerWork™</div>
+          <div role="columnheader">MyKillaWork™</div>
           <div role="columnheader">Generic builders</div>
         </div>
         <div class="comparison-row" role="row">
@@ -128,7 +144,7 @@
       <div class="pricing-layout">
         <article class="pricing-card">
           <div>
-            <span class="pricing-label">MyKillerWork™ Portfolio</span>
+            <span class="pricing-label">MyKillaWork™ Portfolio</span>
             <h2>$5<span>/mo</span></h2>
             <p>Import your existing portfolio or build one from raw campaign work, then edit and keep it online.</p>
           </div>
@@ -194,7 +210,7 @@
     </section>
 
     <footer class="site-footer">
-      <b>MyKillerWork™</b>
+      <b>MyKillaWork™</b>
       <span>Portfolio migration and generation for advertising creatives.</span>
     </footer>
   </main>

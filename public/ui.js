@@ -1,3 +1,5 @@
+import { setupPublishControl } from './publish.js';
+
 const form = document.getElementById('importForm');
 const uploadForm = document.getElementById('uploadForm');
 const urlInput = document.getElementById('urlInput');
@@ -24,6 +26,16 @@ const switcher = document.querySelector('.dual-switcher');
 const panels = [...document.querySelectorAll('.dual-panel')];
 let timer;
 let activeButton = startBtn;
+let currentJobId = '';
+
+const publishControl = setupPublishControl({
+  control: document.getElementById('publishControl'),
+  getJobId: () => currentJobId,
+  setStatus: (text, tone = '') => {
+    detail.textContent = text;
+    if (tone) pill.textContent = tone === 'ok' ? 'Published' : 'Error';
+  }
+});
 
 if (switcher && panels.length) {
   panels.forEach(panel => {
@@ -64,6 +76,7 @@ async function poll(id){
     clearInterval(timer);
     pill.textContent = 'Complete';
     actions.classList.remove('hidden');
+    currentJobId = job.id;
     previewLink.href = job.links.preview;
     localStorage.setItem('killerwork:lastJobId', job.id);
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
@@ -71,6 +84,8 @@ async function poll(id){
     reviewLink.href = job.links.review;
     manifestLink.href = job.links.manifest;
     downloadLink.href = job.links.zip;
+    publishControl.show();
+    publishControl.setPublished(job.published);
     activeButton.disabled = false;
     activeButton.textContent = activeButton === buildUploadBtn ? 'Build another portfolio' : 'Start another import';
   }
@@ -87,6 +102,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   activeButton = startBtn;
   actions.classList.add('hidden');
+  publishControl.hide();
   logs.textContent = '';
   panel.classList.remove('hidden');
   startBtn.disabled = true;
@@ -115,6 +131,7 @@ if (uploadForm) {
     e.preventDefault();
     activeButton = buildUploadBtn;
     actions.classList.add('hidden');
+    publishControl.hide();
     logs.textContent = '';
     panel.classList.remove('hidden');
     buildUploadBtn.disabled = true;
