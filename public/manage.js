@@ -1,3 +1,5 @@
+import { setupPublishControl } from './publish.js';
+
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');
 if (jobId) localStorage.setItem('killerwork:lastJobId', jobId);
@@ -12,6 +14,123 @@ const managerStatus = document.getElementById('managerStatus');
 const projectList = document.getElementById('projectList');
 
 let portfolio = null;
+
+const publishControl = setupPublishControl({
+  control: document.getElementById('publishControl'),
+  getJobId: () => jobId,
+  setStatus
+});
+
+function setupCustomDomainControl({ control, getJobId, setStatus }) {
+  if (!control) return { show() {}, hide() {}, setCustomDomain() {} };
+  const toggle = control.querySelector('[data-custom-domain-toggle]');
+  const panel = control.querySelector('[data-custom-domain-panel]');
+  const form = control.querySelector('[data-custom-domain-form]');
+  const input = control.querySelector('[data-custom-domain-input]');
+  const result = control.querySelector('[data-custom-domain-result]');
+  const instructions = control.querySelector('[data-custom-domain-instructions]');
+  const dnsName = control.querySelector('[data-dns-name]');
+  const dnsValue = control.querySelector('[data-dns-value]');
+  const submit = control.querySelector('[data-custom-domain-submit]');
+
+  function cleanDomain(value) {
+    return String(value || '').toLowerCase().trim();
+  }
+
+  function showInstructions(domain) {
+    if (!instructions || !dnsName || !dnsValue) return;
+    instructions.classList.remove('hidden');
+    dnsName.textContent = domain;
+    dnsValue.textContent = `${portfolio.published?.subdomain || 'your-subdomain'}.killer.work`;
+  }
+
+  function hideInstructions() {
+    if (!instructions) return;
+    instructions.classList.add('hidden');
+  }
+
+  function resultLink(domain) {
+    if (!result) return;
+    if (!domain) {
+      result.classList.add('hidden');
+      result.innerHTML = '';
+      return;
+    }
+    result.classList.remove('hidden');
+    result.textContent = '';
+    const label = document.createElement('span');
+    label.textContent = 'Connected to';
+    const link = document.createElement('a');
+    link.href = `https://${domain}`;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    link.textContent = domain;
+    result.append(label, link);
+  }
+
+  function openPanel() {
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) input.focus();
+  }
+
+  toggle.addEventListener('click', openPanel);
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const jobId = getJobId();
+    const domain = cleanDomain(input.value);
+    if (!jobId) return setStatus?.('Build or import a portfolio before connecting a domain.', 'error');
+    if (!domain) return setStatus?.('Enter a domain before connecting.', 'error');
+    if (!portfolio?.published?.subdomain) return setStatus?.('Publish your portfolio first before connecting a custom domain.', 'error');
+    submit.disabled = true;
+    submit.textContent = 'Connecting...';
+    setStatus?.(`Connecting ${domain}...`);
+    try {
+      const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+      const res = await fetch(`/api/custom-domain/${encodeURIComponent(jobId)}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ domain })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Domain connection failed.');
+      input.value = data.customDomain?.domain || domain;
+      resultLink(data.customDomain?.domain);
+      showInstructions(data.customDomain?.domain);
+      panel.classList.add('hidden');
+      setStatus?.(`${domain} connected. Update your DNS settings.`, 'ok');
+    } catch (err) {
+      setStatus?.(err.message || 'Domain connection failed.', 'error');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Connect Domain';
+    }
+  });
+
+  return {
+    show() {
+      control.classList.remove('hidden');
+    },
+    hide() {
+      control.classList.add('hidden');
+      panel.classList.add('hidden');
+      resultLink(null);
+      hideInstructions();
+    },
+    setCustomDomain(customDomain) {
+      if (customDomain?.domain) {
+        input.value = customDomain.domain;
+        resultLink(customDomain.domain);
+        showInstructions(customDomain.domain);
+      }
+    }
+  };
+}
+
+const customDomainControl = setupCustomDomainControl({
+  control: document.getElementById('customDomainControl'),
+  getJobId: () => jobId,
+  setStatus
+});
 
 async function authHeaders() {
   const token = await window.KillerWorkAuth.requireToken();
@@ -67,6 +186,14 @@ function applyPortfolio(data) {
   portfolioPreview.href = data.preview;
   portfolioEditor.href = data.editor;
   portfolioZip.href = data.zip;
+  publishControl.setPublished(data.published);
+  customDomainControl.setCustomDomain(data.customDomain);
+  // Show custom domain control only if published
+  if (data.published?.subdomain) {
+    customDomainControl.show();
+  } else {
+    customDomainControl.hide();
+  }
   renderProjects();
 }
 

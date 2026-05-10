@@ -42,6 +42,45 @@
         <a id="portfolioPreview" class="button" target="_blank">Preview site</a>
         <a id="portfolioEditor" class="button secondary" target="_blank">Edit pages</a>
         <a id="portfolioZip" class="button hot">Download ZIP</a>
+        <div id="publishControl" class="publish-control" data-publish-domain="killer.work">
+          <button class="button secondary" type="button" data-publish-toggle>Publish</button>
+          <div class="publish-panel hidden" data-publish-panel>
+            <form data-publish-form>
+              <label>
+                <span>Portfolio URL</span>
+                <div class="publish-url-field">
+                  <input data-publish-input type="text" placeholder="abdullahfarouk" autocomplete="off" />
+                  <b>.killer.work</b>
+                </div>
+              </label>
+              <button data-publish-submit type="submit">Publish</button>
+            </form>
+            <p class="publish-result hidden" data-publish-result></p>
+          </div>
+        </div>
+        <div id="customDomainControl" class="publish-control">
+          <button class="button secondary" type="button" data-custom-domain-toggle>Custom Domain</button>
+          <div class="publish-panel hidden" data-custom-domain-panel>
+            <form data-custom-domain-form>
+              <label>
+                <span>Your Domain</span>
+                <input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" />
+              </label>
+              <button data-custom-domain-submit type="submit">Connect Domain</button>
+            </form>
+            <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
+              <h4>DNS Setup Instructions</h4>
+              <p>To connect your domain, add this CNAME record to your DNS settings:</p>
+              <div class="dns-record">
+                <strong>Type:</strong> CNAME<br>
+                <strong>Name:</strong> <span data-dns-name></span><br>
+                <strong>Value:</strong> <span data-dns-value></span>
+              </div>
+              <p class="note">DNS changes can take up to 48 hours to propagate. Your site will be available at your custom domain once the DNS is updated.</p>
+            </div>
+            <p class="publish-result hidden" data-custom-domain-result></p>
+          </div>
+        </div>
         <button id="deletePortfolio" class="danger-button" type="button">Delete portfolio</button>
       </div>
       <div id="managerStatus" class="editor-status">Loading portfolio...</div>

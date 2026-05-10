@@ -26,6 +26,9 @@ const upload = multer({
 });
 
 app.use(express.json({ limit: '2mb' }));
+app.get('*', serveCustomDomainIfMapped);
+app.get(['/published/:subdomain', '/published/:subdomain/*'], servePublishedSite);
+app.get('*', serveKillerWorkHost);
 app.use('/', express.static(path.join(root, 'public')));
 app.use('/generated', express.static(path.join(root, 'generated')));
 
@@ -95,6 +98,101 @@ function attachOwner(manifest, user) {
 
 function canAccessPortfolio(manifest, user) {
   return !manifest.ownerUid || manifest.ownerUid === user.uid;
+}
+
+function publicHost() {
+  return process.env.PUBLIC_SITE_HOST || 'killer.work';
+}
+
+function normalizeSubdomain(value = '') {
+  return String(value || '').toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63);
+}
+
+function validSubdomain(value = '') {
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value);
+}
+
+function publishedUrlFor(subdomain) {
+  return `https://${subdomain}.${publicHost()}`;
+}
+
+async function publishedIndex() {
+  const generatedDir = path.join(root, 'generated');
+  if (!(await fs.pathExists(generatedDir))) return new Map();
+  const entries = await fs.readdir(generatedDir);
+  const index = new Map();
+  await Promise.all(entries.map(async id => {
+    const manifest = await readManifest(id);
+    const subdomain = normalizeSubdomain(manifest?.published?.subdomain || '');
+    if (subdomain) index.set(subdomain, { id, manifest, customDomain: manifest?.customDomain });
+  }));
+  return index;
+}
+
+async function serveSiteFile(res, id, requestedPath = '') {
+  const siteRoot = path.join(jobDir(id), 'site');
+  const cleanPath = String(requestedPath || '').replace(/^\/+/, '') || 'index.html';
+  const target = path.normalize(path.join(siteRoot, cleanPath));
+  if (target !== siteRoot && !target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
+  const stat = await fs.stat(target).catch(() => null);
+  if (stat?.isDirectory()) {
+    const indexFile = path.join(target, 'index.html');
+    if (await fs.pathExists(indexFile)) return res.sendFile(indexFile);
+  }
+  if (stat?.isFile()) return res.sendFile(target);
+  const fallback = path.join(siteRoot, 'index.html');
+  if (await fs.pathExists(fallback)) return res.sendFile(fallback);
+  return res.status(404).send('Published site not found');
+}
+
+async function serveCustomDomainIfMapped(req, res, next) {
+  try {
+    if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css') return next();
+    const host = String(req.hostname || '').toLowerCase();
+    // Skip if it's localhost or the main domain
+    if (host === 'localhost' || host === '127.0.0.1' || host === publicHost().toLowerCase()) return next();
+    // Check if this host is mapped to a custom domain
+    const index = await publishedIndex();
+    for (const published of index.values()) {
+      if (published.customDomain?.domain === host) {
+        const rest = req.path.slice(1) || '';
+        return serveSiteFile(res, published.id, rest);
+      }
+    }
+    return next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function servePublishedSite(req, res, next) {
+  try {
+    const subdomain = normalizeSubdomain(req.params.subdomain);
+    const index = await publishedIndex();
+    const published = index.get(subdomain);
+    if (!published) return res.status(404).send('Published site not found');
+    const rest = req.params[0] || '';
+    return serveSiteFile(res, published.id, rest);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function serveKillerWorkHost(req, res, next) {
+  try {
+    if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css') return next();
+    const host = String(req.hostname || '').toLowerCase();
+    const base = publicHost().toLowerCase();
+    if (!host.endsWith(`.${base}`)) return next();
+    const subdomain = normalizeSubdomain(host.slice(0, -(base.length + 1)));
+    if (!subdomain || subdomain === 'www') return next();
+    const index = await publishedIndex();
+    const published = index.get(subdomain);
+    if (!published) return res.status(404).send('Published site not found');
+    return serveSiteFile(res, published.id, req.path);
+  } catch (err) {
+    next(err);
+  }
 }
 
 app.get('/api/firebase-config', (req, res) => {
@@ -361,6 +459,8 @@ function publicPortfolio(id, manifest, validation = null) {
     manifest: `/generated/${id}/manifest.json`,
     zip: `/api/download/${id}`,
     editor: `/editor.html?job=${encodeURIComponent(id)}`,
+    published: manifest.published || null,
+    customDomain: manifest.customDomain || null,
     projects: (manifest.projects || []).map(project => projectSummary(project, id)),
     validation
   };
@@ -394,6 +494,50 @@ app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   if (ownerName) manifest.ownerName = ownerName;
   const validation = await saveManifestAndRebuild(id, manifest);
   res.json(publicPortfolio(id, manifest, validation));
+});
+
+app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  const requested = normalizeSubdomain(req.body?.subdomain || '');
+  const reserved = new Set(['www', 'app', 'api', 'admin', 'assets', 'static', 'cdn', 'mail', 'support', 'help', 'killerwork']);
+  if (!validSubdomain(requested) || reserved.has(requested)) {
+    return res.status(400).json({ error: 'Choose a valid subdomain using letters, numbers, or hyphens.' });
+  }
+  const index = await publishedIndex();
+  const existing = index.get(requested);
+  if (existing && existing.id !== id) return res.status(409).json({ error: `${requested}.${publicHost()} is already taken.` });
+  manifest.published = {
+    subdomain: requested,
+    url: publishedUrlFor(requested),
+    localPreview: `/published/${requested}/`,
+    publishedAt: new Date().toISOString()
+  };
+  await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+  await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
+  res.json({ ok: true, published: manifest.published });
+});
+
+app.post('/api/custom-domain/:id', requireFirebaseAuth, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  if (!manifest.published?.subdomain) return res.status(400).json({ error: 'Publish your portfolio first before connecting a custom domain.' });
+  const domain = String(req.body?.domain || '').toLowerCase().trim();
+  if (!domain) return res.status(400).json({ error: 'Domain is required.' });
+  // Basic domain validation
+  const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  if (!domainRegex.test(domain)) return res.status(400).json({ error: 'Invalid domain format.' });
+  manifest.customDomain = {
+    domain,
+    connectedAt: new Date().toISOString()
+  };
+  await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+  await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
+  res.json({ ok: true, customDomain: manifest.customDomain });
 });
 
 app.delete('/api/manage/:id/projects/:slug', requireFirebaseAuth, async (req, res) => {
