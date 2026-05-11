@@ -85,7 +85,7 @@ async function poll(id){
     manifestLink.href = job.links.manifest;
     downloadLink.href = job.links.zip;
     publishControl.show();
-    publishControl.setPublished(job.published);
+    publishControl.setPublished(job.published, job.customDomain);
     activeButton.disabled = false;
     activeButton.textContent = activeButton === buildUploadBtn ? 'Build another portfolio' : 'Start another import';
   }

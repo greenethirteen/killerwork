@@ -9,7 +9,10 @@
 <body>
   <main class="manager-shell">
     <nav class="topbar manager-topbar" aria-label="MyKillaWork">
-      <a class="logo" href="/">KillaWork™</a>
+      <a class="logo" href="/">
+        <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" />
+        <span class="logo-text">KillaWork™</span>
+      </a>
       <div class="topnav-actions">
         <a href="/">Import</a>
         <a href="/build.html">Build</a>
@@ -56,29 +59,27 @@
               <button data-publish-submit type="submit">Publish</button>
             </form>
             <p class="publish-result hidden" data-publish-result></p>
-          </div>
-        </div>
-        <div id="customDomainControl" class="publish-control">
-          <button class="button secondary" type="button" data-custom-domain-toggle>Custom Domain</button>
-          <div class="publish-panel hidden" data-custom-domain-panel>
-            <form data-custom-domain-form>
-              <label>
-                <span>Your Domain</span>
-                <input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" />
-              </label>
-              <button data-custom-domain-submit type="submit">Connect Domain</button>
-            </form>
-            <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
-              <h4>DNS Setup Instructions</h4>
-              <p>To connect your domain, add this CNAME record to your DNS settings:</p>
-              <div class="dns-record">
-                <strong>Type:</strong> CNAME<br>
-                <strong>Name:</strong> <span data-dns-name></span><br>
-                <strong>Value:</strong> <span data-dns-value></span>
+            <div class="custom-domain-block" data-custom-domain-block>
+              <div class="publish-divider">Or connect your own domain</div>
+              <form data-custom-domain-form>
+                <label>
+                  <span>Owned domain</span>
+                  <input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" disabled />
+                </label>
+                <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
+              </form>
+              <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
+                <h4>DNS setup</h4>
+                <p>Add this CNAME record where you bought your domain.</p>
+                <div class="dns-record">
+                  <strong>Type:</strong> CNAME<br>
+                  <strong>Name:</strong> <span data-dns-name>www.yourportfolio.com</span><br>
+                  <strong>Value:</strong> <span data-dns-value>your-name.killa.work</span>
+                </div>
+                <p class="note">Publish to a KillaWork URL first. DNS changes can take a while to appear everywhere.</p>
               </div>
-              <p class="note">DNS changes can take up to 48 hours to propagate. Your site will be available at your custom domain once the DNS is updated.</p>
+              <p class="publish-result hidden" data-custom-domain-result></p>
             </div>
-            <p class="publish-result hidden" data-custom-domain-result></p>
           </div>
         </div>
         <button id="deletePortfolio" class="danger-button" type="button">Delete portfolio</button>

@@ -102,7 +102,7 @@ async function poll(id) {
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
     downloadLink.href = job.links.zip;
     publishControl.show();
-    publishControl.setPublished(job.published);
+    publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Build another portfolio';
   }

@@ -112,6 +112,14 @@ function validSubdomain(value = '') {
   return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value);
 }
 
+function normalizeDomain(value = '') {
+  return String(value || '').toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^@$/, '');
+}
+
+function validDomain(value = '') {
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(value);
+}
+
 function publishedUrlFor(subdomain) {
   return `https://${subdomain}.${publicHost()}`;
 }
@@ -517,7 +525,7 @@ app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
   };
   await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
   await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
-  res.json({ ok: true, published: manifest.published });
+  res.json({ ok: true, published: manifest.published, customDomain: manifest.customDomain || null });
 });
 
 app.post('/api/custom-domain/:id', requireFirebaseAuth, async (req, res) => {
@@ -526,13 +534,23 @@ app.post('/api/custom-domain/:id', requireFirebaseAuth, async (req, res) => {
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   if (!manifest.published?.subdomain) return res.status(400).json({ error: 'Publish your portfolio first before connecting a custom domain.' });
-  const domain = String(req.body?.domain || '').toLowerCase().trim();
+  const domain = normalizeDomain(req.body?.domain || '');
   if (!domain) return res.status(400).json({ error: 'Domain is required.' });
-  // Basic domain validation
-  const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-  if (!domainRegex.test(domain)) return res.status(400).json({ error: 'Invalid domain format.' });
+  if (!validDomain(domain)) return res.status(400).json({ error: 'Enter a valid domain, like www.yourportfolio.com.' });
+  if (domain === publicHost().toLowerCase() || domain.endsWith(`.${publicHost().toLowerCase()}`)) {
+    return res.status(400).json({ error: `Use the ${publicHost()} subdomain field for KillaWork URLs.` });
+  }
+  const index = await publishedIndex();
+  for (const published of index.values()) {
+    if (published.id !== id && published.customDomain?.domain === domain) {
+      return res.status(409).json({ error: `${domain} is already connected to another portfolio.` });
+    }
+  }
   manifest.customDomain = {
     domain,
+    dnsType: 'CNAME',
+    dnsName: domain,
+    dnsValue: `${manifest.published.subdomain}.${publicHost()}`,
     connectedAt: new Date().toISOString()
   };
   await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
