@@ -71,7 +71,7 @@ function renderProjects() {
     row.className = 'manager-project';
     row.innerHTML = `
       <div>
-        <h2>${project.title}</h2>
+        <h2>${escapeHtml(project.title)}</h2>
         <p>${projectCount(project)}</p>
       </div>
       <div class="manager-project-actions">
@@ -118,10 +118,33 @@ function renderPortfolioList(portfolios) {
         <a class="button" href="${item.manage}">Manage</a>
         <a class="button secondary" href="${item.editor}">Edit pages</a>
         <a class="button ghost" href="${item.preview}" target="_blank">Preview</a>
+        <button class="danger-button" type="button" data-delete-portfolio="${escapeHtml(item.id)}">Delete</button>
       </div>
     `;
+    row.querySelector('[data-delete-portfolio]').addEventListener('click', () => deletePortfolioItem(item, row));
     projectList.appendChild(row);
   });
+}
+
+async function deletePortfolioItem(item, row) {
+  if (!confirm(`Delete "${item.siteTitle}" and all of its projects? This cannot be undone.`)) return;
+  setStatus(`Deleting ${item.siteTitle}...`);
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/manage/${encodeURIComponent(item.id)}`, { method: 'DELETE', headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    setStatus(data.error || 'Delete failed.', 'error');
+    return;
+  }
+  row.remove();
+  if (!projectList.children.length) renderPortfolioList([]);
+  setStatus('Portfolio deleted.', 'ok');
 }
 
 async function loadPortfolioDashboard() {

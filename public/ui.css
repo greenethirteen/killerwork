@@ -84,3 +84,16 @@
     line-height:1.32;
   }
 }
+
+.manager-shell{padding-top:12px}
+.manager-topbar{width:100vw;margin-left:calc(50% - 50vw);padding:0 24px 0 24px}
+.manager-topbar .logo-image{max-height:134px;max-width:250px}
+.manager-header{display:block;margin-top:12px}
+.manager-project-actions .danger-button{border-radius:22px;padding:16px 22px;font-weight:900}
+
+@media(max-width:760px){
+  .manager-shell{width:100%;padding:8px 22px 46px}
+  .manager-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;margin:0;padding:0}
+  .manager-topbar .logo{margin-left:-10px;flex:0 1 auto}
+  .manager-topbar .logo-image{max-height:94px;max-width:178px}
+}
