@@ -12,6 +12,8 @@ const portfolioEditor = document.getElementById('portfolioEditor');
 const portfolioZip = document.getElementById('portfolioZip');
 const managerStatus = document.getElementById('managerStatus');
 const projectList = document.getElementById('projectList');
+const managerForm = document.querySelector('.manager-form');
+const managerActions = document.querySelector('.manager-actions');
 
 let portfolio = null;
 
@@ -20,6 +22,11 @@ const publishControl = setupPublishControl({
   getJobId: () => jobId,
   setStatus
 });
+
+if (!jobId) {
+  managerForm?.classList.add('hidden');
+  managerActions?.classList.add('hidden');
+}
 
 async function authHeaders() {
   const token = await window.KillerWorkAuth.requireToken();
@@ -37,6 +44,16 @@ function projectCount(project) {
   if (project.videos) parts.push(`${project.videos} video${project.videos === 1 ? '' : 's'}`);
   if (project.documents) parts.push(`${project.documents} PDF${project.documents === 1 ? '' : 's'}`);
   return parts.join(' / ') || 'No media';
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char]);
 }
 
 function renderProjects() {
@@ -68,6 +85,64 @@ function renderProjects() {
   });
 }
 
+function renderPortfolioList(portfolios) {
+  projectList.innerHTML = '';
+  if (!portfolios.length) {
+    const empty = document.createElement('article');
+    empty.className = 'manager-empty manager-empty-stack';
+    empty.innerHTML = `
+      <div>
+        <h2>No portfolios yet</h2>
+        <p>Import an existing portfolio or build one from campaign files, then it will appear here.</p>
+      </div>
+      <div class="manager-project-actions">
+        <a class="button" href="/">Import portfolio</a>
+        <a class="button secondary" href="/build.html">Build from files</a>
+      </div>
+    `;
+    projectList.appendChild(empty);
+    return;
+  }
+
+  portfolios.forEach(item => {
+    const row = document.createElement('article');
+    row.className = 'manager-project';
+    const projectLabel = `${item.projectCount} project${item.projectCount === 1 ? '' : 's'}`;
+    const source = item.sourceUrl ? ` from ${escapeHtml(item.sourceUrl)}` : '';
+    row.innerHTML = `
+      <div>
+        <h2>${escapeHtml(item.siteTitle)}</h2>
+        <p>${projectLabel}${source}</p>
+      </div>
+      <div class="manager-project-actions">
+        <a class="button" href="${item.manage}">Manage</a>
+        <a class="button secondary" href="${item.editor}">Edit pages</a>
+        <a class="button ghost" href="${item.preview}" target="_blank">Preview</a>
+      </div>
+    `;
+    projectList.appendChild(row);
+  });
+}
+
+async function loadPortfolioDashboard() {
+  setStatus('Loading your portfolios...');
+  let headers;
+  try {
+    headers = await authHeaders();
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch('/api/portfolios', { headers });
+  const data = await res.json();
+  if (!res.ok) {
+    setStatus(data.error || 'Could not load portfolios.', 'error');
+    return;
+  }
+  renderPortfolioList(data.portfolios || []);
+  setStatus(data.portfolios?.length ? 'Choose a portfolio to manage.' : 'No portfolios yet.');
+}
+
 function applyPortfolio(data) {
   portfolio = data;
   ownerNameInput.value = data.ownerName || '';
@@ -81,7 +156,7 @@ function applyPortfolio(data) {
 
 async function loadPortfolio() {
   if (!jobId) {
-    setStatus('Missing job id. Open this page from a completed portfolio build.', 'error');
+    await loadPortfolioDashboard();
     return;
   }
   let headers;

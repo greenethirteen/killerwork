@@ -7,7 +7,6 @@ import {
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 
-const latestJobId = localStorage.getItem('killerwork:lastJobId') || '';
 const manageLatestLinks = [...document.querySelectorAll('[data-manage-latest]')];
 const authLinks = [...document.querySelectorAll('[data-auth-link]')];
 const logoutButtons = [...document.querySelectorAll('[data-auth-logout]')];
@@ -40,12 +39,8 @@ window.KillerWorkAuth = {
 };
 
 manageLatestLinks.forEach(link => {
-  if (latestJobId) {
-    link.href = `/manage.html?job=${encodeURIComponent(latestJobId)}`;
-    link.classList.remove('hidden');
-  } else {
-    link.classList.add('hidden');
-  }
+  link.href = '/manage.html';
+  link.classList.add('hidden');
 });
 
 function setSignedOut(message = '') {
@@ -54,6 +49,7 @@ function setSignedOut(message = '') {
     link.href = '#';
     if (message) link.title = message;
   });
+  manageLatestLinks.forEach(link => link.classList.add('hidden'));
   logoutButtons.forEach(button => button.classList.add('hidden'));
   userBadges.forEach(badge => {
     badge.classList.add('hidden');
@@ -63,6 +59,10 @@ function setSignedOut(message = '') {
 
 function setSignedIn(user) {
   authLinks.forEach(link => link.classList.add('hidden'));
+  manageLatestLinks.forEach(link => {
+    link.href = '/manage.html';
+    link.classList.remove('hidden');
+  });
   logoutButtons.forEach(button => button.classList.remove('hidden'));
   userBadges.forEach(badge => {
     badge.classList.remove('hidden');

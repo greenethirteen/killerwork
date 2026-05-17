@@ -474,6 +474,37 @@ function publicPortfolio(id, manifest, validation = null) {
   };
 }
 
+function publicPortfolioListItem(id, manifest) {
+  return {
+    id,
+    siteTitle: manifest.siteTitle || manifest.ownerName || 'Untitled portfolio',
+    ownerName: manifest.ownerName || '',
+    sourceUrl: manifest.sourceUrl || '',
+    generatedAt: manifest.generatedAt || '',
+    projectCount: (manifest.projects || []).length,
+    preview: `/generated/${id}/site/index.html`,
+    manage: `/manage.html?job=${encodeURIComponent(id)}`,
+    editor: `/editor.html?job=${encodeURIComponent(id)}`,
+    zip: `/api/download/${id}`,
+    published: manifest.published || null,
+    customDomain: manifest.customDomain || null
+  };
+}
+
+async function userPortfolioList(user) {
+  const generatedDir = path.join(root, 'generated');
+  if (!(await fs.pathExists(generatedDir))) return [];
+  const entries = await fs.readdir(generatedDir);
+  const portfolios = await Promise.all(entries.map(async id => {
+    const manifest = await readManifest(id);
+    if (!manifest || !canAccessPortfolio(manifest, user)) return null;
+    return publicPortfolioListItem(id, manifest);
+  }));
+  return portfolios
+    .filter(Boolean)
+    .sort((a, b) => String(b.generatedAt || b.id).localeCompare(String(a.generatedAt || a.id)));
+}
+
 async function saveManifestAndRebuild(id, manifest) {
   const outDir = jobDir(id);
   await fs.writeJson(path.join(outDir, 'manifest.json'), manifest, { spaces: 2 });
@@ -489,6 +520,10 @@ app.get('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   res.json(publicPortfolio(req.params.id, manifest));
+});
+
+app.get('/api/portfolios', requireFirebaseAuth, async (req, res) => {
+  res.json({ portfolios: await userPortfolioList(req.user) });
 });
 
 app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
