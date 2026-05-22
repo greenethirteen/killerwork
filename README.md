@@ -1,6 +1,6 @@
-# KillaWork™ Squarespace Importer Web v8 - AI Cleanup
+# KillaWork™ Portfolio Importer Web v8 - AI Cleanup
 
-A local SaaS-style MVP that imports Squarespace-style advertising portfolios, downloads accessible assets, preserves video embeds/HLS streams, runs an optional AI cleanup pass, generates a review page, validates output, and packages a ZIP.
+A local SaaS-style MVP that imports advertising portfolios from portfolio sites and Behance profiles, downloads accessible assets, preserves video embeds/HLS streams, runs an optional AI cleanup pass, generates a review page, validates output, and packages a ZIP.
 
 ## Run
 
@@ -54,6 +54,7 @@ generated/<job-id>/
 ## Notes
 
 - Uses installed Chrome where possible to avoid Playwright's large browser download.
+- Imports Behance profile grids as campaign pages and extracts Behance gallery media without recommendation/app chrome.
 - Filters Squarespace social SVGs, HLS segment chunks, blob URLs, duplicate responsive image variants, and bare image paths.
 - For video pages, the first image becomes a poster frame instead of being repeated below the video.
 - AI cleanup creates structured sections so title blocks can sit above relevant images/articles.
