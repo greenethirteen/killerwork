@@ -475,6 +475,7 @@ async function extractBehanceProject(page, url, progress) {
 
   const data = await page.evaluate(() => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+    const comparable = (s) => clean(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
     const cleanLines = (s) => (s || '')
       .replace(/\r/g, '\n')
       .split('\n')
@@ -497,6 +498,8 @@ async function extractBehanceProject(page, url, progress) {
     const title = clean(document.querySelector('h1')?.innerText)
       || clean(document.title.replace(/\s*::\s*Behance.*$/i, ''))
       || 'Untitled Behance Project';
+    const titleKey = comparable(title);
+    const thumbnailUrl = abs(document.querySelector('meta[property="og:image"], meta[name="twitter:image"]')?.getAttribute('content') || '');
     const owner = clean(document.querySelector('a[href^="/"][title*="profile" i]')?.innerText)
       || clean(document.querySelector('[aria-label*="owner" i]')?.innerText)
       || '';
@@ -516,10 +519,19 @@ async function extractBehanceProject(page, url, progress) {
       contentItems.push({ type: 'image', ...item });
     };
     const addText = (el) => {
-      const text = cleanLines(el.innerText);
+      let text = cleanLines(el.innerText);
       if (!text || text.length < 3) return;
+      const textKey = comparable(text);
+      if (textKey === titleKey) return;
       if (/^(follow|following|save|share|appreciate|owners|creative fields|more like this|built for creatives|find talent|behance|social)$/i.test(text)) return;
       if (/^\d+(?:\.\d+k|k)?$/i.test(text)) return;
+      if (/no use is allowed|explicit permission|all rights reserved|published:|copyright/i.test(text)) return;
+      if (/^(advertising|art direction|retouching|graphic design|photography|branding|illustration|copywriting|film|motion graphics|digital art|creative direction|editing|animation|ui\/ux|web design)$/i.test(text)) return;
+      if (!text.includes(':') && text.length < 40) return;
+      text = text
+        .replace(/^Agency:/i, 'Ad Agency:')
+        .replace(/^Role:/i, 'Role:');
+      if (!/:/.test(text) && !/\b(award|winner|shortlist|cannes|d&ad|one show|clio|effie|andy|lia)\b/i.test(text)) return;
       const item = { type: 'text', tag: el.tagName.toLowerCase(), text, order: ++order };
       copyBlocks.push({ tag: item.tag, text, order: item.order });
       contentItems.push(item);
@@ -552,6 +564,7 @@ async function extractBehanceProject(page, url, progress) {
 
     return {
       title,
+      thumbnailUrl,
       sourceBrand: owner || 'Behance',
       copyBlocks,
       images,
@@ -716,7 +729,13 @@ async function getBehanceProjects(page, url, progress) {
         return /mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\//i.test(src);
       });
       const src = img?.currentSrc || img?.src || img?.getAttribute?.('src') || '';
-      return abs(src);
+      if (src) return abs(src);
+      const video = scope?.querySelector?.('video[poster]') || scope?.closest?.('article,li,div')?.querySelector?.('video[poster]');
+      const poster = video?.getAttribute?.('poster') || '';
+      if (poster) return abs(poster);
+      const bgNode = [scope, ...scope?.querySelectorAll?.('*') || []].find(node => /url\(/i.test(node.getAttribute?.('style') || ''));
+      const bg = bgNode?.getAttribute?.('style')?.match(/url\(["']?([^"')]+)["']?\)/i)?.[1] || '';
+      return abs(bg);
     };
 
     document.querySelectorAll('a[href*="/gallery/"]').forEach(a => {
@@ -1209,6 +1228,7 @@ function renderSourceDescription(project) {
 
 function renderProjectFooterGrid(manifest, currentProject) {
   if (manifest.sourceUrl === 'uploaded-files' || manifest.sourceUrl === 'campaign-builder') return '';
+  if (manifest.sourcePlatform === 'behance') return '';
   const linkedProjectSlugs = new Set((manifest.projects || []).map(p => p.slug));
   const projects = linkedProjectSlugs.size > 1 ? manifest.projects : (manifest.relatedProjects || manifest.projects || []);
   const cards = projects.map(p => {
@@ -1228,6 +1248,7 @@ function renderImportedSourceContent(project, cloneHtml) {
   if (cloneHtml) return cloneHtml;
   const description = renderSourceDescription(project);
   const ordered = renderOrderedContent(project, { skipText: !!description });
+  if (project.sourcePlatform === 'behance') return ordered;
   if (!description) return ordered;
   return `<section class="source-replica-layout"><div class="source-replica-main">${ordered}</div>${description}</section>`;
 }
@@ -1281,7 +1302,8 @@ function renderHomePage(manifest, cards) {
     const html = rewriteHomeLinks(sourceHome.html, manifest.projects);
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body class="source-home"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
   }
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="home"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
+  const homeClass = manifest.sourcePlatform === 'behance' ? 'home behance-home' : 'home';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
 }
 
 export async function generateSite(manifest, outDir, progress) {
@@ -1320,7 +1342,7 @@ export async function generateSite(manifest, outDir, progress) {
     p.videos = p.videos || [];
     p.audios = p.audios || [];
     p.documents = p.documents || [];
-    const cloneHtml = shouldUseOrderedContent(p) ? '' : renderSourceClone(p);
+    const cloneHtml = p.sourcePlatform === 'behance' ? '' : (shouldUseOrderedContent(p) ? '' : renderSourceClone(p));
     const isSourceReplica = !!(cloneHtml || p.sourceCloneHtml);
     const mediaHtml = renderImportedSourceContent(p, cloneHtml);
     const footerGrid = renderProjectFooterGrid(manifest, p);
@@ -1525,6 +1547,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   const cache = new Map();
   const rawManifest = {
     sourceUrl: url,
+    sourcePlatform: behance ? 'behance' : 'website',
     siteTitle: sourceHome?.title || (behance && sourceOwnerName ? `${sourceOwnerName} Portfolio` : 'Imported Portfolio'),
     ownerName: sourceOwnerName,
     relatedProjects,
@@ -1616,6 +1639,10 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       const dl = await downloadAsset(normalizeUrl(base.thumbnailUrl, base.url), assetsDir, progress, cache);
       if (dl?.src) thumbnail = { src: dl.src, original: base.thumbnailUrl };
     }
+    if (!thumbnail && data.thumbnailUrl) {
+      const dl = await downloadAsset(normalizeUrl(data.thumbnailUrl, base.url), assetsDir, progress, cache);
+      if (dl?.src) thumbnail = { src: dl.src, original: data.thumbnailUrl };
+    }
     if (!thumbnail && downloadedImages[0]) thumbnail = { src: downloadedImages[0].src, original: downloadedImages[0].original };
 
     const videos = [];
@@ -1669,6 +1696,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       description: base.description || (data.copyBlocks || []).map(block => block.text || '').filter(Boolean).join('\n\n'),
       pageStyle: data.pageStyle || {},
       sourceBrand: data.sourceBrand || '',
+      sourcePlatform: behance ? 'behance' : '',
       sourceCloneHtml,
       sourceCloneStyle: data.sourceCloneStyle || '',
       sourceCss: data.sourceCss || '',
