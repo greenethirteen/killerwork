@@ -90,10 +90,13 @@
 .manager-topbar .logo-image{max-height:134px;max-width:250px}
 .manager-header{display:block;margin-top:12px}
 .manager-project-actions .danger-button{border-radius:22px;padding:16px 22px;font-weight:900}
+.manager-project{align-items:flex-start}.manager-project>div:first-child{min-width:0;flex:1 1 320px}.manager-project-actions{flex:0 1 590px;align-items:center}.manager-project-actions .compact-button{min-height:44px;border-radius:16px;padding:12px 14px;font-size:13px;line-height:1;white-space:nowrap}.manager-row-publish{flex:0 0 auto}.manager-row-publish .publish-panel{right:0}.manager-project-actions .button.hot{background:linear-gradient(135deg,var(--hot),var(--gold));color:#17120d}
 
 @media(max-width:760px){
   .manager-shell{width:100%;padding:8px 22px 46px}
   .manager-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;margin:0;padding:0}
   .manager-topbar .logo{margin-left:-10px;flex:0 1 auto}
   .manager-topbar .logo-image{max-height:94px;max-width:178px}
+  .manager-project-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;flex-basis:auto}
+  .manager-project-actions .compact-button,.manager-row-publish,.manager-row-publish>[data-publish-toggle]{width:100%}
 }

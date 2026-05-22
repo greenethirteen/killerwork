@@ -85,6 +85,48 @@ function renderProjects() {
   });
 }
 
+function publishControlHtml() {
+  return `
+    <div class="publish-control manager-row-publish" data-publish-domain="killa.work">
+      <button class="button secondary compact-button" type="button" data-publish-toggle>Publish</button>
+      <div class="publish-panel hidden" data-publish-panel>
+        <form data-publish-form>
+          <label>
+            <span>Portfolio URL</span>
+            <div class="publish-url-field">
+              <input data-publish-input type="text" placeholder="abdullahfarouk" autocomplete="off" />
+              <b>.killa.work</b>
+            </div>
+          </label>
+          <button data-publish-submit type="submit">Publish</button>
+        </form>
+        <p class="publish-result hidden" data-publish-result></p>
+        <div class="custom-domain-block" data-custom-domain-block>
+          <div class="publish-divider">Or connect your own domain</div>
+          <form data-custom-domain-form>
+            <label>
+              <span>Owned domain</span>
+              <input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" disabled />
+            </label>
+            <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
+          </form>
+          <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
+            <h4>DNS setup</h4>
+            <p>Add this CNAME record where you bought your domain.</p>
+            <div class="dns-record">
+              <strong>Type:</strong> CNAME<br>
+              <strong>Name:</strong> <span data-dns-name>www.yourportfolio.com</span><br>
+              <strong>Value:</strong> <span data-dns-value>your-name.killa.work</span>
+            </div>
+            <p class="note">Publish to a KillaWork URL first. DNS changes can take a while to appear everywhere.</p>
+          </div>
+          <p class="publish-result hidden" data-custom-domain-result></p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderPortfolioList(portfolios) {
   projectList.innerHTML = '';
   if (!portfolios.length) {
@@ -115,13 +157,20 @@ function renderPortfolioList(portfolios) {
         <p>${projectLabel}${source}</p>
       </div>
       <div class="manager-project-actions">
-        <a class="button" href="${item.manage}">Manage</a>
-        <a class="button secondary" href="${item.editor}">Edit pages</a>
-        <a class="button ghost" href="${item.preview}" target="_blank">Preview</a>
-        <button class="danger-button" type="button" data-delete-portfolio="${escapeHtml(item.id)}">Delete</button>
+        <a class="button secondary compact-button" href="${item.editor}">Edit Site</a>
+        <a class="button ghost compact-button" href="${item.preview}" target="_blank">Preview</a>
+        <button class="danger-button compact-button" type="button" data-delete-portfolio="${escapeHtml(item.id)}">Delete</button>
+        <a class="button hot compact-button" href="${item.zip}">Download Zip</a>
+        ${publishControlHtml()}
       </div>
     `;
     row.querySelector('[data-delete-portfolio]').addEventListener('click', () => deletePortfolioItem(item, row));
+    const rowPublish = setupPublishControl({
+      control: row.querySelector('.manager-row-publish'),
+      getJobId: () => item.id,
+      setStatus
+    });
+    rowPublish.setPublished(item.published, item.customDomain);
     projectList.appendChild(row);
   });
 }
@@ -163,16 +212,16 @@ async function loadPortfolioDashboard() {
     return;
   }
   renderPortfolioList(data.portfolios || []);
-  setStatus(data.portfolios?.length ? 'Choose a portfolio to manage.' : 'No portfolios yet.');
+  setStatus(data.portfolios?.length ? 'Your imported portfolios are ready.' : 'No portfolios yet.');
 }
 
 function applyPortfolio(data) {
   portfolio = data;
-  ownerNameInput.value = data.ownerName || '';
-  siteTitleInput.value = data.siteTitle || '';
-  portfolioPreview.href = data.preview;
-  portfolioEditor.href = data.editor;
-  portfolioZip.href = data.zip;
+  if (ownerNameInput) ownerNameInput.value = data.ownerName || '';
+  if (siteTitleInput) siteTitleInput.value = data.siteTitle || '';
+  if (portfolioPreview) portfolioPreview.href = data.preview;
+  if (portfolioEditor) portfolioEditor.href = data.editor;
+  if (portfolioZip) portfolioZip.href = data.zip;
   publishControl.setPublished(data.published, data.customDomain);
   renderProjects();
 }
@@ -199,7 +248,7 @@ async function loadPortfolio() {
   setStatus('Portfolio loaded.');
 }
 
-savePortfolio.addEventListener('click', async () => {
+savePortfolio?.addEventListener('click', async () => {
   if (!portfolio) return;
   savePortfolio.disabled = true;
   savePortfolio.textContent = 'Saving...';
@@ -252,7 +301,7 @@ async function deleteProject(project) {
   setStatus(data.validation?.ok ? 'Project deleted. Preview and ZIP rebuilt.' : 'Project deleted with validation warnings.', data.validation?.ok ? 'ok' : 'warn');
 }
 
-deletePortfolio.addEventListener('click', async () => {
+deletePortfolio?.addEventListener('click', async () => {
   if (!portfolio) return;
   if (!confirm('Delete this entire generated portfolio and its stored assets?')) return;
   let headers;

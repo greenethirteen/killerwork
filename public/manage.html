@@ -28,63 +28,7 @@
       </div>
     </header>
 
-    <section class="glass manager-panel">
-      <div class="manager-form">
-        <label>
-          <span>Portfolio name</span>
-          <input id="ownerNameInput" type="text" placeholder="Portfolio name" />
-        </label>
-        <label>
-          <span>Site title</span>
-          <input id="siteTitleInput" type="text" placeholder="Site title" />
-        </label>
-        <button id="savePortfolio" type="button">Save portfolio</button>
-      </div>
-      <div class="manager-actions">
-        <a id="portfolioPreview" class="button" target="_blank">Preview site</a>
-        <a id="portfolioEditor" class="button secondary" target="_blank">Edit pages</a>
-        <a id="portfolioZip" class="button hot">Download ZIP</a>
-        <div id="publishControl" class="publish-control" data-publish-domain="killa.work">
-          <button class="button secondary" type="button" data-publish-toggle>Publish</button>
-          <div class="publish-panel hidden" data-publish-panel>
-            <form data-publish-form>
-              <label>
-                <span>Portfolio URL</span>
-                <div class="publish-url-field">
-                  <input data-publish-input type="text" placeholder="abdullahfarouk" autocomplete="off" />
-                  <b>.killa.work</b>
-                </div>
-              </label>
-              <button data-publish-submit type="submit">Publish</button>
-            </form>
-            <p class="publish-result hidden" data-publish-result></p>
-            <div class="custom-domain-block" data-custom-domain-block>
-              <div class="publish-divider">Or connect your own domain</div>
-              <form data-custom-domain-form>
-                <label>
-                  <span>Owned domain</span>
-                  <input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" disabled />
-                </label>
-                <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
-              </form>
-              <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
-                <h4>DNS setup</h4>
-                <p>Add this CNAME record where you bought your domain.</p>
-                <div class="dns-record">
-                  <strong>Type:</strong> CNAME<br>
-                  <strong>Name:</strong> <span data-dns-name>www.yourportfolio.com</span><br>
-                  <strong>Value:</strong> <span data-dns-value>your-name.killa.work</span>
-                </div>
-                <p class="note">Publish to a KillaWork URL first. DNS changes can take a while to appear everywhere.</p>
-              </div>
-              <p class="publish-result hidden" data-custom-domain-result></p>
-            </div>
-          </div>
-        </div>
-        <button id="deletePortfolio" class="danger-button" type="button">Delete portfolio</button>
-      </div>
-      <div id="managerStatus" class="editor-status">Loading portfolio...</div>
-    </section>
+    <div id="managerStatus" class="editor-status">Loading portfolio...</div>
 
     <section id="projectList" class="project-manager-list"></section>
   </main>
