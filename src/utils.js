@@ -36,7 +36,12 @@ export function canonicalImageKey(url) {
     p = p.replace(/\/content\/v1\/[^/]+\//, '/content/v1/site/');
     p = p.replace(/\/\d{10,}\//g, '/stamp/');
     p = p.replace(/\.(jpg|jpeg|png|webp|gif)$/i, m => m.toLowerCase());
-    return p.split('/').pop() || p;
+    const parts = p.split('/').filter(Boolean);
+    const file = parts.at(-1) || p;
+    if (/^(image-asset|asset|thumbnail|untitled)\.(jpe?g|png|webp|gif)$/i.test(file)) {
+      return parts.slice(-2).join('/') || file;
+    }
+    return file;
   } catch {
     return String(url).toLowerCase();
   }

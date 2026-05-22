@@ -22,6 +22,27 @@ const EXCLUDED_DISCOVERY_SEGMENTS = new Set([
   'checkout', 'search', 'login', 'account', 'category', 'tag', 'author'
 ]);
 
+function isBehanceUrl(value = '') {
+  try {
+    const host = new URL(value).hostname.replace(/^www\./, '').toLowerCase();
+    return host === 'behance.net';
+  } catch {
+    return false;
+  }
+}
+
+function isBehanceGalleryPath(pathname = '/') {
+  return /^\/gallery\/\d+(?:\/|$)/i.test(String(pathname || ''));
+}
+
+function isBehanceProfilePath(pathname = '/') {
+  const path = String(pathname || '/').replace(/\/+$/, '') || '/';
+  if (path === '/' || isBehanceGalleryPath(path)) return false;
+  if (/^\/(?:search|joblist|galleries|gallery|prosite|onboarding|settings|messages|notifications)(?:\/|$)/i.test(path)) return false;
+  const parts = path.split('/').filter(Boolean);
+  return parts.length === 1 || (parts.length === 2 && parts[1].toLowerCase() === 'projects');
+}
+
 async function launchBrowser(progress) {
   const candidates = [
     process.env.CHROME_PATH,
@@ -41,6 +62,11 @@ async function launchBrowser(progress) {
 
 function htmlEscape(s = '') {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function styleTag(css = '') {
+  const safeCss = String(css || '').replace(/<\/style/gi, '<\\/style');
+  return safeCss ? `<style>${safeCss}</style>` : '';
 }
 
 function cleanTitle(title = '', owner = '') {
@@ -328,6 +354,19 @@ async function extractPage(page, url, siteOrigin, progress) {
         .join('');
     }
 
+    function sourceFontCss() {
+      const chunks = [];
+      document.querySelectorAll('style').forEach(style => {
+        const text = style.textContent || '';
+        if (text.length <= 60000 && /@font-face|font-family|fonts-loading|typekit|proxima|futura/i.test(text)) chunks.push(text);
+      });
+      document.querySelectorAll('link[rel~="stylesheet"][href]').forEach(link => {
+        const href = link.href || '';
+        if (/fonts|typekit|use\.typekit|cloud\.typography/i.test(href)) chunks.push(`@import url("${href.replace(/"/g, '\\"')}");`);
+      });
+      return [...new Set(chunks)].join('\n');
+    }
+
     function canonicalSourceAsset(raw = '') {
       const value = String(raw || '').trim();
       if (!value) return '';
@@ -420,11 +459,117 @@ async function extractPage(page, url, siteOrigin, progress) {
       links,
       pageStyle,
       sourceCloneHtml: styledClone.innerHTML,
-      sourceCloneStyle: serializeStyle(getComputedStyle(main))
+      sourceCloneStyle: serializeStyle(getComputedStyle(main)),
+      sourceCss: sourceFontCss()
     };
   }, siteOrigin);
 
   progress?.('Extracted page', `${data.title} — ${data.images.length} image refs, ${data.videos.length} video refs`);
+  return data;
+}
+
+async function extractBehanceProject(page, url, progress) {
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+  await scrollBehancePage(page);
+
+  const data = await page.evaluate(() => {
+    const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+    const cleanLines = (s) => (s || '')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map(line => clean(line))
+      .filter(Boolean)
+      .join('\n');
+    const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
+    const rectMeta = (el) => {
+      const rect = el?.getBoundingClientRect?.() || { width: 0, height: 0, top: 0 };
+      const style = el ? getComputedStyle(el) : null;
+      const width = Math.round(rect.width || 0);
+      const height = Math.round(rect.height || 0);
+      return {
+        width,
+        height,
+        area: width * height,
+        visible: !!style && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) !== 0 && width > 0 && height > 0
+      };
+    };
+    const title = clean(document.querySelector('h1')?.innerText)
+      || clean(document.title.replace(/\s*::\s*Behance.*$/i, ''))
+      || 'Untitled Behance Project';
+    const owner = clean(document.querySelector('a[href^="/"][title*="profile" i]')?.innerText)
+      || clean(document.querySelector('[aria-label*="owner" i]')?.innerText)
+      || '';
+
+    const images = [];
+    const videos = [];
+    const copyBlocks = [];
+    const contentItems = [];
+    let order = 0;
+    const addImage = (raw, alt, meta = {}) => {
+      const src = abs(raw);
+      if (!src || src.startsWith('data:') || src.startsWith('blob:')) return;
+      if (!/mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\/project_modules\//i.test(src)) return;
+      if (meta.width && meta.height && (meta.width < 120 || meta.height < 80)) return;
+      const item = { url: src, alt: clean(alt) || title, order: ++order, ...meta };
+      images.push(item);
+      contentItems.push({ type: 'image', ...item });
+    };
+    const addText = (el) => {
+      const text = cleanLines(el.innerText);
+      if (!text || text.length < 3) return;
+      if (/^(follow|following|save|share|appreciate|owners|creative fields|more like this|built for creatives|find talent|behance|social)$/i.test(text)) return;
+      if (/^\d+(?:\.\d+k|k)?$/i.test(text)) return;
+      const item = { type: 'text', tag: el.tagName.toLowerCase(), text, order: ++order };
+      copyBlocks.push({ tag: item.tag, text, order: item.order });
+      contentItems.push(item);
+    };
+    const addVideo = (el) => {
+      const raw = el.getAttribute('src') || el.getAttribute('data-src') || '';
+      const src = abs(raw);
+      if (!src || (!/youtube|youtu\.be|vimeo|player|embed/i.test(src) && !/\.(mp4|webm|mov|m3u8)(\?|$)/i.test(src))) return;
+      const meta = rectMeta(el);
+      const item = { kind: 'iframe', src, title, order: ++order, ...meta };
+      videos.push(item);
+      contentItems.push({ type: 'video', ...item });
+    };
+
+    const projectRoot = document.querySelector('main') || document.body;
+    const nodes = [...projectRoot.querySelectorAll('h1,h2,h3,p,figcaption,img,iframe,video')];
+    nodes.forEach(el => {
+      const tag = el.tagName.toLowerCase();
+      const className = String(el.className || '');
+      const inRecommendations = !!el.closest('[class*="MoreLikeThis"], [class*="Recommendations"], [class*="ProjectCover"]');
+      if (inRecommendations) return;
+      if (tag === 'img') {
+        addImage(el.currentSrc || el.src || el.getAttribute('src'), el.getAttribute('alt'), rectMeta(el));
+      } else if (tag === 'iframe' || tag === 'video') {
+        addVideo(el);
+      } else if (!/PrimaryNav|Footer|Comments|Stats|Owner|CreativeFields/i.test(className)) {
+        addText(el);
+      }
+    });
+
+    return {
+      title,
+      sourceBrand: owner || 'Behance',
+      copyBlocks,
+      images,
+      videos,
+      contentItems,
+      links: [],
+      pageStyle: {
+        backgroundColor: 'rgb(255, 255, 255)',
+        textColor: 'rgb(17, 17, 17)',
+        contentWidth: Math.max(980, ...images.map(img => img.width || 0))
+      },
+      sourceCloneHtml: '',
+      sourceCloneStyle: '',
+      sourceCss: ''
+    };
+  });
+
+  progress?.('Extracted Behance project', `${data.title} — ${data.images.length} image refs, ${data.videos.length} video refs`);
   return data;
 }
 
@@ -529,6 +674,83 @@ async function getHomepageProjects(page, url, progress) {
   return projects;
 }
 
+async function scrollBehancePage(page) {
+  await page.evaluate(async () => {
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    let lastHeight = 0;
+    for (let i = 0; i < 8; i++) {
+      window.scrollTo(0, document.body.scrollHeight);
+      await delay(900);
+      const height = document.body.scrollHeight;
+      if (Math.abs(height - lastHeight) < 24) break;
+      lastHeight = height;
+    }
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(600);
+}
+
+async function getBehanceProjects(page, url, progress) {
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+  await scrollBehancePage(page);
+
+  const data = await page.evaluate(() => {
+    const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+    const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
+    const profileName = clean(document.querySelector('h1')?.innerText)
+      || clean(document.title.replace(/\s+-\s+.*$/i, '').replace(/\s+::\s+Behance.*$/i, ''));
+    const projects = [];
+    const seen = new Set();
+
+    const imageFrom = (scope) => {
+      const imgs = [
+        ...scope?.querySelectorAll?.('img') || [],
+        ...scope?.closest?.('article,li,div')?.querySelectorAll?.('img') || []
+      ];
+      const img = imgs.find(candidate => {
+        const src = candidate.currentSrc || candidate.src || candidate.getAttribute('src') || '';
+        return /mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\/projects\//i.test(src);
+      }) || imgs.find(candidate => {
+        const src = candidate.currentSrc || candidate.src || candidate.getAttribute('src') || '';
+        return /mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\//i.test(src);
+      });
+      const src = img?.currentSrc || img?.src || img?.getAttribute?.('src') || '';
+      return abs(src);
+    };
+
+    document.querySelectorAll('a[href*="/gallery/"]').forEach(a => {
+      const href = abs(a.getAttribute('href'));
+      const match = href.match(/\/gallery\/(\d+)\/([^?#]+)/i);
+      if (!match || seen.has(match[1])) return;
+      seen.add(match[1]);
+      const scope = a.closest('[class*="ProjectCover"], article, li, div') || a;
+      const img = scope.querySelector?.('img') || a.querySelector?.('img');
+      const rawTitle = clean(a.innerText)
+        || clean(a.getAttribute('title') || '').replace(/^Link to project\s*-\s*/i, '')
+        || clean(img?.getAttribute('alt'))
+        || clean(decodeURIComponent(match[2]).replace(/[-_]+/g, ' '));
+      if (!rawTitle || /^search$/i.test(rawTitle)) return;
+      projects.push({
+        slug: `behance-${match[1]}-${rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`,
+        title: rawTitle,
+        url: href,
+        thumbnailUrl: imageFrom(scope),
+        description: '',
+        strategy: 'behance-gallery',
+        score: 220,
+        force: true
+      });
+    });
+
+    return { profileName, projects };
+  });
+
+  const projects = mergeProjectCandidates(data.projects || []);
+  progress?.('Behance project discovery', `${projects.length} Behance project(s)`);
+  return { profileName: data.profileName || '', projects };
+}
+
 async function extractHomePage(page, url, progress) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForLoadState('networkidle', { timeout: 25000 }).catch(() => {});
@@ -547,6 +769,18 @@ async function extractHomePage(page, url, progress) {
     const serializeStyle = (style) => Array.from(style || [])
       .map(prop => `${prop}:${style.getPropertyValue(prop)}${style.getPropertyPriority(prop) ? ' !important' : ''};`)
       .join('');
+    const sourceFontCss = () => {
+      const chunks = [];
+      document.querySelectorAll('style').forEach(style => {
+        const text = style.textContent || '';
+        if (text.length <= 60000 && /@font-face|font-family|fonts-loading|typekit|proxima|futura/i.test(text)) chunks.push(text);
+      });
+      document.querySelectorAll('link[rel~="stylesheet"][href]').forEach(link => {
+        const href = link.href || '';
+        if (/fonts|typekit|use\.typekit|cloud\.typography/i.test(href)) chunks.push(`@import url("${href.replace(/"/g, '\\"')}");`);
+      });
+      return [...new Set(chunks)].join('\n');
+    };
     const assetFrom = (el) => {
       if (!el) return '';
       return el.currentSrc
@@ -606,6 +840,7 @@ async function extractHomePage(page, url, progress) {
       backgroundColor: clean(rootStyle.backgroundColor && rootStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' ? rootStyle.backgroundColor : bodyStyle.backgroundColor),
       textColor: clean(rootStyle.color || bodyStyle.color),
       html: clone.innerHTML,
+      sourceCss: sourceFontCss(),
       assets
     };
   });
@@ -1044,7 +1279,7 @@ function renderHomePage(manifest, cards) {
     ].filter(Boolean).join(';');
     const wrapperStyle = sourceHome.style ? ` style="${htmlEscape(sourceHome.style)}"` : '';
     const html = rewriteHomeLinks(sourceHome.html, manifest.projects);
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body class="source-home"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body class="source-home"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
   }
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="home"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
 }
@@ -1106,8 +1341,8 @@ export async function generateSite(manifest, outDir, progress) {
     const sourceHeader = renderSourceHeader(p);
     const headerHtml = isSourceReplica
       ? sourceHeader
-      : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a></header>`;
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css"></head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+      : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1>${htmlEscape(p.title)}</h1></header>`;
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
@@ -1248,14 +1483,23 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   const page = await context.newPage();
   const siteUrl = new URL(url);
   const inputPath = normalizeDiscoveryPath(url);
+  const behance = isBehanceUrl(url);
 
   let projects = [];
   let relatedProjects = [];
   let sourceHome = null;
-  if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
+  let sourceOwnerName = siteUrl.hostname.replace(/^www\./, '');
+  if (behance && isBehanceProfilePath(inputPath)) {
+    progress('Scanning Behance profile', url);
+    const behanceData = await getBehanceProjects(page, url, progress);
+    projects = behanceData.projects;
+    sourceOwnerName = behanceData.profileName || sourceOwnerName;
+  } else if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
     progress('Submitted project URL', url);
     projects = [submittedProjectCandidate(url)];
-    relatedProjects = await getHomepageProjects(page, siteUrl.origin, progress).catch(() => []);
+    relatedProjects = behance
+      ? (await getBehanceProjects(page, siteUrl.origin, progress).catch(() => ({ projects: [] }))).projects
+      : await getHomepageProjects(page, siteUrl.origin, progress).catch(() => []);
     const submittedPath = normalizeDiscoveryPath(url);
     const homepageMatch = relatedProjects.find(project => normalizeDiscoveryPath(project.url) === submittedPath);
     if (homepageMatch) projects = [{ ...projects[0], ...homepageMatch, strategy: projects[0].strategy, score: 1000 }];
@@ -1281,8 +1525,8 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   const cache = new Map();
   const rawManifest = {
     sourceUrl: url,
-    siteTitle: sourceHome?.title || 'Imported Portfolio',
-    ownerName: siteUrl.hostname.replace(/^www\./, ''),
+    siteTitle: sourceHome?.title || (behance && sourceOwnerName ? `${sourceOwnerName} Portfolio` : 'Imported Portfolio'),
+    ownerName: sourceOwnerName,
     relatedProjects,
     sourceHome: null,
     projects: [],
@@ -1302,6 +1546,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       style: sourceHome.style,
       backgroundColor: sourceHome.backgroundColor,
       textColor: sourceHome.textColor,
+      sourceCss: sourceHome.sourceCss || '',
       html: rewriteCloneAssetUrls(sourceHome.html, replacements)
     };
   }
@@ -1310,7 +1555,9 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     const base = { ...projects[i] };
     const pProgress = `${i + 1}/${projects.length}`;
     progress(`Crawling project ${pProgress}`, base.title);
-    let data = await extractPage(page, base.url, siteUrl.origin, progress);
+    let data = behance && isBehanceGalleryPath(normalizeDiscoveryPath(base.url))
+      ? await extractBehanceProject(page, base.url, progress)
+      : await extractPage(page, base.url, siteUrl.origin, progress);
     if (base.strategy === 'submitted-project' && looksLikeNotFoundPage(data) && normalizeDiscoveryPath(base.url).startsWith('/work/')) {
       const fallbackSlug = normalizeDiscoveryPath(base.url).replace(/^\/work\//, '').replace(/\/$/, '');
       const fallbackUrl = `${siteUrl.origin}/${fallbackSlug}/`;
@@ -1424,6 +1671,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       sourceBrand: data.sourceBrand || '',
       sourceCloneHtml,
       sourceCloneStyle: data.sourceCloneStyle || '',
+      sourceCss: data.sourceCss || '',
       thumbnail,
       copyBlocks: data.copyBlocks,
       contentItems: enrichContentItems(data.contentItems, imageIndexByKey, videoIndexBySrc),
