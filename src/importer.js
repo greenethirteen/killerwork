@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import archiver from 'archiver';
 import mime from 'mime-types';
+import * as cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { cleanupManifestWithAI } from './ai.js';
 import { safeSlug, hash, extFromUrl, normalizeUrl, canonicalImageKey, isBadMediaUrl, mediaType } from './utils.js';
@@ -788,6 +789,81 @@ async function searchPublicProfileHints(profileName, progress) {
   return hints;
 }
 
+function behanceProjectsUrl(url = '') {
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length && parts[1]?.toLowerCase() !== 'projects') {
+      u.pathname = `/${parts[0]}/projects`;
+    }
+    u.search = '';
+    u.hash = '';
+    return u.href;
+  } catch {
+    return url;
+  }
+}
+
+function titleFromBehanceGalleryPath(href = '') {
+  try {
+    const match = new URL(href, 'https://www.behance.net').pathname.match(/\/gallery\/\d+\/([^/]+)/i);
+    return match ? cleanTitle(decodeURIComponent(match[1]).replace(/[-_]+/g, ' ')) : '';
+  } catch {
+    return '';
+  }
+}
+
+async function getBehanceProjectsFromHtml(url, progress) {
+  const projectsUrl = behanceProjectsUrl(url);
+  try {
+    const res = await fetch(projectsUrl, {
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'Mozilla/5.0 KillerWorkImporter/0.8',
+        accept: 'text/html'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const projects = [];
+    const seen = new Set();
+    $('a[href*="/gallery/"]').each((_, node) => {
+      const a = $(node);
+      const href = normalizeUrl(a.attr('href'), projectsUrl);
+      const match = href.match(/\/gallery\/(\d+)\/([^?#]+)/i);
+      if (!match || seen.has(match[1])) return;
+      seen.add(match[1]);
+      const scope = a.closest('[class*="ProjectCover"], article, li, div');
+      const img = scope.find('img').first();
+      const srcset = img.attr('srcset') || img.attr('data-srcset') || '';
+      const srcsetFirst = srcset.split(',').map(part => part.trim().split(/\s+/)[0]).filter(Boolean).pop() || '';
+      const rawTitle = textFromHtml(a.text())
+        || textFromHtml(a.attr('title') || '').replace(/^Link to project\s*-\s*/i, '')
+        || textFromHtml(img.attr('alt') || '')
+        || titleFromBehanceGalleryPath(href);
+      if (!rawTitle || /^search$/i.test(rawTitle)) return;
+      const thumbnailUrl = normalizeUrl(img.attr('src') || img.attr('data-src') || img.attr('data-image') || srcsetFirst, projectsUrl);
+      projects.push({
+        slug: `behance-${match[1]}-${rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`,
+        title: rawTitle,
+        url: href,
+        thumbnailUrl,
+        description: '',
+        strategy: 'behance-gallery-html',
+        score: 210,
+        force: true
+      });
+    });
+    const merged = mergeProjectCandidates(projects);
+    progress?.('Behance HTML fallback', `${merged.length} project(s) from ${projectsUrl}`);
+    return merged;
+  } catch (e) {
+    progress?.('Behance HTML fallback warning', e.message);
+    return [];
+  }
+}
+
 function composeBehanceAboutProfile(profile = {}, hints = []) {
   const links = new Map();
   for (const link of profile.links || []) {
@@ -854,7 +930,9 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
 }
 
 async function getBehanceProjects(page, url, progress) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  const projectsUrl = behanceProjectsUrl(url);
+  await page.goto(projectsUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForSelector('a[href*="/gallery/"]', { timeout: 12000 }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await scrollBehancePage(page);
 
@@ -955,7 +1033,10 @@ async function getBehanceProjects(page, url, progress) {
     };
   });
 
-  const projects = mergeProjectCandidates(data.projects || []);
+  let projects = mergeProjectCandidates(data.projects || []);
+  if (!projects.length) {
+    projects = await getBehanceProjectsFromHtml(projectsUrl, progress);
+  }
   progress?.('Behance project discovery', `${projects.length} Behance project(s)`);
   const hints = await searchPublicProfileHints(data.profileName || '', progress);
   progress?.('Profile research', `${hints.length} public result snippet(s)`);
