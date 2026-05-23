@@ -736,6 +736,10 @@ function cleanProfileUrl(value = '') {
   }
 }
 
+function escapeRegExp(value = '') {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function socialLabel(url = '') {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '');
@@ -751,6 +755,48 @@ function socialLabel(url = '') {
 
 function profileSlug(name = '') {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function hasProfileName(text = '', profileName = '') {
+  const words = String(profileName || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return false;
+  const haystack = String(text || '').toLowerCase();
+  return words.every(word => haystack.includes(word));
+}
+
+async function fetchLinkedInProfileHint(url, profileName, progress) {
+  const href = cleanProfileUrl(url);
+  if (!href || !/linkedin\.com\/in\//i.test(href)) return null;
+  try {
+    const res = await fetch(href, {
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+        accept: 'text/html,application/xhtml+xml',
+        'accept-language': 'en-US,en;q=0.9'
+      }
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const title = textFromHtml($('meta[property="og:title"]').attr('content') || $('title').text());
+    const description = textFromHtml($('meta[property="og:description"], meta[name="description"]').first().attr('content'));
+    const bodyText = textFromHtml($('body').text()).slice(0, 4000);
+    const combined = `${title} ${description} ${bodyText}`;
+    if (!hasProfileName(combined, profileName)) return null;
+    if (/(authwall|sign in|join linkedin|login|checkpoint|profile unavailable|error page)/i.test(combined) && !description) return null;
+    const snippet = description || bodyText.match(new RegExp(`${escapeRegExp(profileName)}.{0,500}`, 'i'))?.[0] || '';
+    if (!snippet || /(authwall|sign in|join linkedin|login|checkpoint)/i.test(snippet)) return null;
+    return {
+      title: title || `${profileName} - LinkedIn`,
+      url: href,
+      snippet: snippet.slice(0, 520),
+      source: 'LinkedIn'
+    };
+  } catch (e) {
+    progress?.('LinkedIn profile warning', e.message);
+    return null;
+  }
 }
 
 async function fetchKnownCreativeProfileHints(profileName, progress) {
@@ -773,8 +819,8 @@ async function fetchKnownCreativeProfileHints(profileName, progress) {
       if (!res.ok) continue;
       const html = await res.text();
       const text = textFromHtml(html).replace(/\s+/g, ' ');
-      if (!new RegExp(profileName.split(/\s+/).filter(Boolean).join('.*'), 'i').test(text)) continue;
-      const windowText = text.match(new RegExp(`${profileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.{0,900}`, 'i'))?.[0] || text.slice(0, 900);
+      if (!new RegExp(profileName.split(/\s+/).filter(Boolean).map(escapeRegExp).join('.*'), 'i').test(text)) continue;
+      const windowText = text.match(new RegExp(`${escapeRegExp(profileName)}.{0,900}`, 'i'))?.[0] || text.slice(0, 900);
       hints.push({
         title: `${profileName} - ${socialLabel(url)}`,
         url,
@@ -793,7 +839,7 @@ async function searchPublicProfileHints(profileName, progress) {
   if (!name) return [];
   const queries = [
     `"${name}" LinkedIn creative advertising portfolio`,
-    `"${name}" Cannes Lions Memac Ogilvy Saatchi`,
+    `"${name}" creative director agency awards`,
     `"${name}" awards advertising creative director`
   ];
   const seen = new Set();
@@ -861,6 +907,16 @@ async function searchPublicProfileHints(profileName, progress) {
     } catch (e) {
       progress?.('Profile research warning', e.message);
     }
+  }
+  const linkedinUrls = hints
+    .map(hint => hint.url)
+    .filter(url => /linkedin\.com\/in\//i.test(url || ''))
+    .slice(0, 2);
+  for (const linkedinUrl of linkedinUrls) {
+    const linkedinHint = await fetchLinkedInProfileHint(linkedinUrl, name, progress);
+    if (!linkedinHint) continue;
+    const existing = hints.findIndex(hint => hint.url === linkedinUrl);
+    if (existing >= 0) hints[existing] = linkedinHint;
   }
   return hints;
 }
@@ -1112,26 +1168,28 @@ async function getBehanceProfileImageFromHtml(url, profileName = '', progress) {
   }
 }
 
-const KNOWN_CREATIVE_PROFILES = {
-  'gautam wadher': {
-    role: 'Executive Creative Director',
-    agency: 'Saatchi & Saatchi, MENA',
-    linkedin: 'https://www.linkedin.com/in/gautam-wadher-63a1271b/',
-    paragraphs: [
-      'Gautam Wadher is Executive Creative Director of Saatchi & Saatchi, MENA. An art director by trade, he has a proven track record of creative success across three countries.',
-      "He helped FP7 Bahrain claim the country's first ever Cannes Lion and led JWT Dubai to its first Network of the Year title at Dubai Lynx. With integrated campaigns for Coca-Cola, HSBC, IKEA, Expo 2020, KFC, Batelco and others, he has been instrumental in growing the creative reputation of the Middle East.",
-      "Gautam's work has been recognised across TED, Cannes Lions, One Show, Clios, New York Festivals, LIA, Communication Arts, Dubai Lynx, Effies, and many others."
-    ]
-  }
-};
+function composeGeneratedCareerParagraphs(profile = {}) {
+  const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
+  const role = profile.role || 'creative';
+  const agency = profile.agency || '';
+  const location = profile.location || '';
+  const awards = Array.isArray(profile.awards) ? profile.awards.filter(Boolean) : [];
+  const brands = Array.isArray(profile.brands) ? profile.brands.filter(Boolean) : [];
+  const roleLine = `${firstName} is ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}${agency ? ` at ${agency}` : ''}${location ? ` based in ${location}` : ''}.`;
+  const brandLine = brands.length > 2
+    ? `Across the archive, the career shows up through campaigns for ${brands.slice(0, 6).join(', ')}${brands.length > 6 ? ' and others' : ''}.`
+    : 'The work sits in the part of advertising where the idea has to carry the room: clear, direct, and hard to over-explain.';
+  const achievementLine = awards.length > 1
+    ? `${firstName}'s work has been recognised across ${awards.join(', ')} and other advertising shows.`
+    : `The through-line is campaign craft: sharp headlines, clean art direction, and the kind of commercial thinking that tries to leave a mark without shouting about it.`;
+  return [`${roleLine} ${brandLine}`, achievementLine];
+}
 
 function composeBehanceAboutProfile(profile = {}, hints = []) {
-  const known = KNOWN_CREATIVE_PROFILES[String(profile.name || '').toLowerCase()] || null;
   const links = new Map();
   for (const link of profile.links || []) {
     if (link?.url) links.set(link.url, { ...link, label: link.label || socialLabel(link.url) });
   }
-  if (known?.linkedin) links.set(known.linkedin, { label: 'LinkedIn', url: known.linkedin });
   for (const hint of hints) {
     if (/linkedin\.com|adforum|campaignbrief|lbbonline|thework|oneclub|dandad|clios|cannes/i.test(hint.url || '')) {
       links.set(hint.url, { label: hint.source || socialLabel(hint.url), url: hint.url });
@@ -1149,12 +1207,11 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
     ...(profile.fields || []),
     ...hints.map(h => `${h.title} ${h.snippet}`)
   ].filter(Boolean).join(' ');
-  const lowerEvidence = evidenceText.toLowerCase();
   const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
   const roleMatch = evidenceText.match(/\b(Chief Creative Officer|Executive Creative Director|Creative Director|Senior Creative Director|Art Director|Copywriter|Designer)\b/i)?.[1] || '';
-  const agencyMatch = evidenceText.match(/\b(Memac Ogilvy|Saatchi\s*&\s*Saatchi|J\.?\s*Walter Thompson|JWT Dubai|Impact BBDO|FP7 Bahrain|Leo Burnett)\b/i)?.[1] || '';
-  const role = known?.role || roleMatch || cleanRole || 'creative';
-  const agency = known?.agency || agencyMatch;
+  const agencyMatch = evidenceText.match(/\b(Memac Ogilvy|Ogilvy|Saatchi\s*&\s*Saatchi|J\.?\s*Walter Thompson|JWT(?: Dubai)?|Impact BBDO|BBDO|FP7(?: Bahrain)?|Leo Burnett|Publicis|TBWA|DDB|McCann|VML|Grey|Wieden\+Kennedy|AKQA)\b/i)?.[1] || '';
+  const role = roleMatch || cleanRole || 'creative';
+  const agency = agencyMatch;
   const location = cleanLocation || (/\bUAE|United Arab Emirates|Dubai\b/i.test(evidenceText) ? 'United Arab Emirates' : '');
   const fields = (profile.fields || []).filter(rejectProfileNoise).slice(0, 4);
   const awards = [
@@ -1168,7 +1225,7 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
     'Effies',
     'D&AD',
     'TED'
-  ].filter(award => new RegExp(award.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(evidenceText)).slice(0, 8);
+  ].filter(award => new RegExp(escapeRegExp(award), 'i').test(evidenceText)).slice(0, 8);
   const brands = [
     'IKEA',
     'Visa',
@@ -1182,18 +1239,22 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
     'Kinokuniya',
     'Listerine',
     'Snickers'
-  ].filter(brand => new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(evidenceText)).slice(0, 8);
-  const isWriter = /copywriter|writer|writing|words|creative director/i.test(evidenceText);
-  const isArt = /art director|design|designer|visual|illustration|branding/i.test(evidenceText);
-  const craft = isWriter && isArt ? 'words and pictures'
-    : isWriter ? 'words'
-    : isArt ? 'visual ideas'
-    : 'ideas';
-  const publicProof = hints.map(h => h.snippet || h.title).filter(Boolean).find(text => /track record|three countries|chief creative officer|executive creative director|art director|creative success/i.test(text));
-  const paragraphs = known?.paragraphs || [
-    cleanBio || `${firstName} is ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}${agency ? ` at ${agency}` : ''}${location ? ` based in ${location}` : ''}. ${publicProof || `The work suggests someone who likes the idea to do the heavy lifting, then makes the craft look inevitable.`}`,
-    awards.length > 1 ? `Recognised across ${awards.join(', ')} and other shows, ${firstName}'s public trail reads like a career spent making brands behave better than they usually do.` : `A portfolio of ${craft}, brand problems, and neatly controlled chaos. Not too much noise. Just enough damage to be memorable.`
-  ];
+  ].filter(brand => new RegExp(escapeRegExp(brand), 'i').test(evidenceText)).slice(0, 8);
+  const sourceSentences = hints
+    .flatMap(hint => textFromHtml(hint.snippet || hint.title).split(/(?<=[.!?])\s+/).map(sentence => sentence.trim()))
+    .filter(sentence => sentence.length > 45 && sentence.length < 260)
+    .filter(sentence => hasProfileName(sentence, profile.name || firstName) || /(creative director|art director|copywriter|agency|campaign|awards?|cannes|lynx|clios|effies|one show|clients?|brands?)/i.test(sentence))
+    .filter(sentence => !/(behance|followers|appreciations|project views|sign in|join linkedin|authwall|cookie|privacy policy)/i.test(sentence));
+  const publicProof = sourceSentences.find(sentence => /(executive creative director|chief creative officer|creative director|art director|copywriter|agency|track record|winner|awarded|recognised|recognized)/i.test(sentence));
+  const sourceParagraph = publicProof
+    ? publicProof.replace(/\s+-\s+LinkedIn.*$/i, '').replace(/\s+/g, ' ')
+    : '';
+  const generatedBase = { name: profile.name || '', role, agency, location, awards, brands };
+  const careerLine = sourceParagraph || composeGeneratedCareerParagraphs(generatedBase)[0];
+  const achievementLine = awards.length > 1
+    ? `${firstName}'s work has been recognised across ${awards.join(', ')} and other advertising shows.`
+    : composeGeneratedCareerParagraphs(generatedBase)[1];
+  const paragraphs = [careerLine, achievementLine];
 
   return {
     name: profile.name || '',
@@ -1216,7 +1277,8 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
     brands,
     links: [...links.values()].slice(0, 8),
     paragraphs,
-    sources: hints.slice(0, 6)
+    sources: hints.slice(0, 6),
+    copyGenerated: !sourceParagraph
   };
 }
 
@@ -1896,10 +1958,6 @@ function renderAboutPage(manifest) {
   const linkHtml = (profile.links || [])
     .map(link => `<a href="${htmlEscape(link.url)}" target="_blank" rel="noopener">${htmlEscape(link.label || socialLabel(link.url))}</a>`)
     .join('');
-  const sourceHtml = (profile.sources || [])
-    .map(source => `<li><a href="${htmlEscape(source.url)}" target="_blank" rel="noopener">${htmlEscape(source.title || source.source || 'Source')}</a></li>`)
-    .join('');
-
   if (!manifest.aboutProfile) {
     return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(manifest.ownerName)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="project-page"><h1>About</h1></main></body></html>`;
   }
@@ -1915,7 +1973,6 @@ function renderAboutPage(manifest) {
       </div>
     </section>
     ${(contactHtml || linkHtml) ? `<section class="about-contact"><div>${contactHtml}</div><nav>${linkHtml}</nav></section>` : ''}
-    ${sourceHtml ? `<section class="about-sources"><h2>Research trail</h2><ul>${sourceHtml}</ul></section>` : ''}
   </main></body></html>`;
 }
 
@@ -2340,6 +2397,10 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       .map(project => String(project.title || '').split(/\s[-–—:]/)[0].trim())
       .filter(value => value && value.length > 2 && value.length < 32 && !existingBrands.has(value.toLowerCase()));
     rawManifest.aboutProfile.brands = [...(rawManifest.aboutProfile.brands || []), ...new Set(importedBrands)].slice(0, 10);
+    if (rawManifest.aboutProfile.copyGenerated) {
+      rawManifest.aboutProfile.paragraphs = composeGeneratedCareerParagraphs(rawManifest.aboutProfile);
+    }
+    delete rawManifest.aboutProfile.copyGenerated;
   }
   await browser.close();
 
