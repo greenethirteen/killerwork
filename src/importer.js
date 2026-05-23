@@ -963,16 +963,23 @@ async function getBehanceProjectsFromHtml(url, progress) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     const $ = cheerio.load(html);
-    const projects = [];
-    const seen = new Set();
+    const byId = new Map();
     $('a[href*="/gallery/"]').each((_, node) => {
       const a = $(node);
       const href = normalizeUrl(a.attr('href'), projectsUrl);
       const match = href.match(/\/gallery\/(\d+)\/([^?#]+)/i);
-      if (!match || seen.has(match[1])) return;
-      seen.add(match[1]);
-      const scope = a.closest('[class*="ProjectCover"], article, li, div');
-      const img = scope.find('img').first();
+      if (!match) return;
+      const scope = a.parents('article, li, div').filter((_, el) => $(el).find('img').filter((_, imgNode) => {
+        const img = $(imgNode);
+        const src = img.attr('src') || img.attr('data-src') || img.attr('data-image') || img.attr('srcset') || img.attr('data-srcset') || '';
+        return /mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\/projects\//i.test(src);
+      }).length > 0).first();
+      const projectImgs = scope.find('img').filter((_, imgNode) => {
+        const img = $(imgNode);
+        const src = img.attr('src') || img.attr('data-src') || img.attr('data-image') || img.attr('srcset') || img.attr('data-srcset') || '';
+        return /mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\/projects\//i.test(src);
+      });
+      const img = projectImgs.first();
       const srcset = img.attr('srcset') || img.attr('data-srcset') || '';
       const srcsetFirst = srcset.split(',').map(part => part.trim().split(/\s+/)[0]).filter(Boolean).pop() || '';
       const rawTitle = textFromHtml(a.text())
@@ -981,7 +988,12 @@ async function getBehanceProjectsFromHtml(url, progress) {
         || titleFromBehanceGalleryPath(href);
       if (!rawTitle || /^search$/i.test(rawTitle)) return;
       const thumbnailUrl = normalizeUrl(img.attr('src') || img.attr('data-src') || img.attr('data-image') || srcsetFirst, projectsUrl);
-      projects.push({
+      const current = byId.get(match[1]);
+      if (current) {
+        if (!current.thumbnailUrl && thumbnailUrl) current.thumbnailUrl = thumbnailUrl;
+        return;
+      }
+      byId.set(match[1], {
         slug: `behance-${match[1]}-${rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`,
         title: rawTitle,
         url: href,
@@ -992,7 +1004,7 @@ async function getBehanceProjectsFromHtml(url, progress) {
         force: true
       });
     });
-    const merged = mergeProjectCandidates(projects);
+    const merged = mergeProjectCandidates([...byId.values()]);
     progress?.('Behance HTML fallback', `${merged.length} project(s) from ${projectsUrl}`);
     return merged;
   } catch (e) {
@@ -1511,7 +1523,8 @@ function renderImage(img, projectSlug, title) {
   const size = img?.width ? ` style="max-width:${Math.round(img.width)}px"` : '';
   const widthAttr = img?.width ? ` width="${Math.round(img.width)}"` : '';
   const heightAttr = img?.height ? ` height="${Math.round(img.height)}"` : '';
-  return `<figure class="media image"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="eager"${widthAttr}${heightAttr}></figure>`;
+  const loading = Number(img.order || 0) > 2 ? 'lazy' : 'eager';
+  return `<figure class="media image"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="${loading}" decoding="async"${widthAttr}${heightAttr}></figure>`;
 }
 
 function renderGallery(imageIndexes = [], project) {
@@ -1792,7 +1805,7 @@ export async function generateSite(manifest, outDir, progress) {
   const cards = manifest.projects.map(p => {
     const thumb = p.thumbnail?.src ? relFromPage('', p.thumbnail.src) : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : '');
     const media = thumb
-      ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="lazy">`
+      ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="lazy" decoding="async">`
       : `<div class="work-card-placeholder">${(p.videos || []).length ? 'Video' : (p.documents || []).length ? 'PDF' : 'Work'}</div>`;
     return `<a class="work-card" href="work/${htmlEscape(p.slug)}/">${media}<span>${htmlEscape(p.title)}</span></a>`;
   }).join('\n');
