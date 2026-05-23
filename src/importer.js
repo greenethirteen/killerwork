@@ -583,6 +583,10 @@ async function extractBehanceProject(page, url, progress) {
     };
   });
 
+  if (!data.images.length && !data.videos.length) {
+    const fallback = await extractBehanceProjectFromHtml(url, progress);
+    if (fallback.images.length || fallback.videos.length) return fallback;
+  }
   progress?.('Extracted Behance project', `${data.title} — ${data.images.length} image refs, ${data.videos.length} video refs`);
   return data;
 }
@@ -787,6 +791,139 @@ async function searchPublicProfileHints(profileName, progress) {
     }
   }
   return hints;
+}
+
+function unescapeHtmlUrl(value = '') {
+  return String(value || '')
+    .replace(/\\\//g, '/')
+    .replace(/&amp;/g, '&')
+    .replace(/\\u0026/g, '&')
+    .trim();
+}
+
+function bestSrcsetUrl(value = '') {
+  const parts = String(value || '')
+    .split(',')
+    .map(part => unescapeHtmlUrl(part.trim().split(/\s+/)[0]))
+    .filter(Boolean);
+  return parts[0] || '';
+}
+
+async function extractBehanceProjectFromHtml(url, progress) {
+  try {
+    const res = await fetch(url, {
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'Mozilla/5.0 KillerWorkImporter/0.8',
+        accept: 'text/html'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const title = textFromHtml($('meta[property="og:title"]').attr('content'))
+      || textFromHtml($('meta[name="twitter:title"]').attr('content'))
+      || textFromHtml($('h1').first().text())
+      || titleFromBehanceGalleryPath(url)
+      || 'Untitled Behance Project';
+    const thumbnailUrl = normalizeUrl(unescapeHtmlUrl($('meta[property="og:image"], meta[name="twitter:image"]').first().attr('content')), url);
+    const owner = textFromHtml($('a[href^="/"][title*="profile" i]').first().text()) || 'Behance';
+    const images = [];
+    const videos = [];
+    const contentItems = [];
+    const copyBlocks = [];
+    const seenImages = new Set();
+    const seenVideos = new Set();
+    let order = 0;
+
+    const addImage = (raw, alt = '') => {
+      const src = normalizeUrl(unescapeHtmlUrl(raw), url);
+      if (!src || !/mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\/project_modules\//i.test(src)) return;
+      const key = canonicalImageKey(src);
+      if (seenImages.has(key)) return;
+      seenImages.add(key);
+      const item = { url: src, alt: textFromHtml(alt) || title, order: ++order, width: 0, height: 0, visible: true };
+      images.push(item);
+      contentItems.push({ type: 'image', ...item });
+    };
+
+    const addVideo = (raw) => {
+      const src = normalizeUrl(unescapeHtmlUrl(raw), url);
+      if (!src || (!/youtube|youtu\.be|vimeo|player|embed/i.test(src) && !/\.(mp4|webm|mov|m3u8)(\?|$)/i.test(src))) return;
+      const key = canonicalVideoKey(src, 'iframe');
+      if (seenVideos.has(key)) return;
+      seenVideos.add(key);
+      const item = { kind: 'iframe', src, title, order: ++order, width: 0, height: 0, visible: true };
+      videos.push(item);
+      contentItems.push({ type: 'video', ...item });
+    };
+
+    $('img').each((_, node) => {
+      const img = $(node);
+      const scopeClass = String(img.closest('[class]').attr('class') || '');
+      if (/MoreLikeThis|Recommendations|ProjectCover/i.test(scopeClass)) return;
+      addImage(img.attr('src') || img.attr('data-src') || img.attr('data-image') || bestSrcsetUrl(img.attr('srcset') || img.attr('data-srcset')), img.attr('alt'));
+    });
+    $('iframe, video, source').each((_, node) => {
+      const el = $(node);
+      addVideo(el.attr('src') || el.attr('data-src') || el.attr('data-video-url'));
+    });
+
+    if (!images.length) {
+      const matches = html.match(/https?:\\?\/\\?\/mir-s3[^"'<>\s,]+\/project_modules\/[^"'<>\s,]+/gi) || [];
+      for (const match of matches) addImage(match, title);
+    }
+    if (!videos.length) {
+      const matches = html.match(/https?:\\?\/\\?\/(?:player\.vimeo\.com|www\.youtube\.com|youtube\.com|youtu\.be)[^"'<>\s\\]+/gi) || [];
+      for (const match of matches) addVideo(match);
+    }
+
+    $('p,h2,h3,figcaption').each((_, node) => {
+      const text = textFromHtml($(node).text());
+      if (!text || text.length < 8 || text.length > 1000) return;
+      if (!/:/.test(text) && !/\b(award|winner|shortlist|cannes|d&ad|one show|clio|effie|andy|lia)\b/i.test(text)) return;
+      const item = { type: 'text', tag: node.tagName?.toLowerCase?.() || 'p', text, order: ++order };
+      copyBlocks.push({ tag: item.tag, text, order: item.order });
+      contentItems.push(item);
+    });
+
+    const data = {
+      title,
+      thumbnailUrl,
+      sourceBrand: owner || 'Behance',
+      copyBlocks,
+      images,
+      videos,
+      contentItems: contentItems.sort((a, b) => (a.order || 0) - (b.order || 0)),
+      links: [],
+      pageStyle: {
+        backgroundColor: 'rgb(255, 255, 255)',
+        textColor: 'rgb(17, 17, 17)',
+        contentWidth: 1150
+      },
+      sourceCloneHtml: '',
+      sourceCloneStyle: '',
+      sourceCss: ''
+    };
+    progress?.('Behance project HTML fallback', `${data.title} — ${data.images.length} image refs, ${data.videos.length} video refs`);
+    return data;
+  } catch (e) {
+    progress?.('Behance project HTML fallback warning', `${url} — ${e.message}`);
+    return {
+      title: titleFromBehanceGalleryPath(url) || 'Untitled Behance Project',
+      thumbnailUrl: '',
+      sourceBrand: 'Behance',
+      copyBlocks: [],
+      images: [],
+      videos: [],
+      contentItems: [],
+      links: [],
+      pageStyle: { backgroundColor: 'rgb(255, 255, 255)', textColor: 'rgb(17, 17, 17)', contentWidth: 1150 },
+      sourceCloneHtml: '',
+      sourceCloneStyle: '',
+      sourceCss: ''
+    };
+  }
 }
 
 function behanceProjectsUrl(url = '') {
