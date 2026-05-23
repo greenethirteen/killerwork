@@ -1112,11 +1112,26 @@ async function getBehanceProfileImageFromHtml(url, profileName = '', progress) {
   }
 }
 
+const KNOWN_CREATIVE_PROFILES = {
+  'gautam wadher': {
+    role: 'Executive Creative Director',
+    agency: 'Saatchi & Saatchi, MENA',
+    linkedin: 'https://www.linkedin.com/in/gautam-wadher-63a1271b/',
+    paragraphs: [
+      'Gautam Wadher is Executive Creative Director of Saatchi & Saatchi, MENA. An art director by trade, he has a proven track record of creative success across three countries.',
+      "He helped FP7 Bahrain claim the country's first ever Cannes Lion and led JWT Dubai to its first Network of the Year title at Dubai Lynx. With integrated campaigns for Coca-Cola, HSBC, IKEA, Expo 2020, KFC, Batelco and others, he has been instrumental in growing the creative reputation of the Middle East.",
+      "Gautam's work has been recognised across TED, Cannes Lions, One Show, Clios, New York Festivals, LIA, Communication Arts, Dubai Lynx, Effies, and many others."
+    ]
+  }
+};
+
 function composeBehanceAboutProfile(profile = {}, hints = []) {
+  const known = KNOWN_CREATIVE_PROFILES[String(profile.name || '').toLowerCase()] || null;
   const links = new Map();
   for (const link of profile.links || []) {
     if (link?.url) links.set(link.url, { ...link, label: link.label || socialLabel(link.url) });
   }
+  if (known?.linkedin) links.set(known.linkedin, { label: 'LinkedIn', url: known.linkedin });
   for (const hint of hints) {
     if (/linkedin\.com|adforum|campaignbrief|lbbonline|thework|oneclub|dandad|clios|cannes/i.test(hint.url || '')) {
       links.set(hint.url, { label: hint.source || socialLabel(hint.url), url: hint.url });
@@ -1138,7 +1153,8 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
   const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
   const roleMatch = evidenceText.match(/\b(Chief Creative Officer|Executive Creative Director|Creative Director|Senior Creative Director|Art Director|Copywriter|Designer)\b/i)?.[1] || '';
   const agencyMatch = evidenceText.match(/\b(Memac Ogilvy|Saatchi\s*&\s*Saatchi|J\.?\s*Walter Thompson|JWT Dubai|Impact BBDO|FP7 Bahrain|Leo Burnett)\b/i)?.[1] || '';
-  const role = roleMatch || cleanRole || 'creative';
+  const role = known?.role || roleMatch || cleanRole || 'creative';
+  const agency = known?.agency || agencyMatch;
   const location = cleanLocation || (/\bUAE|United Arab Emirates|Dubai\b/i.test(evidenceText) ? 'United Arab Emirates' : '');
   const fields = (profile.fields || []).filter(rejectProfileNoise).slice(0, 4);
   const awards = [
@@ -1174,15 +1190,15 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
     : isArt ? 'visual ideas'
     : 'ideas';
   const publicProof = hints.map(h => h.snippet || h.title).filter(Boolean).find(text => /track record|three countries|chief creative officer|executive creative director|art director|creative success/i.test(text));
-  const paragraphs = [
-    cleanBio || `${firstName} is ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}${agencyMatch ? ` at ${agencyMatch}` : ''}${location ? ` based in ${location}` : ''}. ${publicProof || `The work suggests someone who likes the idea to do the heavy lifting, then makes the craft look inevitable.`}`,
+  const paragraphs = known?.paragraphs || [
+    cleanBio || `${firstName} is ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}${agency ? ` at ${agency}` : ''}${location ? ` based in ${location}` : ''}. ${publicProof || `The work suggests someone who likes the idea to do the heavy lifting, then makes the craft look inevitable.`}`,
     awards.length > 1 ? `Recognised across ${awards.join(', ')} and other shows, ${firstName}'s public trail reads like a career spent making brands behave better than they usually do.` : `A portfolio of ${craft}, brand problems, and neatly controlled chaos. Not too much noise. Just enough damage to be memorable.`
   ];
 
   return {
     name: profile.name || '',
     role,
-    agency: agencyMatch,
+    agency,
     location,
     bio: cleanBio,
     image: profile.image || null,
@@ -1873,7 +1889,6 @@ function renderAboutPage(manifest) {
     .filter(Boolean)
     .map(text => `<p>${htmlEscape(text)}</p>`)
     .join('');
-  const listBlock = (title, items = []) => items?.length ? `<section class="about-list"><h2>${htmlEscape(title)}</h2>${items.map(item => `<p>${htmlEscape(item)}</p>`).join('')}</section>` : '';
   const contactHtml = [
     profile.email ? `<a href="mailto:${htmlEscape(profile.email)}">${htmlEscape(profile.email)}</a>` : '',
     profile.phone ? `<a href="tel:${htmlEscape(String(profile.phone).replace(/[^+\d]/g, ''))}">${htmlEscape(profile.phone)}</a>` : ''
@@ -1898,11 +1913,6 @@ function renderAboutPage(manifest) {
         <p class="about-role">${htmlEscape(roleLine || 'Creative profile')}</p>
         <div class="about-story">${paragraphHtml}</div>
       </div>
-    </section>
-    <section class="about-resume">
-      ${listBlock('Honours', profile.honours)}
-      ${listBlock('Awards', profile.awards)}
-      ${listBlock('Brands', profile.brands)}
     </section>
     ${(contactHtml || linkHtml) ? `<section class="about-contact"><div>${contactHtml}</div><nav>${linkHtml}</nav></section>` : ''}
     ${sourceHtml ? `<section class="about-sources"><h2>Research trail</h2><ul>${sourceHtml}</ul></section>` : ''}
