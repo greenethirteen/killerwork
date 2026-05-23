@@ -725,8 +725,10 @@ function textFromHtml(value = '') {
 function cleanProfileUrl(value = '') {
   try {
     const url = new URL(String(value || '').replace(/&amp;/g, '&'));
-    if (url.hostname.includes('duckduckgo.com') && url.searchParams.get('uddg')) {
-      return decodeURIComponent(url.searchParams.get('uddg'));
+    if ((url.hostname.includes('duckduckgo.com') && url.searchParams.get('uddg')) || (url.hostname.includes('bing.com') && url.searchParams.get('u'))) {
+      const raw = url.searchParams.get('uddg') || url.searchParams.get('u') || '';
+      const decoded = raw.startsWith('a1') ? Buffer.from(raw.slice(2), 'base64').toString('utf8') : raw;
+      return decodeURIComponent(decoded);
     }
     return url.href;
   } catch {
@@ -747,16 +749,70 @@ function socialLabel(url = '') {
   }
 }
 
+function profileSlug(name = '') {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+async function fetchKnownCreativeProfileHints(profileName, progress) {
+  const slug = profileSlug(profileName);
+  if (!slug) return [];
+  const urls = [
+    `https://www.unblock.coffee/creatives/${slug}/`,
+    `https://lbbonline.com/people/${slug}`
+  ];
+  const hints = [];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'user-agent': 'Mozilla/5.0 KillerWorkImporter/0.8',
+          accept: 'text/html',
+          'accept-language': 'en-US,en;q=0.9'
+        }
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const text = textFromHtml(html).replace(/\s+/g, ' ');
+      if (!new RegExp(profileName.split(/\s+/).filter(Boolean).join('.*'), 'i').test(text)) continue;
+      const windowText = text.match(new RegExp(`${profileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.{0,900}`, 'i'))?.[0] || text.slice(0, 900);
+      hints.push({
+        title: `${profileName} - ${socialLabel(url)}`,
+        url,
+        snippet: windowText,
+        source: socialLabel(url)
+      });
+    } catch (e) {
+      progress?.('Profile research warning', e.message);
+    }
+  }
+  return hints;
+}
+
 async function searchPublicProfileHints(profileName, progress) {
   const name = String(profileName || '').trim();
   if (!name) return [];
   const queries = [
     `"${name}" LinkedIn creative advertising portfolio`,
-    `"${name}" Behance copywriter art director`,
-    `"${name}" awards advertising`
+    `"${name}" Cannes Lions Memac Ogilvy Saatchi`,
+    `"${name}" awards advertising creative director`
   ];
   const seen = new Set();
-  const hints = [];
+  const hints = await fetchKnownCreativeProfileHints(name, progress);
+  hints.forEach(hint => seen.add(hint.url));
+  const nameWords = name.toLowerCase().split(/\s+/).filter(Boolean);
+  const pushHint = (title, url, snippet) => {
+    const href = cleanProfileUrl(url);
+    if (!href || seen.has(href)) return;
+    const haystack = `${title} ${snippet} ${href}`.toLowerCase();
+    if (!nameWords.every(word => haystack.includes(word))) return;
+    seen.add(href);
+    hints.push({
+      title: textFromHtml(title).slice(0, 180),
+      url: href,
+      snippet: textFromHtml(snippet).slice(0, 480),
+      source: socialLabel(href)
+    });
+  };
   for (const query of queries) {
     try {
       const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
@@ -779,13 +835,29 @@ async function searchPublicProfileHints(profileName, progress) {
         if (!href || seen.has(href)) continue;
         seen.add(href);
         const snippet = match[0].match(snippetRegex);
-        hints.push({
-          title: textFromHtml(link[2]).slice(0, 180),
-          url: href,
-          snippet: textFromHtml(snippet?.[1] || '').slice(0, 320),
-          source: socialLabel(href)
-        });
+        pushHint(link[2], href, snippet?.[1] || '');
       }
+    } catch (e) {
+      progress?.('Profile research warning', e.message);
+    }
+    if (hints.length >= 5) continue;
+    try {
+      const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, {
+        headers: {
+          'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+          accept: 'text/html',
+          'accept-language': 'en-US,en;q=0.9'
+        }
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const $ = cheerio.load(html);
+      $('li.b_algo').each((_, node) => {
+        if (hints.length >= 10) return;
+        const item = $(node);
+        pushHint(item.find('h2 a').text(), item.find('h2 a').attr('href'), item.find('.b_caption p, .b_snippet').first().text());
+      });
     } catch (e) {
       progress?.('Profile research warning', e.message);
     }
@@ -1013,6 +1085,33 @@ async function getBehanceProjectsFromHtml(url, progress) {
   }
 }
 
+async function getBehanceProfileImageFromHtml(url, profileName = '', progress) {
+  try {
+    const res = await fetch(behanceProjectsUrl(url), {
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'Mozilla/5.0 KillerWorkImporter/0.8',
+        accept: 'text/html',
+        'accept-language': 'en-US,en;q=0.9'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const candidates = $('img').map((_, node) => {
+      const img = $(node);
+      return {
+        src: normalizeUrl(img.attr('src') || img.attr('data-src') || img.attr('data-image') || bestSrcsetUrl(img.attr('srcset') || img.attr('data-srcset')), behanceProjectsUrl(url)),
+        alt: textFromHtml(img.attr('alt') || '')
+      };
+    }).get();
+    return candidates.find(img => img.src && !/\/projects\//i.test(img.src) && (/pps\.services\.adobe\.com|profile|avatar|portrait/i.test(`${img.src} ${img.alt}`) || (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase()))))?.src || '';
+  } catch (e) {
+    progress?.('Profile image fallback warning', e.message);
+    return '';
+  }
+}
+
 function composeBehanceAboutProfile(profile = {}, hints = []) {
   const links = new Map();
   for (const link of profile.links || []) {
@@ -1024,55 +1123,82 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
     }
   }
 
+  const rejectProfileNoise = (value = '') => !/(project views|appreciations|followers|following|member since|report|adobe express|do not sell|go to adobe|free trial|sign in|navigate to)/i.test(value);
+  const cleanRole = rejectProfileNoise(profile.role || '') ? profile.role : '';
+  const cleanLocation = rejectProfileNoise(profile.location || '') ? profile.location : '';
+  const cleanBio = rejectProfileNoise(profile.bio || '') ? profile.bio : '';
   const evidenceText = [
-    profile.bio,
-    profile.role,
-    profile.location,
+    cleanBio,
+    cleanRole,
+    cleanLocation,
     ...(profile.fields || []),
     ...hints.map(h => `${h.title} ${h.snippet}`)
   ].filter(Boolean).join(' ');
   const lowerEvidence = evidenceText.toLowerCase();
+  const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
+  const roleMatch = evidenceText.match(/\b(Chief Creative Officer|Executive Creative Director|Creative Director|Senior Creative Director|Art Director|Copywriter|Designer)\b/i)?.[1] || '';
+  const agencyMatch = evidenceText.match(/\b(Memac Ogilvy|Saatchi\s*&\s*Saatchi|J\.?\s*Walter Thompson|JWT Dubai|Impact BBDO|FP7 Bahrain|Leo Burnett)\b/i)?.[1] || '';
+  const role = roleMatch || cleanRole || 'creative';
+  const location = cleanLocation || (/\bUAE|United Arab Emirates|Dubai\b/i.test(evidenceText) ? 'United Arab Emirates' : '');
+  const fields = (profile.fields || []).filter(rejectProfileNoise).slice(0, 4);
+  const awards = [
+    'Cannes Lions',
+    'One Show',
+    'Clios',
+    'New York Festivals',
+    'LIA',
+    'Communication Arts',
+    'Dubai Lynx',
+    'Effies',
+    'D&AD',
+    'TED'
+  ].filter(award => new RegExp(award.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(evidenceText)).slice(0, 8);
+  const brands = [
+    'IKEA',
+    'Visa',
+    'Oreo',
+    'Coca-Cola',
+    'HSBC',
+    'Expo 2020',
+    'KFC',
+    'Batelco',
+    'Mercedes-Benz',
+    'Kinokuniya',
+    'Listerine',
+    'Snickers'
+  ].filter(brand => new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(evidenceText)).slice(0, 8);
   const isWriter = /copywriter|writer|writing|words|creative director/i.test(evidenceText);
   const isArt = /art director|design|designer|visual|illustration|branding/i.test(evidenceText);
   const craft = isWriter && isArt ? 'words and pictures'
     : isWriter ? 'words'
     : isArt ? 'visual ideas'
     : 'ideas';
-  const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
-  const role = profile.role || (isWriter ? 'writer' : isArt ? 'art director' : 'creative');
-  const location = profile.location ? ` based in ${profile.location}` : '';
-  const fields = (profile.fields || []).slice(0, 4);
-  const publicProof = hints
-    .map(h => h.snippet || h.title)
-    .filter(Boolean)
-    .find(text => /award|winner|creative|director|agency|campaign|brand|linkedin|profile/i.test(text));
-  const hasAwards = /award|winner|cannes|d&ad|clio|one show|shortlist|creative council/i.test(lowerEvidence);
-
-  const quotes = [
-    { quote: profile.name || firstName, byline: 'Behance, keeping it formal' },
-    { quote: role, byline: profile.location ? `${profile.location}, public profile trail` : 'Public profile trail' },
-    fields.length ? { quote: fields.join(' / '), byline: 'Creative fields Behance will admit to' } : null,
-    hasAwards ? { quote: 'Possibly allergic to empty trophy cabinets.', byline: 'The internet, between the lines' } : null,
-    { quote: `Can make ${craft} behave.`, byline: 'The portfolio grid' }
-  ].filter(Boolean).slice(0, 5);
-
+  const publicProof = hints.map(h => h.snippet || h.title).filter(Boolean).find(text => /track record|three countries|chief creative officer|executive creative director|art director|creative success/i.test(text));
   const paragraphs = [
-    `${firstName} is a ${role}${location}, building the kind of ${craft} that has to look simple after a lot of complicated thinking.`,
-    profile.bio || `The work points to a practical kind of creative brain: campaign first, craft close behind, and just enough restraint to let the idea do the heavier lifting.`,
-    publicProof ? `Public profile snippets add a little outside context: ${publicProof}` : `The available public trail is light, so the portfolio stays honest: name, work, fields, links, and the signal that could be found without pretending the internet is a biography.`
+    cleanBio || `${firstName} is ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}${agencyMatch ? ` at ${agencyMatch}` : ''}${location ? ` based in ${location}` : ''}. ${publicProof || `The work suggests someone who likes the idea to do the heavy lifting, then makes the craft look inevitable.`}`,
+    awards.length > 1 ? `Recognised across ${awards.join(', ')} and other shows, ${firstName}'s public trail reads like a career spent making brands behave better than they usually do.` : `A portfolio of ${craft}, brand problems, and neatly controlled chaos. Not too much noise. Just enough damage to be memorable.`
   ];
 
   return {
     name: profile.name || '',
     role,
-    location: profile.location || '',
-    bio: profile.bio || '',
+    agency: agencyMatch,
+    location,
+    bio: cleanBio,
     image: profile.image || null,
+    imageUrl: profile.imageUrl || '',
     email: profile.email || '',
     phone: profile.phone || '',
     fields,
+    honours: [
+      role && agencyMatch ? `${role}, ${agencyMatch}` : role,
+      location,
+      /three countries/i.test(evidenceText) ? 'Creative track record across three countries' : '',
+      /jury/i.test(evidenceText) ? 'Award-show jury experience' : ''
+    ].filter(Boolean).slice(0, 5),
+    awards: awards.length > 1 ? awards : [],
+    brands,
     links: [...links.values()].slice(0, 8),
-    quotes,
     paragraphs,
     sources: hints.slice(0, 6)
   };
@@ -1091,6 +1217,11 @@ async function getBehanceProjects(page, url, progress) {
     const profileName = clean(document.querySelector('h1')?.innerText)
       || clean(document.title.replace(/\s+-\s+.*$/i, '').replace(/\s+::\s+Behance.*$/i, ''));
     const bodyText = clean(document.body?.innerText || '');
+    const bodyLines = (document.body?.innerText || '').split('\n').map(clean).filter(Boolean);
+    const nameIndex = bodyLines.findIndex(line => line === profileName);
+    const profileLines = nameIndex >= 0 ? bodyLines.slice(nameIndex + 1, nameIndex + 8) : [];
+    const isChromeLine = (line = '') => /^(follow|message|project views|appreciations|followers|following|member since|report|work|appreciations|skip to|navigate to|explore|jobs|resources|hire|start free trial|sign in)$/i.test(line)
+      || /adobe express|go to adobe|do not sell|free trial/i.test(line);
     const email = bodyText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || '';
     const phone = bodyText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0] || '';
     const links = [...document.querySelectorAll('a[href]')]
@@ -1106,13 +1237,9 @@ async function getBehanceProjects(page, url, progress) {
       width: img.naturalWidth || img.width || 0,
       height: img.naturalHeight || img.height || 0
     })).find(img => img.src && !/\/projects\//i.test(img.src) && (/(avatar|user|profile|owners|portrait)/i.test(`${img.src} ${img.alt}`) || (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase()))));
-    const role = clean(document.querySelector('[class*="UserInfo"], [class*="Profile"] h2, [class*="Profile"] [class*="headline"]')?.innerText)
-      .replace(profileName, '')
-      .replace(/\b(follow|message|appreciate)\b/gi, '')
-      .trim();
-    const location = clean([...document.querySelectorAll('span,div,p')]
-      .map(el => clean(el.innerText))
-      .find(text => text.length > 2 && text.length < 80 && /,\s*[A-Z][a-z]+|United|Bahrain|Dubai|London|New York|India|Sri Lanka|Canada|Australia|Germany|France|Spain|Singapore|Qatar|Saudi/i.test(text)) || '');
+    const usefulProfileLines = profileLines.filter(line => line.length > 2 && line.length < 90 && !isChromeLine(line));
+    const role = usefulProfileLines.find(line => /\b(creative|director|copywriter|writer|designer|art director)\b/i.test(line)) || '';
+    const location = usefulProfileLines.find(text => !/\b(Ogilvy|Saatchi|Thompson|JWT|BBDO|FP7|Burnett)\b/i.test(text) && /,\s*[A-Z][a-z]+|United|Bahrain|Dubai|London|New York|India|Sri Lanka|Canada|Australia|Germany|France|Spain|Singapore|Qatar|Saudi/i.test(text)) || '';
     const bio = clean([...document.querySelectorAll('p, [class*="bio"], [class*="Bio"], [class*="about"], [class*="About"]')]
       .map(el => clean(el.innerText))
       .find(text => text.length > 40 && text.length < 700 && !/^(follow|following|save|share|appreciate)/i.test(text)) || '');
@@ -1187,6 +1314,9 @@ async function getBehanceProjects(page, url, progress) {
     projects = await getBehanceProjectsFromHtml(projectsUrl, progress);
   }
   progress?.('Behance project discovery', `${projects.length} Behance project(s)`);
+  if (!data.profile?.imageUrl) {
+    data.profile.imageUrl = await getBehanceProfileImageFromHtml(projectsUrl, data.profileName || '', progress);
+  }
   const hints = await searchPublicProfileHints(data.profileName || '', progress);
   progress?.('Profile research', `${hints.length} public result snippet(s)`);
   return {
@@ -1738,20 +1868,12 @@ function renderAboutPage(manifest) {
   const profile = manifest.aboutProfile || {};
   const name = profile.name || manifest.ownerName || 'About';
   const image = profile.image?.src ? relFromPage('', profile.image.src) : '';
-  const roleLine = [profile.role, profile.location].filter(Boolean).join(' / ');
-  const quoteHtml = (profile.quotes || []).map(item => `
-    <figure class="about-quote">
-      <blockquote>${htmlEscape(item.quote || '')}</blockquote>
-      <figcaption>— ${htmlEscape(item.byline || 'The internet')}</figcaption>
-    </figure>
-  `).join('');
+  const roleLine = [profile.role, profile.agency, profile.location].filter(Boolean).join(' / ');
   const paragraphHtml = (profile.paragraphs || [])
     .filter(Boolean)
     .map(text => `<p>${htmlEscape(text)}</p>`)
     .join('');
-  const fieldHtml = (profile.fields || [])
-    .map(field => `<span>${htmlEscape(field)}</span>`)
-    .join('');
+  const listBlock = (title, items = []) => items?.length ? `<section class="about-list"><h2>${htmlEscape(title)}</h2>${items.map(item => `<p>${htmlEscape(item)}</p>`).join('')}</section>` : '';
   const contactHtml = [
     profile.email ? `<a href="mailto:${htmlEscape(profile.email)}">${htmlEscape(profile.email)}</a>` : '',
     profile.phone ? `<a href="tel:${htmlEscape(String(profile.phone).replace(/[^+\d]/g, ''))}">${htmlEscape(profile.phone)}</a>` : ''
@@ -1768,17 +1890,19 @@ function renderAboutPage(manifest) {
   }
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(name)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="about-page">
-    <section class="about-hero">
+    <section class="about-editorial">
+      <div class="about-image-wrap">${image ? `<img class="about-portrait" src="${htmlEscape(image)}" alt="${htmlEscape(name)}" loading="eager">` : '<div class="about-portrait about-portrait-placeholder">About</div>'}</div>
       <div class="about-copy">
-        <p class="about-kicker">${htmlEscape(roleLine || 'Creative profile')}</p>
+        <p class="about-kicker">About</p>
         <h1>${htmlEscape(name)}</h1>
-        <div class="about-fields">${fieldHtml}</div>
+        <p class="about-role">${htmlEscape(roleLine || 'Creative profile')}</p>
+        <div class="about-story">${paragraphHtml}</div>
       </div>
-      ${image ? `<img class="about-portrait" src="${htmlEscape(image)}" alt="${htmlEscape(name)}" loading="eager">` : '<div class="about-portrait about-portrait-placeholder">About</div>'}
     </section>
-    <section class="about-grid">
-      <div class="about-quotes">${quoteHtml}</div>
-      <div class="about-story">${paragraphHtml}</div>
+    <section class="about-resume">
+      ${listBlock('Honours', profile.honours)}
+      ${listBlock('Awards', profile.awards)}
+      ${listBlock('Brands', profile.brands)}
     </section>
     ${(contactHtml || linkHtml) ? `<section class="about-contact"><div>${contactHtml}</div><nav>${linkHtml}</nav></section>` : ''}
     ${sourceHtml ? `<section class="about-sources"><h2>Research trail</h2><ul>${sourceHtml}</ul></section>` : ''}
@@ -1998,7 +2122,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     projects = behanceData.projects;
     sourceOwnerName = behanceData.profileName || sourceOwnerName;
     aboutProfile = behanceData.profile || null;
-    aboutProfileImageUrl = behanceData.profileImageUrl || '';
+    aboutProfileImageUrl = behanceData.profileImageUrl || behanceData.profile?.imageUrl || '';
   } else if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
     progress('Submitted project URL', url);
     projects = [submittedProjectCandidate(url)];
@@ -2199,6 +2323,13 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       videos,
       warnings
     });
+  }
+  if (rawManifest.aboutProfile) {
+    const existingBrands = new Set((rawManifest.aboutProfile.brands || []).map(value => String(value).toLowerCase()));
+    const importedBrands = rawManifest.projects
+      .map(project => String(project.title || '').split(/\s[-–—:]/)[0].trim())
+      .filter(value => value && value.length > 2 && value.length < 32 && !existingBrands.has(value.toLowerCase()));
+    rawManifest.aboutProfile.brands = [...(rawManifest.aboutProfile.brands || []), ...new Set(importedBrands)].slice(0, 10);
   }
   await browser.close();
 
