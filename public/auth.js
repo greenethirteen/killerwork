@@ -1,10 +1,11 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
 import {
   GoogleAuthProvider,
+  browserLocalPersistence,
   getAuth,
   getRedirectResult,
   onAuthStateChanged,
-  signInWithPopup,
+  setPersistence,
   signInWithRedirect,
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
@@ -18,17 +19,14 @@ let authReadyResolve;
 let authReadyDone = false;
 const authReady = new Promise(resolve => { authReadyResolve = resolve; });
 
-function shouldUseRedirectFallback(error) {
-  return error?.code === 'auth/popup-blocked';
+async function signInWithGoogle(auth, provider) {
+  await signInWithRedirect(auth, provider);
 }
 
-async function signInWithGoogle(auth, provider) {
-  try {
-    await signInWithPopup(auth, provider);
-  } catch (error) {
-    if (!shouldUseRedirectFallback(error)) throw error;
-    await signInWithRedirect(auth, provider);
-  }
+function resolveAuthReady() {
+  if (authReadyDone) return;
+  authReadyDone = true;
+  authReadyResolve();
 }
 
 window.KillerWorkAuth = {
@@ -44,6 +42,7 @@ window.KillerWorkAuth = {
     if (!authInstance.currentUser) {
       const provider = new GoogleAuthProvider();
       await signInWithGoogle(authInstance, provider);
+      throw new Error('Redirecting to Google sign-in.');
     }
     return authInstance.currentUser.getIdToken();
   },
@@ -97,10 +96,11 @@ async function initFirebaseAuth() {
   const app = initializeApp(data.config);
   const auth = getAuth(app);
   authInstance = auth;
+  await setPersistence(auth, browserLocalPersistence);
   const provider = new GoogleAuthProvider();
   getRedirectResult(auth).catch(error => {
     setSignedOut(error?.message || 'Google sign-in could not finish.');
-  });
+  }).finally(() => resolveAuthReady());
 
   authLinks.forEach(link => {
     link.addEventListener('click', async event => {
@@ -123,10 +123,7 @@ async function initFirebaseAuth() {
   });
 
   onAuthStateChanged(auth, async user => {
-    if (!authReadyDone) {
-      authReadyDone = true;
-      authReadyResolve();
-    }
+    resolveAuthReady();
     if (!user) {
       setSignedOut();
       return;
