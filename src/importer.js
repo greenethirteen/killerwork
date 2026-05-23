@@ -1171,18 +1171,30 @@ async function getBehanceProfileImageFromHtml(url, profileName = '', progress) {
 function composeGeneratedCareerParagraphs(profile = {}) {
   const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
   const role = profile.role || 'creative';
-  const agency = profile.agency || '';
   const location = profile.location || '';
   const awards = Array.isArray(profile.awards) ? profile.awards.filter(Boolean) : [];
-  const brands = Array.isArray(profile.brands) ? profile.brands.filter(Boolean) : [];
-  const roleLine = `${firstName} is ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}${agency ? ` at ${agency}` : ''}${location ? ` based in ${location}` : ''}.`;
+  const brandName = (value = '') => {
+    const normalized = String(value || '').trim();
+    const known = new Map([
+      ['ikea', 'IKEA'],
+      ['kfc', 'KFC'],
+      ['hsbc', 'HSBC'],
+      ['scholl', 'Scholl']
+    ]);
+    return known.get(normalized.toLowerCase()) || normalized;
+  };
+  const brands = Array.isArray(profile.brands) ? profile.brands.filter(Boolean).map(brandName) : [];
+  const place = location ? ` Based in ${location},` : '';
   const brandLine = brands.length > 2
-    ? `Across the archive, the career shows up through campaigns for ${brands.slice(0, 6).join(', ')}${brands.length > 6 ? ' and others' : ''}.`
-    : 'The work sits in the part of advertising where the idea has to carry the room: clear, direct, and hard to over-explain.';
+    ? `${place} the work moves through ${brands.slice(0, 6).join(', ')}${brands.length > 6 ? ' and a few other brave clients' : ''}: big-brand rooms, small human truths, and ideas that know when to shut up.`
+    : `${place} the work sits in that useful corner of advertising where a thought has to be simple enough to travel and sharp enough to leave a mark.`;
   const achievementLine = awards.length > 1
-    ? `${firstName}'s work has been recognised across ${awards.join(', ')} and other advertising shows.`
-    : `The through-line is campaign craft: sharp headlines, clean art direction, and the kind of commercial thinking that tries to leave a mark without shouting about it.`;
-  return [`${roleLine} ${brandLine}`, achievementLine];
+    ? `Some of it has picked up metal at ${awards.join(', ')} and other shows. Useful, because applause is nice. Better, because it means the work got noticed outside the meeting room.`
+    : `I like the bit where a headline earns its space, art direction remembers its manners, and commercial thinking gets dressed well enough to pass as culture.`;
+  return [
+    `I'm ${firstName}, ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}.${brandLine}`,
+    achievementLine
+  ];
 }
 
 function composeBehanceAboutProfile(profile = {}, hints = []) {
