@@ -3,10 +3,9 @@ import {
   GoogleAuthProvider,
   browserLocalPersistence,
   getAuth,
-  getRedirectResult,
   onAuthStateChanged,
   setPersistence,
-  signInWithRedirect,
+  signInWithPopup,
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 
@@ -19,14 +18,24 @@ let authReadyResolve;
 let authReadyDone = false;
 const authReady = new Promise(resolve => { authReadyResolve = resolve; });
 
-async function signInWithGoogle(auth, provider) {
-  await signInWithRedirect(auth, provider);
-}
-
 function resolveAuthReady() {
   if (authReadyDone) return;
   authReadyDone = true;
   authReadyResolve();
+}
+
+function googleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
+async function signInWithGooglePopup(auth) {
+  const result = await signInWithPopup(auth, googleProvider());
+  const user = result?.user || auth.currentUser;
+  if (user) setSignedIn(user);
+  resolveAuthReady();
+  return user;
 }
 
 window.KillerWorkAuth = {
@@ -40,9 +49,8 @@ window.KillerWorkAuth = {
     await authReady;
     if (!authInstance) throw new Error('Firebase sign-in is not configured.');
     if (!authInstance.currentUser) {
-      const provider = new GoogleAuthProvider();
-      await signInWithGoogle(authInstance, provider);
-      throw new Error('Redirecting to Google sign-in.');
+      const user = await signInWithGooglePopup(authInstance);
+      if (user) return user.getIdToken();
     }
     return authInstance.currentUser.getIdToken();
   },
@@ -97,19 +105,17 @@ async function initFirebaseAuth() {
   const auth = getAuth(app);
   authInstance = auth;
   await setPersistence(auth, browserLocalPersistence);
-  const provider = new GoogleAuthProvider();
-  getRedirectResult(auth).catch(error => {
-    setSignedOut(error?.message || 'Google sign-in could not finish.');
-  }).finally(() => resolveAuthReady());
 
   authLinks.forEach(link => {
     link.addEventListener('click', async event => {
       event.preventDefault();
       link.setAttribute('aria-busy', 'true');
       try {
-        await signInWithGoogle(auth, provider);
+        await signInWithGooglePopup(auth);
       } catch (error) {
-        setSignedOut(error?.message || 'Google sign-in failed.');
+        if (error?.code !== 'auth/popup-closed-by-user' && error?.code !== 'auth/cancelled-popup-request') {
+          setSignedOut(error?.message || 'Google sign-in failed.');
+        }
       } finally {
         link.removeAttribute('aria-busy');
       }
