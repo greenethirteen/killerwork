@@ -537,6 +537,15 @@ async function extractBehanceProject(page, url, progress) {
       copyBlocks.push({ tag: item.tag, text, order: item.order });
       contentItems.push(item);
     };
+    const addCreditTextBlock = (text) => {
+      text = cleanLines(text);
+      if (!text || text.length < 8 || !/:/.test(text)) return;
+      const key = comparable(text);
+      if (copyBlocks.some(block => comparable(block.text) === key)) return;
+      const item = { type: 'text', tag: 'p', text, order: ++order };
+      copyBlocks.push({ tag: item.tag, text, order: item.order });
+      contentItems.push(item);
+    };
     const addVideo = (el) => {
       const raw = el.getAttribute('src') || el.getAttribute('data-src') || '';
       const src = abs(raw);
@@ -562,6 +571,26 @@ async function extractBehanceProject(page, url, progress) {
         addText(el);
       }
     });
+
+    const visibleLines = (projectRoot.innerText || document.body.innerText || '')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map(line => clean(line))
+      .filter(Boolean);
+    const creditStart = visibleLines.findIndex(line => /^(agency|client|credits?(?:\s*\([^)]*\))?|production house|creative director)\s*:?/i.test(line));
+    if (creditStart >= 0) {
+      const creditLines = [];
+      for (let i = creditStart; i < visibleLines.length && creditLines.length < 48; i++) {
+        const line = visibleLines[i];
+        if (i > creditStart && (
+          /^(full alternate version|full version|multiple owners|follow all|appreciate|published:|creative fields|owners|more like this|you may also like)$/i.test(line)
+          || comparable(line) === titleKey
+        )) break;
+        if (/^(follow|following|save|share|appreciate|owners|creative fields|more like this)$/i.test(line)) break;
+        creditLines.push(line);
+      }
+      addCreditTextBlock(creditLines.join('\n'));
+    }
 
     return {
       title,
@@ -1694,6 +1723,39 @@ function renderMetaBlocks(project) {
   return `<section class="project-meta" aria-label="Project details">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
 }
 
+function behanceDetailLines(blocks = [], projectTitle = '') {
+  const titleCore = cleanTitle(projectTitle).toLowerCase();
+  const seen = new Set();
+  const lines = [];
+  for (const block of blocks || []) {
+    String(block.text || '')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map(line => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .forEach(line => {
+        const cleaned = line.replace(/:\s*(?=\S)/g, ': ');
+        if (!cleaned || cleaned.toLowerCase() === titleCore) return;
+        if (/^(follow|following|save|share|appreciate|owners|creative fields|more like this|published:)$/i.test(cleaned)) return;
+        const key = cleaned.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push(cleaned);
+      });
+  }
+  return lines.slice(0, 36);
+}
+
+function renderBehanceCampaignDetails(project) {
+  const rawLines = behanceDetailLines(project.copyBlocks, project.title);
+  const cleanedLines = project.cleaned?.metadata?.length
+    ? normalizedMetaLines(project.cleaned.metadata.map(text => ({ text })), project.title)
+    : [];
+  const lines = rawLines.length ? rawLines : cleanedLines;
+  if (!lines.length) return '';
+  return `<section class="project-meta behance-campaign-details" aria-label="Campaign details">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
+}
+
 function renderVideo(v, projectSlug, posterAsset = null) {
   const src = relFromPage(projectSlug, v.src);
   const poster = posterAsset?.src ? relFromPage(projectSlug, posterAsset.src) : '';
@@ -1895,8 +1957,12 @@ function renderProjectFooterGrid(manifest, currentProject) {
 function renderImportedSourceContent(project, cloneHtml) {
   if (cloneHtml) return cloneHtml;
   const description = renderSourceDescription(project);
+  if (project.sourcePlatform === 'behance') {
+    const ordered = renderOrderedContent(project, { skipText: true });
+    const details = renderBehanceCampaignDetails(project);
+    return `${ordered}${details}`;
+  }
   const ordered = renderOrderedContent(project, { skipText: !!description });
-  if (project.sourcePlatform === 'behance') return ordered;
   if (!description) return ordered;
   return `<section class="source-replica-layout"><div class="source-replica-main">${ordered}</div>${description}</section>`;
 }
