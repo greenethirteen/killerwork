@@ -2,8 +2,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/fireba
 import {
   GoogleAuthProvider,
   getAuth,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 
@@ -15,6 +17,19 @@ let authInstance = null;
 let authReadyResolve;
 let authReadyDone = false;
 const authReady = new Promise(resolve => { authReadyResolve = resolve; });
+
+function shouldUseRedirectFallback(error) {
+  return error?.code === 'auth/popup-blocked';
+}
+
+async function signInWithGoogle(auth, provider) {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    if (!shouldUseRedirectFallback(error)) throw error;
+    await signInWithRedirect(auth, provider);
+  }
+}
 
 window.KillerWorkAuth = {
   ready: authReady,
@@ -28,7 +43,7 @@ window.KillerWorkAuth = {
     if (!authInstance) throw new Error('Firebase sign-in is not configured.');
     if (!authInstance.currentUser) {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(authInstance, provider);
+      await signInWithGoogle(authInstance, provider);
     }
     return authInstance.currentUser.getIdToken();
   },
@@ -83,11 +98,21 @@ async function initFirebaseAuth() {
   const auth = getAuth(app);
   authInstance = auth;
   const provider = new GoogleAuthProvider();
+  getRedirectResult(auth).catch(error => {
+    setSignedOut(error?.message || 'Google sign-in could not finish.');
+  });
 
   authLinks.forEach(link => {
     link.addEventListener('click', async event => {
       event.preventDefault();
-      await signInWithPopup(auth, provider);
+      link.setAttribute('aria-busy', 'true');
+      try {
+        await signInWithGoogle(auth, provider);
+      } catch (error) {
+        setSignedOut(error?.message || 'Google sign-in failed.');
+      } finally {
+        link.removeAttribute('aria-busy');
+      }
     });
   });
 
