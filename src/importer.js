@@ -2034,7 +2034,7 @@ export async function generateSite(manifest, outDir, progress) {
     const intro = '';
     const needsHls = !cloneHtml && p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls');
     const needsGallery = (p.contentItems || []).some(item => item.type === 'gallery');
-    const sourceNote = p.url && p.url !== '#uploaded' ? `<footer class="source-note"><a href="${htmlEscape(p.url)}">Original page</a></footer>` : '';
+    const rightsNote = `<footer class="source-note">&copy; ${htmlEscape(manifest.ownerName || p.title || 'Portfolio')}. All rights reserved.</footer>`;
     const pageVars = [
       p.pageStyle?.backgroundColor ? `--bg:${p.pageStyle.backgroundColor}` : '',
       p.pageStyle?.textColor ? `--fg:${p.pageStyle.textColor}` : '',
@@ -2046,7 +2046,7 @@ export async function generateSite(manifest, outDir, progress) {
     const headerHtml = isSourceReplica
       ? sourceHeader
       : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1>${htmlEscape(p.title)}</h1></header>`;
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${sourceNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
