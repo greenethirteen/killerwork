@@ -519,7 +519,7 @@ async function loadPages() {
     setStatus('Missing job id. Open this from a completed import.', 'error');
     return;
   }
-  if (managePortfolio) managePortfolio.href = `/manage.html?job=${encodeURIComponent(jobId)}`;
+  if (managePortfolio) managePortfolio.href = '/manage.html';
   let headers;
   try {
     headers = await authHeaders();

@@ -703,6 +703,156 @@ async function scrollBehancePage(page) {
   await page.waitForTimeout(600);
 }
 
+function textFromHtml(value = '') {
+  return String(value || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanProfileUrl(value = '') {
+  try {
+    const url = new URL(String(value || '').replace(/&amp;/g, '&'));
+    if (url.hostname.includes('duckduckgo.com') && url.searchParams.get('uddg')) {
+      return decodeURIComponent(url.searchParams.get('uddg'));
+    }
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function socialLabel(url = '') {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (host.includes('linkedin.com')) return 'LinkedIn';
+    if (host.includes('instagram.com')) return 'Instagram';
+    if (host.includes('twitter.com') || host.includes('x.com')) return 'X';
+    if (host.includes('behance.net')) return 'Behance';
+    return host.split('.')[0].replace(/\b\w/g, c => c.toUpperCase());
+  } catch {
+    return 'Link';
+  }
+}
+
+async function searchPublicProfileHints(profileName, progress) {
+  const name = String(profileName || '').trim();
+  if (!name) return [];
+  const queries = [
+    `"${name}" LinkedIn creative advertising portfolio`,
+    `"${name}" Behance copywriter art director`,
+    `"${name}" awards advertising`
+  ];
+  const seen = new Set();
+  const hints = [];
+  for (const query of queries) {
+    try {
+      const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, {
+        headers: {
+          'user-agent': 'Mozilla/5.0 KillerWorkImporter/0.8',
+          accept: 'text/html'
+        }
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const resultRegex = /<div[^>]+class="[^"]*result[^"]*"[\s\S]*?<\/div>\s*<\/div>/gi;
+      const linkRegex = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i;
+      const snippetRegex = /<(?:a|div)[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|div)>/i;
+      let match;
+      while ((match = resultRegex.exec(html)) && hints.length < 8) {
+        const link = match[0].match(linkRegex);
+        if (!link) continue;
+        const href = cleanProfileUrl(link[1]);
+        if (!href || seen.has(href)) continue;
+        seen.add(href);
+        const snippet = match[0].match(snippetRegex);
+        hints.push({
+          title: textFromHtml(link[2]).slice(0, 180),
+          url: href,
+          snippet: textFromHtml(snippet?.[1] || '').slice(0, 320),
+          source: socialLabel(href)
+        });
+      }
+    } catch (e) {
+      progress?.('Profile research warning', e.message);
+    }
+  }
+  return hints;
+}
+
+function composeBehanceAboutProfile(profile = {}, hints = []) {
+  const links = new Map();
+  for (const link of profile.links || []) {
+    if (link?.url) links.set(link.url, { ...link, label: link.label || socialLabel(link.url) });
+  }
+  for (const hint of hints) {
+    if (/linkedin\.com|adforum|campaignbrief|lbbonline|thework|oneclub|dandad|clios|cannes/i.test(hint.url || '')) {
+      links.set(hint.url, { label: hint.source || socialLabel(hint.url), url: hint.url });
+    }
+  }
+
+  const evidenceText = [
+    profile.bio,
+    profile.role,
+    profile.location,
+    ...(profile.fields || []),
+    ...hints.map(h => `${h.title} ${h.snippet}`)
+  ].filter(Boolean).join(' ');
+  const lowerEvidence = evidenceText.toLowerCase();
+  const isWriter = /copywriter|writer|writing|words|creative director/i.test(evidenceText);
+  const isArt = /art director|design|designer|visual|illustration|branding/i.test(evidenceText);
+  const craft = isWriter && isArt ? 'words and pictures'
+    : isWriter ? 'words'
+    : isArt ? 'visual ideas'
+    : 'ideas';
+  const firstName = String(profile.name || '').split(/\s+/)[0] || 'This creative';
+  const role = profile.role || (isWriter ? 'writer' : isArt ? 'art director' : 'creative');
+  const location = profile.location ? ` based in ${profile.location}` : '';
+  const fields = (profile.fields || []).slice(0, 4);
+  const publicProof = hints
+    .map(h => h.snippet || h.title)
+    .filter(Boolean)
+    .find(text => /award|winner|creative|director|agency|campaign|brand|linkedin|profile/i.test(text));
+  const hasAwards = /award|winner|cannes|d&ad|clio|one show|shortlist|creative council/i.test(lowerEvidence);
+
+  const quotes = [
+    { quote: profile.name || firstName, byline: 'Behance, keeping it formal' },
+    { quote: role, byline: profile.location ? `${profile.location}, public profile trail` : 'Public profile trail' },
+    fields.length ? { quote: fields.join(' / '), byline: 'Creative fields Behance will admit to' } : null,
+    hasAwards ? { quote: 'Possibly allergic to empty trophy cabinets.', byline: 'The internet, between the lines' } : null,
+    { quote: `Can make ${craft} behave.`, byline: 'The portfolio grid' }
+  ].filter(Boolean).slice(0, 5);
+
+  const paragraphs = [
+    `${firstName} is a ${role}${location}, building the kind of ${craft} that has to look simple after a lot of complicated thinking.`,
+    profile.bio || `The work points to a practical kind of creative brain: campaign first, craft close behind, and just enough restraint to let the idea do the heavier lifting.`,
+    publicProof ? `Public profile snippets add a little outside context: ${publicProof}` : `The available public trail is light, so the portfolio stays honest: name, work, fields, links, and the signal that could be found without pretending the internet is a biography.`
+  ];
+
+  return {
+    name: profile.name || '',
+    role,
+    location: profile.location || '',
+    bio: profile.bio || '',
+    image: profile.image || null,
+    email: profile.email || '',
+    phone: profile.phone || '',
+    fields,
+    links: [...links.values()].slice(0, 8),
+    quotes,
+    paragraphs,
+    sources: hints.slice(0, 6)
+  };
+}
+
 async function getBehanceProjects(page, url, progress) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
@@ -713,6 +863,32 @@ async function getBehanceProjects(page, url, progress) {
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const profileName = clean(document.querySelector('h1')?.innerText)
       || clean(document.title.replace(/\s+-\s+.*$/i, '').replace(/\s+::\s+Behance.*$/i, ''));
+    const bodyText = clean(document.body?.innerText || '');
+    const email = bodyText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || '';
+    const phone = bodyText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0] || '';
+    const links = [...document.querySelectorAll('a[href]')]
+      .map(a => ({ url: abs(a.getAttribute('href')), label: clean(a.innerText) || clean(a.getAttribute('aria-label')) }))
+      .filter(link => link.url && /(linkedin\.com|instagram\.com|twitter\.com|x\.com|dribbble\.com|personal website|mailto:)/i.test(`${link.url} ${link.label}`))
+      .slice(0, 10);
+    const fields = [...new Set([...document.querySelectorAll('a[href*="/search/projects/"], a[href*="/galleries/"], a[href*="field="]')]
+      .map(a => clean(a.innerText))
+      .filter(text => text && text.length <= 42 && !/^(search|projects|galleries)$/i.test(text)))].slice(0, 6);
+    const profileImage = [...document.querySelectorAll('img')].map(img => ({
+      src: abs(img.currentSrc || img.src || img.getAttribute('src') || ''),
+      alt: clean(img.getAttribute('alt')),
+      width: img.naturalWidth || img.width || 0,
+      height: img.naturalHeight || img.height || 0
+    })).find(img => img.src && !/\/projects\//i.test(img.src) && (/(avatar|user|profile|owners|portrait)/i.test(`${img.src} ${img.alt}`) || (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase()))));
+    const role = clean(document.querySelector('[class*="UserInfo"], [class*="Profile"] h2, [class*="Profile"] [class*="headline"]')?.innerText)
+      .replace(profileName, '')
+      .replace(/\b(follow|message|appreciate)\b/gi, '')
+      .trim();
+    const location = clean([...document.querySelectorAll('span,div,p')]
+      .map(el => clean(el.innerText))
+      .find(text => text.length > 2 && text.length < 80 && /,\s*[A-Z][a-z]+|United|Bahrain|Dubai|London|New York|India|Sri Lanka|Canada|Australia|Germany|France|Spain|Singapore|Qatar|Saudi/i.test(text)) || '');
+    const bio = clean([...document.querySelectorAll('p, [class*="bio"], [class*="Bio"], [class*="about"], [class*="About"]')]
+      .map(el => clean(el.innerText))
+      .find(text => text.length > 40 && text.length < 700 && !/^(follow|following|save|share|appreciate)/i.test(text)) || '');
     const projects = [];
     const seen = new Set();
 
@@ -762,12 +938,33 @@ async function getBehanceProjects(page, url, progress) {
       });
     });
 
-    return { profileName, projects };
+    return {
+      profileName,
+      profile: {
+        name: profileName,
+        role,
+        location,
+        bio,
+        imageUrl: profileImage?.src || '',
+        email,
+        phone,
+        fields,
+        links
+      },
+      projects
+    };
   });
 
   const projects = mergeProjectCandidates(data.projects || []);
   progress?.('Behance project discovery', `${projects.length} Behance project(s)`);
-  return { profileName: data.profileName || '', projects };
+  const hints = await searchPublicProfileHints(data.profileName || '', progress);
+  progress?.('Profile research', `${hints.length} public result snippet(s)`);
+  return {
+    profileName: data.profileName || '',
+    profile: composeBehanceAboutProfile(data.profile || { name: data.profileName || '' }, hints),
+    profileImageUrl: data.profile?.imageUrl || '',
+    projects
+  };
 }
 
 async function extractHomePage(page, url, progress) {
@@ -1306,6 +1503,57 @@ function renderHomePage(manifest, cards) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
 }
 
+function renderAboutPage(manifest) {
+  const profile = manifest.aboutProfile || {};
+  const name = profile.name || manifest.ownerName || 'About';
+  const image = profile.image?.src ? relFromPage('', profile.image.src) : '';
+  const roleLine = [profile.role, profile.location].filter(Boolean).join(' / ');
+  const quoteHtml = (profile.quotes || []).map(item => `
+    <figure class="about-quote">
+      <blockquote>${htmlEscape(item.quote || '')}</blockquote>
+      <figcaption>— ${htmlEscape(item.byline || 'The internet')}</figcaption>
+    </figure>
+  `).join('');
+  const paragraphHtml = (profile.paragraphs || [])
+    .filter(Boolean)
+    .map(text => `<p>${htmlEscape(text)}</p>`)
+    .join('');
+  const fieldHtml = (profile.fields || [])
+    .map(field => `<span>${htmlEscape(field)}</span>`)
+    .join('');
+  const contactHtml = [
+    profile.email ? `<a href="mailto:${htmlEscape(profile.email)}">${htmlEscape(profile.email)}</a>` : '',
+    profile.phone ? `<a href="tel:${htmlEscape(String(profile.phone).replace(/[^+\d]/g, ''))}">${htmlEscape(profile.phone)}</a>` : ''
+  ].filter(Boolean).join('');
+  const linkHtml = (profile.links || [])
+    .map(link => `<a href="${htmlEscape(link.url)}" target="_blank" rel="noopener">${htmlEscape(link.label || socialLabel(link.url))}</a>`)
+    .join('');
+  const sourceHtml = (profile.sources || [])
+    .map(source => `<li><a href="${htmlEscape(source.url)}" target="_blank" rel="noopener">${htmlEscape(source.title || source.source || 'Source')}</a></li>`)
+    .join('');
+
+  if (!manifest.aboutProfile) {
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(manifest.ownerName)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="project-page"><h1>About</h1></main></body></html>`;
+  }
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(name)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="about-page">
+    <section class="about-hero">
+      <div class="about-copy">
+        <p class="about-kicker">${htmlEscape(roleLine || 'Creative profile')}</p>
+        <h1>${htmlEscape(name)}</h1>
+        <div class="about-fields">${fieldHtml}</div>
+      </div>
+      ${image ? `<img class="about-portrait" src="${htmlEscape(image)}" alt="${htmlEscape(name)}" loading="eager">` : '<div class="about-portrait about-portrait-placeholder">About</div>'}
+    </section>
+    <section class="about-grid">
+      <div class="about-quotes">${quoteHtml}</div>
+      <div class="about-story">${paragraphHtml}</div>
+    </section>
+    ${(contactHtml || linkHtml) ? `<section class="about-contact"><div>${contactHtml}</div><nav>${linkHtml}</nav></section>` : ''}
+    ${sourceHtml ? `<section class="about-sources"><h2>Research trail</h2><ul>${sourceHtml}</ul></section>` : ''}
+  </main></body></html>`;
+}
+
 export async function generateSite(manifest, outDir, progress) {
   const siteDir = path.join(outDir, 'site');
   const stagingAssetsDir = path.join(outDir, 'assets-imported');
@@ -1333,7 +1581,7 @@ export async function generateSite(manifest, outDir, progress) {
 
   await fs.writeFile(path.join(siteDir, 'index.html'), renderHomePage(manifest, cards));
 
-  await fs.writeFile(path.join(siteDir, 'about.html'), `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(manifest.ownerName)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="project-page"><h1>About</h1></main></body></html>`);
+  await fs.writeFile(path.join(siteDir, 'about.html'), renderAboutPage(manifest));
 
   for (const p of manifest.projects) {
     const dir = path.join(siteDir, 'work', p.slug);
@@ -1382,7 +1630,7 @@ export async function validateSite(siteDir) {
     const html = await fs.readFile(file, 'utf8');
     if (html.includes('file://')) errors.push({ file: path.relative(siteDir, file), error: 'file:// reference found' });
     if (html.includes('blob:')) errors.push({ file: path.relative(siteDir, file), error: 'blob: reference found' });
-    const refs = [...html.matchAll(/(?:src|href|poster)="([^"]+)"/g)].map(m => m[1]).filter(r => r && !r.startsWith('http') && !r.startsWith('#') && !r.startsWith('mailto:'));
+    const refs = [...html.matchAll(/(?:src|href|poster)="([^"]+)"/g)].map(m => m[1]).filter(r => r && !r.startsWith('http') && !r.startsWith('#') && !r.startsWith('mailto:') && !r.startsWith('tel:'));
     for (const ref of refs) {
       if (ref.startsWith('data:')) continue;
       const clean = ref.split('#')[0].split('?')[0];
@@ -1511,11 +1759,15 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   let relatedProjects = [];
   let sourceHome = null;
   let sourceOwnerName = siteUrl.hostname.replace(/^www\./, '');
+  let aboutProfile = null;
+  let aboutProfileImageUrl = '';
   if (behance && isBehanceProfilePath(inputPath)) {
     progress('Scanning Behance profile', url);
     const behanceData = await getBehanceProjects(page, url, progress);
     projects = behanceData.projects;
     sourceOwnerName = behanceData.profileName || sourceOwnerName;
+    aboutProfile = behanceData.profile || null;
+    aboutProfileImageUrl = behanceData.profileImageUrl || '';
   } else if (inputPath !== '/' && isLikelyProjectPath(inputPath)) {
     progress('Submitted project URL', url);
     projects = [submittedProjectCandidate(url)];
@@ -1552,9 +1804,18 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     ownerName: sourceOwnerName,
     relatedProjects,
     sourceHome: null,
+    aboutProfile,
     projects: [],
     generatedAt: new Date().toISOString()
   };
+
+  if (aboutProfile && aboutProfileImageUrl) {
+    progress('Downloading profile image', aboutProfileImageUrl);
+    const dl = await downloadAsset(normalizeUrl(aboutProfileImageUrl, url), assetsDir, progress, cache);
+    if (dl?.src && dl.type === 'image') {
+      rawManifest.aboutProfile.image = { src: dl.src, original: aboutProfileImageUrl };
+    }
+  }
 
   if (sourceHome?.html) {
     const replacements = [];
