@@ -623,6 +623,8 @@ app.get('/api/editor/:id/pages', requireFirebaseAuth, async (req, res) => {
     id: req.params.id,
     siteTitle: manifest.siteTitle,
     ownerName: manifest.ownerName,
+    published: manifest.published || null,
+    customDomain: manifest.customDomain || null,
     pages: (manifest.projects || []).map(p => ({
       slug: p.slug,
       title: p.title,

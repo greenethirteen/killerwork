@@ -1,3 +1,5 @@
+import { setupPublishControl } from './publish.js';
+
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');
 if (jobId) localStorage.setItem('killerwork:lastJobId', jobId);
@@ -22,6 +24,11 @@ const magicPrompt = document.getElementById('magicPrompt');
 const magicFiles = document.getElementById('magicFiles');
 const magicApply = document.getElementById('magicApply');
 const magicUploadLabel = document.getElementById('magicUploadLabel');
+const publishControl = setupPublishControl({
+  control: document.getElementById('publishControl'),
+  getJobId: () => jobId,
+  setStatus
+});
 
 let currentSlug = '';
 let currentPage = null;
@@ -638,6 +645,8 @@ async function loadPages() {
     return;
   }
   pages = data.pages || [];
+  publishControl.show();
+  publishControl.setPublished(data.published, data.customDomain);
   pageList.innerHTML = '';
   pages.forEach(page => {
     const btn = document.createElement('button');

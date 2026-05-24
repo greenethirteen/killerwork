@@ -17,6 +17,20 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   const customBlock = control.querySelector('[data-custom-domain-block]');
   let publishedState = null;
 
+  if (panel && !panel.querySelector('[data-founder-help]')) {
+    const help = document.createElement('p');
+    help.className = 'publish-help';
+    help.dataset.founderHelp = 'true';
+    help.append('Need help? ');
+    const link = document.createElement('a');
+    link.href = 'https://wa.me/971585002138';
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    link.textContent = 'Contact the Founder.';
+    help.append(link, ' He will set things up for you.');
+    panel.appendChild(help);
+  }
+
   function clean(value) {
     return String(value || '').toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63);
   }
