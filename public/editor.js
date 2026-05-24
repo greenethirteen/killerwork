@@ -705,7 +705,7 @@ magicEditForm?.addEventListener('submit', async event => {
     setStatus('Prompt and ads added. Save the page to rebuild the portfolio.', 'warn');
   } finally {
     magicApply.disabled = false;
-    magicApply.textContent = 'Edit page';
+    magicApply.textContent = 'AI Edit';
   }
 });
 
