@@ -275,10 +275,11 @@ function renderAssetButton(kind, asset, index) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'asset-choice';
+  if (kind === 'image') button.classList.add('image-only');
   button.dataset.kind = kind;
   button.dataset.index = index;
   if (kind === 'image') {
-    button.innerHTML = `<img src="${escapeHtml(assetUrl(asset))}" alt="${escapeHtml(asset.alt || 'Image')}"><span>${escapeHtml(asset.original || asset.localFile || `Image ${index + 1}`)}</span>`;
+    button.innerHTML = `<img src="${escapeHtml(assetUrl(asset))}" alt="${escapeHtml(asset.alt || `Image ${index + 1}`)}">`;
   } else {
     button.innerHTML = `<span class="asset-badge">${kind === 'video' ? 'Video' : kind === 'audio' ? 'Audio' : 'PDF'}</span><span>${escapeHtml(asset.original || asset.localFile || `${kind} ${index + 1}`)}</span>`;
   }
