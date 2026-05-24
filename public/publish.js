@@ -27,7 +27,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
     link.target = '_blank';
     link.rel = 'noreferrer';
     link.textContent = 'Contact the Founder.';
-    help.append(link, ' He will set things up for you.');
+    help.append(link);
     panel.appendChild(help);
   }
 
