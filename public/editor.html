@@ -15,12 +15,23 @@
         <span class="logo-text">KillaWork™</span>
       </a>
       <h1>Editor</h1>
-      <a id="managePortfolio" class="button ghost sidebar-action" href="/">Manage projects</a>
+      <form id="magicEditForm" class="magic-edit-box">
+        <label for="magicPrompt">Make edits with a prompt</label>
+        <textarea id="magicPrompt" rows="5" placeholder="Add these ads, tighten the story, make the page feel more Cannes case-study than storage folder."></textarea>
+        <div class="magic-edit-actions">
+          <label class="magic-upload">
+            <input id="magicFiles" type="file" accept="image/*,video/*,audio/*,application/pdf" multiple />
+            <span id="magicUploadLabel">Upload ads</span>
+          </label>
+          <button id="magicApply" type="submit">Edit page</button>
+        </div>
+      </form>
       <div id="pageList" class="page-list"></div>
       <aside class="inspector-panel editor-sidebar-inspector">
         <div id="inspector" class="inspector-empty">Select a block.</div>
         <input id="mediaUpload" class="hidden" type="file" />
       </aside>
+      <a id="managePortfolio" class="button ghost sidebar-action" href="/">Manage projects</a>
     </aside>
     <section class="editor-main">
       <div class="editor-toolbar">

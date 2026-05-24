@@ -17,6 +17,11 @@ const addAudioBlock = document.getElementById('addAudioBlock');
 const addPdfBlock = document.getElementById('addPdfBlock');
 const addSliderBlock = document.getElementById('addSliderBlock');
 const videoChoiceModal = document.getElementById('videoChoiceModal');
+const magicEditForm = document.getElementById('magicEditForm');
+const magicPrompt = document.getElementById('magicPrompt');
+const magicFiles = document.getElementById('magicFiles');
+const magicApply = document.getElementById('magicApply');
+const magicUploadLabel = document.getElementById('magicUploadLabel');
 
 let currentSlug = '';
 let currentPage = null;
@@ -660,6 +665,40 @@ addAudioBlock.addEventListener('click', () => appendMediaBlock('audio'));
 addPdfBlock.addEventListener('click', () => appendMediaBlock('document'));
 addSliderBlock.addEventListener('click', () => triggerUpload('image', 'gallery-create'));
 mediaUpload.addEventListener('change', () => uploadMedia(mediaUpload.files));
+magicFiles?.addEventListener('change', () => {
+  const count = magicFiles.files?.length || 0;
+  if (magicUploadLabel) magicUploadLabel.textContent = count ? `${count} ad${count === 1 ? '' : 's'} selected` : 'Upload ads';
+});
+
+magicEditForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentPage) {
+    setStatus('Choose a page before using the prompt editor.', 'error');
+    return;
+  }
+  const promptText = magicPrompt?.value.trim() || '';
+  const files = [...(magicFiles?.files || [])].filter(Boolean);
+  if (!promptText && !files.length) {
+    setStatus('Add a prompt or upload ads first.', 'warn');
+    return;
+  }
+  magicApply.disabled = true;
+  magicApply.textContent = 'Editing...';
+  try {
+    if (promptText) insertBlock(makeTextBlock(promptText), 0);
+    if (files.length) {
+      pendingUploadMode = 'insert';
+      for (const file of files) await uploadOneMedia(file, 'insert');
+    }
+    if (magicPrompt) magicPrompt.value = '';
+    if (magicFiles) magicFiles.value = '';
+    if (magicUploadLabel) magicUploadLabel.textContent = 'Upload ads';
+    setStatus('Prompt and ads added. Save the page to rebuild the portfolio.', 'warn');
+  } finally {
+    magicApply.disabled = false;
+    magicApply.textContent = 'Edit page';
+  }
+});
 
 videoChoiceModal?.addEventListener('click', event => {
   const choice = event.target?.dataset?.videoChoice;
