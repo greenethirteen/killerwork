@@ -731,6 +731,61 @@ app.post('/api/editor/:id/pages/:slug/assets', requireFirebaseAuth, upload.singl
   });
 });
 
+function normalizedVideoEmbedUrl(value = '') {
+  try {
+    const url = new URL(String(value || '').trim());
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    if (host === 'youtu.be') {
+      const id = url.pathname.replace(/^\/+/, '').split('/')[0];
+      return id ? `https://www.youtube.com/embed/${id}` : '';
+    }
+    if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      const id = url.searchParams.get('v') || url.pathname.match(/\/(?:shorts|embed)\/([^/?#]+)/)?.[1];
+      return id ? `https://www.youtube.com/embed/${id}` : '';
+    }
+    if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+      const id = url.pathname.match(/(?:video\/)?(\d+)/)?.[1];
+      return id ? `https://player.vimeo.com/video/${id}` : '';
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+app.post('/api/editor/:id/pages/:slug/video-url', requireFirebaseAuth, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Import not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
+  if (!project) return res.status(404).json({ error: 'Page not found.' });
+
+  const src = normalizedVideoEmbedUrl(req.body?.url || '');
+  if (!src) return res.status(400).json({ error: 'Use a valid YouTube or Vimeo URL.' });
+
+  project.videos = project.videos || [];
+  const source = /vimeo/i.test(src) ? 'Vimeo' : 'YouTube';
+  const index = project.videos.push({
+    kind: 'iframe',
+    type: 'iframe',
+    src,
+    title: cleanInlineText(req.body?.title || `${source} video`),
+    original: src,
+    order: Date.now()
+  }) - 1;
+
+  project.cleaned = null;
+  const validation = await saveManifestAndRebuild(id, manifest);
+  res.json({
+    ok: true,
+    asset: { type: 'video', videoIndex: index },
+    validation,
+    page: publicProject(project),
+    preview: `/generated/${id}/site/work/${project.slug}/index.html`
+  });
+});
+
 function sanitizeContentItems(items, project) {
   const imageMax = (project.images || []).length;
   const videoMax = (project.videos || []).length;

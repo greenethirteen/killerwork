@@ -19,16 +19,20 @@
       <h1>Editor</h1>
       <a id="managePortfolio" class="button ghost sidebar-action" href="/">Manage projects</a>
       <div id="pageList" class="page-list"></div>
+      <aside class="inspector-panel editor-sidebar-inspector">
+        <div id="inspector" class="inspector-empty">Select a block.</div>
+        <input id="mediaUpload" class="hidden" type="file" />
+      </aside>
     </aside>
     <section class="editor-main">
       <div class="editor-toolbar">
         <input id="titleInput" type="text" placeholder="Select a page" />
         <div class="editor-actions">
           <a id="pagePreview" class="button ghost" target="_blank">Preview</a>
-          <button id="savePage" type="button">Save page</button>
+          <button id="savePage" type="button"><span>Save</span><small data-save-state>Saved</small></button>
         </div>
       </div>
-      <div id="editorStatus" class="editor-status">Choose a page to edit.</div>
+      <div id="editorStatus" class="editor-status hidden" aria-live="polite">Choose a page to edit.</div>
       <div class="editor-workspace">
         <section class="editor-canvas-panel">
           <div class="canvas-actions">
@@ -37,15 +41,21 @@
             <button id="addVideoBlock" class="button secondary" type="button">Add video</button>
             <button id="addAudioBlock" class="button secondary" type="button">Add audio</button>
             <button id="addPdfBlock" class="button secondary" type="button">Add PDF</button>
+            <button id="addSliderBlock" class="button secondary" type="button">Add slider</button>
           </div>
           <div id="blockEditor" class="block-editor"></div>
         </section>
-        <aside class="inspector-panel">
-          <div id="inspector" class="inspector-empty">Select a block.</div>
-          <input id="mediaUpload" class="hidden" type="file" />
-        </aside>
       </div>
     </section>
+    <div id="videoChoiceModal" class="editor-modal hidden" role="dialog" aria-modal="true" aria-labelledby="videoChoiceTitle">
+      <div class="editor-modal-card">
+        <h2 id="videoChoiceTitle">Add video</h2>
+        <button class="button secondary" type="button" data-video-choice="upload">Upload video</button>
+        <button class="button secondary" type="button" data-video-choice="youtube">Add from YouTube</button>
+        <button class="button secondary" type="button" data-video-choice="vimeo">Add from Vimeo</button>
+        <button class="button ghost" type="button" data-video-choice="cancel">Cancel</button>
+      </div>
+    </div>
   </main>
   <script type="module">
     import('/auth.js?v=20260524-popup').then(() => import('/editor.js'));

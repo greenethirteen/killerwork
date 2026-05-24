@@ -15,6 +15,8 @@ const addImageBlock = document.getElementById('addImageBlock');
 const addVideoBlock = document.getElementById('addVideoBlock');
 const addAudioBlock = document.getElementById('addAudioBlock');
 const addPdfBlock = document.getElementById('addPdfBlock');
+const addSliderBlock = document.getElementById('addSliderBlock');
+const videoChoiceModal = document.getElementById('videoChoiceModal');
 
 let currentSlug = '';
 let currentPage = null;
@@ -22,7 +24,8 @@ let pages = [];
 let selectedIndex = -1;
 let draggedIndex = -1;
 let dirty = false;
-let pendingUploadType = '';
+let pendingUploadMode = 'insert';
+let pendingGalleryIndex = -1;
 
 async function authHeaders() {
   const token = await window.KillerWorkAuth.requireToken();
@@ -32,12 +35,14 @@ async function authHeaders() {
 function setStatus(text, tone = '') {
   statusBox.textContent = text;
   statusBox.dataset.tone = tone;
+  statusBox.classList.toggle('hidden', !tone);
 }
 
 function setDirty(value = true) {
   dirty = value;
   savePage.dataset.dirty = dirty ? 'true' : '';
-  if (dirty) setStatus('Unsaved changes.');
+  const saveState = savePage.querySelector('[data-save-state]');
+  if (saveState) saveState.textContent = dirty ? 'Unsaved changes' : 'Saved';
 }
 
 function escapeHtml(value = '') {
@@ -87,11 +92,22 @@ function compatibleItemFor(kind) {
   return { type: 'document', order: 0, documentIndex: 0 };
 }
 
-function mediaCount(kind) {
-  if (kind === 'image') return currentPage?.images?.length || 0;
-  if (kind === 'video') return currentPage?.videos?.length || 0;
-  if (kind === 'audio') return currentPage?.audios?.length || 0;
-  return currentPage?.documents?.length || 0;
+function normalizeEmbedUrl(rawUrl, source = '') {
+  try {
+    const url = new URL(String(rawUrl || '').trim());
+    if (/youtu\.be$/i.test(url.hostname)) return `https://www.youtube.com/embed/${url.pathname.replace(/^\/+/, '')}`;
+    if (/youtube\.com$/i.test(url.hostname) || /youtube-nocookie\.com$/i.test(url.hostname)) {
+      const id = url.searchParams.get('v') || url.pathname.match(/\/(?:shorts|embed)\/([^/?#]+)/)?.[1];
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+    if (/vimeo\.com$/i.test(url.hostname) || /player\.vimeo\.com$/i.test(url.hostname)) {
+      const id = url.pathname.match(/(?:video\/)?(\d+)/)?.[1];
+      if (id) return `https://player.vimeo.com/video/${id}`;
+    }
+    return '';
+  } catch {
+    return '';
+  }
 }
 
 function selectBlock(index) {
@@ -119,20 +135,25 @@ function deleteBlock(index) {
   renderInspector();
 }
 
-function insertBlock(item, afterIndex = selectedIndex) {
+function insertBlock(item, index = 0) {
   if (!currentPage) return;
-  const index = afterIndex >= 0 ? afterIndex + 1 : currentPage.contentItems.length;
-  currentPage.contentItems.splice(index, 0, item);
-  selectedIndex = index;
+  const safeIndex = Math.max(0, Math.min(index, currentPage.contentItems.length));
+  currentPage.contentItems.splice(safeIndex, 0, item);
+  selectedIndex = safeIndex;
   setDirty();
   renderCanvas();
   renderInspector();
 }
 
-function triggerUpload(kind) {
-  pendingUploadType = kind;
+function insertAfterSelected(item) {
+  insertBlock(item, selectedIndex >= 0 ? selectedIndex + 1 : 0);
+}
+
+function triggerUpload(kind, mode = 'replace') {
+  pendingUploadMode = mode;
   mediaUpload.value = '';
   mediaUpload.accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'audio' ? 'audio/*' : 'application/pdf';
+  mediaUpload.multiple = mode === 'gallery-create' || mode === 'gallery-add';
   mediaUpload.click();
 }
 
@@ -281,7 +302,7 @@ function useLibraryAsset(kind, index) {
     if (kind === 'video') next.videoIndex = index;
     if (kind === 'audio') next.audioIndex = index;
     if (kind === 'document') next.documentIndex = index;
-    insertBlock(next);
+    insertAfterSelected(next);
     return;
   }
   setDirty();
@@ -349,7 +370,7 @@ function renderInspector() {
     const actions = document.createElement('div');
     actions.className = 'inspector-actions';
     actions.innerHTML = '<button class="button secondary" type="button" data-upload="image">Upload replacement</button><button class="button ghost" type="button" data-gallery="true">Convert to slider</button>';
-    actions.querySelector('[data-upload]').addEventListener('click', () => triggerUpload('image'));
+    actions.querySelector('[data-upload]').addEventListener('click', () => triggerUpload('image', 'replace'));
     actions.querySelector('[data-gallery]').addEventListener('click', () => {
       currentPage.contentItems[selectedIndex] = { type: 'gallery', order: item.order || 0, imageIndexes: [item.imageIndex] };
       setDirty();
@@ -368,7 +389,7 @@ function renderInspector() {
     button.type = 'button';
     button.className = 'button secondary';
     button.textContent = 'Upload replacement';
-    button.addEventListener('click', () => triggerUpload('video'));
+    button.addEventListener('click', () => triggerUpload('video', 'replace'));
     panel.appendChild(button);
   } else if (item?.type === 'audio') {
     const asset = audioAsset(item);
@@ -381,7 +402,7 @@ function renderInspector() {
     button.type = 'button';
     button.className = 'button secondary';
     button.textContent = 'Upload replacement';
-    button.addEventListener('click', () => triggerUpload('audio'));
+    button.addEventListener('click', () => triggerUpload('audio', 'replace'));
     panel.appendChild(button);
   } else if (item?.type === 'document') {
     const asset = documentAsset(item);
@@ -394,7 +415,7 @@ function renderInspector() {
     button.type = 'button';
     button.className = 'button secondary';
     button.textContent = 'Upload replacement';
-    button.addEventListener('click', () => triggerUpload('document'));
+    button.addEventListener('click', () => triggerUpload('document', 'replace'));
     panel.appendChild(button);
   } else if (item?.type === 'gallery') {
     const list = document.createElement('div');
@@ -421,7 +442,10 @@ function renderInspector() {
     upload.type = 'button';
     upload.className = 'button secondary';
     upload.textContent = 'Upload image';
-    upload.addEventListener('click', () => triggerUpload('image'));
+    upload.addEventListener('click', () => {
+      pendingGalleryIndex = selectedIndex;
+      triggerUpload('image', 'gallery-add');
+    });
     panel.appendChild(upload);
   } else if (item?.type === 'text') {
     const meta = document.createElement('p');
@@ -435,16 +459,52 @@ function renderInspector() {
 }
 
 function appendMediaBlock(kind) {
-  const count = mediaCount(kind);
-  if (!count) {
-    triggerUpload(kind);
-    return;
-  }
-  const item = compatibleItemFor(kind);
-  insertBlock(item);
+  triggerUpload(kind, 'insert');
 }
 
-async function uploadMedia(file) {
+function showVideoChoiceModal() {
+  videoChoiceModal?.classList.remove('hidden');
+}
+
+function hideVideoChoiceModal() {
+  videoChoiceModal?.classList.add('hidden');
+}
+
+async function addVideoUrl(source) {
+  if (!currentPage) return;
+  const label = source === 'youtube' ? 'YouTube' : 'Vimeo';
+  const rawUrl = prompt(`Paste ${label} URL`);
+  const embedUrl = normalizeEmbedUrl(rawUrl, source);
+  if (!embedUrl) {
+    setStatus(`That does not look like a ${label} URL.`, 'error');
+    return;
+  }
+  setStatus(`Adding ${label} video...`);
+  let headers;
+  try {
+    headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+  } catch (err) {
+    setStatus(err.message || 'Sign in required.', 'error');
+    return;
+  }
+  const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}/video-url`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ url: embedUrl, source })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    setStatus(data.error || 'Could not add video.', 'error');
+    return;
+  }
+  const draftItems = currentPage.contentItems.map(item => ({ ...item, imageIndexes: item.imageIndexes ? [...item.imageIndexes] : undefined }));
+  currentPage = data.page;
+  currentPage.contentItems = draftItems;
+  insertBlock(data.asset, 0);
+  setStatus('Video added. Save the page to place it in the portfolio.', 'warn');
+}
+
+async function uploadOneMedia(file, mode = pendingUploadMode) {
   if (!currentPage || !file) return;
   const draftItems = currentPage.contentItems.map(item => ({ ...item, imageIndexes: item.imageIndexes ? [...item.imageIndexes] : undefined }));
   const form = new FormData();
@@ -471,19 +531,56 @@ async function uploadMedia(file) {
   currentPage.contentItems = draftItems;
   const asset = data.asset;
   const item = currentPage.contentItems[selectedIndex];
+  if (mode === 'insert') {
+    insertBlock(asset, 0);
+    setStatus('Media uploaded. Save the page to place it in the portfolio.', 'warn');
+    return asset;
+  }
+  if (mode === 'gallery-create' && asset.type === 'image') {
+    insertBlock({ type: 'gallery', order: 0, imageIndexes: [asset.imageIndex] }, 0);
+    pendingGalleryIndex = selectedIndex;
+    setStatus('Slider image uploaded. Save the page to place it in the portfolio.', 'warn');
+    return asset;
+  }
+  if (mode === 'gallery-add' && asset.type === 'image') {
+    const gallery = currentPage.contentItems[pendingGalleryIndex] || item;
+    if (gallery?.type === 'gallery') {
+      gallery.imageIndexes = [...new Set([...(gallery.imageIndexes || []), asset.imageIndex])];
+      selectedIndex = currentPage.contentItems.indexOf(gallery);
+    } else {
+      insertBlock({ type: 'gallery', order: 0, imageIndexes: [asset.imageIndex] }, 0);
+      pendingGalleryIndex = selectedIndex;
+    }
+    setDirty();
+    renderCanvas();
+    renderInspector();
+    setStatus('Slider image uploaded. Save the page to place it in the portfolio.', 'warn');
+    return asset;
+  }
   if (item?.type === asset.type) {
     Object.assign(item, asset);
   } else if (item?.type === 'gallery' && asset.type === 'image') {
     item.imageIndexes = [...new Set([...(item.imageIndexes || []), asset.imageIndex])];
   } else {
-    insertBlock(asset);
+    insertBlock(asset, 0);
     setStatus('Media uploaded. Save the page to place it in the portfolio.', 'warn');
-    return;
+    return asset;
   }
   setDirty();
   renderCanvas();
   renderInspector();
   setStatus('Media uploaded. Save the page to place it in the portfolio.', 'warn');
+  return asset;
+}
+
+async function uploadMedia(files) {
+  const fileList = [...(files || [])].filter(Boolean);
+  if (!fileList.length) return;
+  if (pendingUploadMode === 'gallery-create') pendingGalleryIndex = -1;
+  for (const file of fileList) {
+    await uploadOneMedia(file, pendingUploadMode);
+    if (pendingUploadMode === 'gallery-create') pendingUploadMode = 'gallery-add';
+  }
 }
 
 async function loadPage(slug) {
@@ -511,6 +608,7 @@ async function loadPage(slug) {
   [...pageList.querySelectorAll('button')].forEach(btn => btn.classList.toggle('active', btn.dataset.slug === slug));
   renderCanvas();
   renderInspector();
+  setDirty(false);
   setStatus('Page loaded.');
 }
 
@@ -556,15 +654,27 @@ titleInput.addEventListener('input', () => {
 
 addTextBlock.addEventListener('click', () => insertBlock(makeTextBlock('')));
 addImageBlock.addEventListener('click', () => appendMediaBlock('image'));
-addVideoBlock.addEventListener('click', () => appendMediaBlock('video'));
+addVideoBlock.addEventListener('click', showVideoChoiceModal);
 addAudioBlock.addEventListener('click', () => appendMediaBlock('audio'));
 addPdfBlock.addEventListener('click', () => appendMediaBlock('document'));
-mediaUpload.addEventListener('change', () => uploadMedia(mediaUpload.files?.[0], pendingUploadType));
+addSliderBlock.addEventListener('click', () => triggerUpload('image', 'gallery-create'));
+mediaUpload.addEventListener('change', () => uploadMedia(mediaUpload.files));
+
+videoChoiceModal?.addEventListener('click', event => {
+  const choice = event.target?.dataset?.videoChoice;
+  if (!choice) {
+    if (event.target === videoChoiceModal) hideVideoChoiceModal();
+    return;
+  }
+  hideVideoChoiceModal();
+  if (choice === 'upload') triggerUpload('video', 'insert');
+  else if (choice === 'youtube' || choice === 'vimeo') addVideoUrl(choice);
+});
 
 savePage.addEventListener('click', async () => {
   if (!currentPage) return;
   savePage.disabled = true;
-  savePage.textContent = 'Saving...';
+  savePage.innerHTML = '<span>Saving...</span><small>Rebuilding</small>';
   setStatus('Saving and rebuilding preview/ZIP...');
   const body = {
     title: titleInput.value,
@@ -576,7 +686,7 @@ savePage.addEventListener('click', async () => {
   } catch (err) {
     setStatus(err.message || 'Sign in required.', 'error');
     savePage.disabled = false;
-    savePage.textContent = 'Save page';
+    savePage.innerHTML = '<span>Save</span><small data-save-state>Unsaved changes</small>';
     return;
   }
   const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}`, {
@@ -586,7 +696,7 @@ savePage.addEventListener('click', async () => {
   });
   const data = await res.json();
   savePage.disabled = false;
-  savePage.textContent = 'Save page';
+  savePage.innerHTML = '<span>Save</span><small data-save-state>Saved</small>';
   if (!res.ok) {
     setStatus(data.error || 'Save failed.', 'error');
     return;
@@ -597,6 +707,7 @@ savePage.addEventListener('click', async () => {
   pagePreview.href = data.preview;
   selectedIndex = Math.min(selectedIndex, currentPage.contentItems.length - 1);
   dirty = false;
+  setDirty(false);
   const listed = pages.find(page => page.slug === currentSlug);
   if (listed) listed.title = currentPage.title;
   [...pageList.querySelectorAll('button')].forEach(btn => {
