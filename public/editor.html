@@ -26,6 +26,14 @@
           <button id="magicApply" type="submit">AI Edit</button>
         </div>
       </form>
+      <div class="canvas-actions">
+        <button id="addTextBlock" class="button secondary" type="button">Add text</button>
+        <button id="addImageBlock" class="button secondary" type="button">Add image</button>
+        <button id="addVideoBlock" class="button secondary" type="button">Add video</button>
+        <button id="addAudioBlock" class="button secondary" type="button">Add audio</button>
+        <button id="addPdfBlock" class="button secondary" type="button">Add PDF</button>
+        <button id="addSliderBlock" class="button secondary" type="button">Add slider</button>
+      </div>
       <div id="pageList" class="page-list"></div>
       <aside class="inspector-panel editor-sidebar-inspector">
         <div id="inspector" class="inspector-empty">Select a block.</div>
@@ -84,14 +92,7 @@
       <div id="editorStatus" class="editor-status hidden" aria-live="polite">Choose a page to edit.</div>
       <div class="editor-workspace">
         <section class="editor-canvas-panel">
-          <div class="canvas-actions">
-            <button id="addTextBlock" class="button secondary" type="button">Add text</button>
-            <button id="addImageBlock" class="button secondary" type="button">Add image</button>
-            <button id="addVideoBlock" class="button secondary" type="button">Add video</button>
-            <button id="addAudioBlock" class="button secondary" type="button">Add audio</button>
-            <button id="addPdfBlock" class="button secondary" type="button">Add PDF</button>
-            <button id="addSliderBlock" class="button secondary" type="button">Add slider</button>
-          </div>
+          <header id="canvasHeadline" class="editor-canvas-headline hidden"></header>
           <div id="blockEditor" class="block-editor"></div>
         </section>
       </div>

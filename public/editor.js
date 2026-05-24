@@ -9,6 +9,7 @@ const pagePreview = document.getElementById('pagePreview');
 const savePage = document.getElementById('savePage');
 const statusBox = document.getElementById('editorStatus');
 const blockEditor = document.getElementById('blockEditor');
+const canvasHeadline = document.getElementById('canvasHeadline');
 const managePortfolio = document.getElementById('managePortfolio');
 const inspector = document.getElementById('inspector');
 const mediaUpload = document.getElementById('mediaUpload');
@@ -205,7 +206,17 @@ function mediaPreview(item) {
 
 function renderCanvas() {
   blockEditor.innerHTML = '';
-  if (!currentPage) return;
+  if (!currentPage) {
+    if (canvasHeadline) {
+      canvasHeadline.classList.add('hidden');
+      canvasHeadline.innerHTML = '';
+    }
+    return;
+  }
+  if (canvasHeadline) {
+    canvasHeadline.classList.remove('hidden');
+    canvasHeadline.innerHTML = `<span class="back-link">← Work</span><h1>${escapeHtml(currentPage.title || 'Untitled project')}</h1>`;
+  }
   if (!currentPage.contentItems.length) {
     const empty = document.createElement('div');
     empty.className = 'editor-empty-state';
@@ -665,6 +676,7 @@ titleInput.addEventListener('input', () => {
   if (!currentPage) return;
   currentPage.title = titleInput.value;
   setDirty();
+  renderCanvas();
 });
 
 addTextBlock.addEventListener('click', () => insertBlock(makeTextBlock('')));
