@@ -146,6 +146,19 @@ function pickBestAssetRef(current, candidate) {
   return scoreAssetRef(candidate) > scoreAssetRef(current) ? candidate : current;
 }
 
+async function gotoWithRetry(page, url, options = {}, attempts = 3) {
+  let lastError;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await page.goto(url, options);
+    } catch (e) {
+      lastError = e;
+      if (i < attempts - 1) await page.waitForTimeout(1200 * (i + 1)).catch(() => {});
+    }
+  }
+  throw lastError;
+}
+
 function submittedProjectCandidate(url) {
   const path = normalizeDiscoveryPath(url);
   const slug = path.replace(/^\/work\//, '').replace(/^\//, '').replace(/\/$/, '');
@@ -161,12 +174,12 @@ function submittedProjectCandidate(url) {
 }
 
 async function extractPage(page, url, siteOrigin, progress) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForLoadState('networkidle', { timeout: 25000 }).catch(() => {});
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(900);
 
-  const data = await page.evaluate((siteOrigin) => {
+  const data = await page.evaluate(async (siteOrigin) => {
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const cleanLines = (s) => (s || '')
@@ -187,8 +200,9 @@ async function extractPage(page, url, siteOrigin, progress) {
     ];
 
     const pageTitle = clean(document.querySelector('h1')?.innerText) || clean(document.title).replace(/\s*[—|-]\s*Abdullah.*$/i, '') || 'Untitled';
-    const main = document.querySelector('#canvas') || document.querySelector('main') || document.querySelector('[role="main"]') || document.querySelector('.Main') || document.body;
-    main.querySelectorAll('*').forEach((node, index) => node.setAttribute('data-killerwork-node', String(index + 1)));
+    const sourceRoot = document.querySelector('#siteWrapper') || document.querySelector('#page') || document.body;
+    const main = document.querySelector('#canvas') || document.querySelector('main') || document.querySelector('[role="main"]') || document.querySelector('.Main') || sourceRoot;
+    sourceRoot.querySelectorAll('*').forEach((node, index) => node.setAttribute('data-killerwork-node', String(index + 1)));
     const clone = main.cloneNode(true);
     removeSelectors.forEach(sel => clone.querySelectorAll(sel).forEach(n => n.remove()));
     const bodyStyle = getComputedStyle(document.body);
@@ -349,23 +363,35 @@ async function extractPage(page, url, siteOrigin, progress) {
       addVideosFromText(script.textContent, order + i + 1, pageTitle);
     });
 
-    function serializeStyle(style) {
-      return Array.from(style || [])
-        .map(prop => `${prop}:${style.getPropertyValue(prop)}${style.getPropertyPriority(prop) ? ' !important' : ''};`)
-        .join('');
-    }
-
     function sourceFontCss() {
       const chunks = [];
-      document.querySelectorAll('style').forEach(style => {
-        const text = style.textContent || '';
-        if (text.length <= 60000 && /@font-face|font-family|fonts-loading|typekit|proxima|futura/i.test(text)) chunks.push(text);
-      });
       document.querySelectorAll('link[rel~="stylesheet"][href]').forEach(link => {
         const href = link.href || '';
-        if (/fonts|typekit|use\.typekit|cloud\.typography/i.test(href)) chunks.push(`@import url("${href.replace(/"/g, '\\"')}");`);
+        if (href) chunks.push(`@import url("${href.replace(/"/g, '\\"')}");`);
+      });
+      document.querySelectorAll('style').forEach(style => {
+        const text = style.textContent || '';
+        if (text.length <= 180000) chunks.push(text);
       });
       return [...new Set(chunks)].join('\n');
+    }
+
+    async function sourceSvgDefs() {
+      const urls = [...new Set([...document.querySelectorAll('use')].map(use => {
+        const href = use.href?.baseVal || use.getAttribute('href') || use.getAttribute('xlink:href') || '';
+        if (!/\.svg#/i.test(href)) return '';
+        return abs(href.split('#')[0]);
+      }).filter(Boolean))];
+      const defs = [];
+      for (const spriteUrl of urls) {
+        try {
+          const res = await fetch(spriteUrl);
+          if (!res.ok) continue;
+          const text = await res.text();
+          if (/<symbol[\s>]/i.test(text)) defs.push(text.replace(/<\?xml[^>]*>/gi, '').replace(/<!doctype[^>]*>/gi, ''));
+        } catch {}
+      }
+      return defs.join('\n');
     }
 
     function canonicalSourceAsset(raw = '') {
@@ -381,10 +407,11 @@ async function extractPage(page, url, siteOrigin, progress) {
       }
     }
 
-    const styledClone = main.cloneNode(true);
-    removeSelectors.forEach(sel => styledClone.querySelectorAll(sel).forEach(n => n.remove()));
+    const styledClone = sourceRoot.cloneNode(true);
+    ['script','style','noscript','#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block','.absolute-cart-box','[data-test="cart"]','[class*="Cart"]']
+      .forEach(sel => styledClone.querySelectorAll(sel).forEach(n => n.remove()));
     const originalsById = new Map(
-      [...main.querySelectorAll('[data-killerwork-node]')].map(node => [node.getAttribute('data-killerwork-node'), node])
+      [...sourceRoot.querySelectorAll('[data-killerwork-node]')].map(node => [node.getAttribute('data-killerwork-node'), node])
     );
     const bestImages = new Map();
     main.querySelectorAll('img').forEach(img => {
@@ -397,7 +424,7 @@ async function extractPage(page, url, siteOrigin, progress) {
     });
     [styledClone, ...styledClone.querySelectorAll('*')].forEach(node => {
       const id = node.getAttribute?.('data-killerwork-node');
-      const source = id ? originalsById.get(id) : main;
+      const source = id ? originalsById.get(id) : sourceRoot;
       if (!source) {
         node.remove?.();
         return;
@@ -406,7 +433,19 @@ async function extractPage(page, url, siteOrigin, progress) {
       const meta = mediaMetaFrom(source);
       const className = String(node.getAttribute?.('class') || '');
       const textContent = clean(node.textContent || '');
-      if (/tiny-thumb/i.test(className) || ((meta.width < 48 && meta.height < 48) && !textContent && !['img', 'video', 'iframe'].includes(tag))) {
+      if (tag === 'use') {
+        const href = node.href?.baseVal || node.getAttribute('href') || node.getAttribute('xlink:href') || node.getAttributeNS?.('http://www.w3.org/1999/xlink', 'href') || '';
+        if (/^https?:\/\/|^\/\//i.test(href)) {
+          const hash = href.includes('#') ? `#${href.split('#').pop()}` : '';
+          if (!hash) {
+            node.remove();
+            return;
+          }
+          node.setAttribute('href', hash);
+          node.setAttributeNS?.('http://www.w3.org/1999/xlink', 'xlink:href', hash);
+        }
+      }
+      if (/tiny-thumb/i.test(className)) {
         node.remove();
         return;
       }
@@ -432,21 +471,30 @@ async function extractPage(page, url, siteOrigin, progress) {
       }
       if (tag === 'video') {
         const resolved = source.currentSrc || source.getAttribute('src') || source.getAttribute('data-src') || '';
-        if (resolved) node.setAttribute('src', resolved);
+        if (resolved && !String(resolved).startsWith('blob:')) node.setAttribute('src', resolved);
+        else node.removeAttribute('src');
         node.setAttribute('controls', '');
         node.setAttribute('playsinline', '');
       }
       if (tag === 'iframe') {
         const resolved = source.getAttribute('src') || source.getAttribute('data-src') || source.getAttribute('data-embed-url') || source.getAttribute('data-video-url') || '';
-        if (resolved) node.setAttribute('src', resolved);
+        if (resolved && !String(resolved).startsWith('blob:')) node.setAttribute('src', resolved);
+        else node.removeAttribute('src');
       }
-      node.setAttribute('style', serializeStyle(getComputedStyle(source)));
+      const styleAttr = source.getAttribute?.('style') || '';
+      if (styleAttr) node.setAttribute('style', styleAttr);
+      else node.removeAttribute('style');
       [...(node.getAttributeNames?.() || [])].forEach(name => {
-        if (name.startsWith('data-') && name !== 'data-killerwork-node') node.removeAttribute(name);
+        const value = node.getAttribute(name) || '';
+        if (value.includes('blob:')) node.removeAttribute(name);
+        if (/\.svg#/i.test(value) && (/^https?:\/\//i.test(value) || value.startsWith('//'))) node.setAttribute(name, `#${value.split('#').pop()}`);
       });
       node.removeAttribute('data-killerwork-node');
       node.removeAttribute('loading');
       node.removeAttribute('decoding');
+      node.removeAttribute('data-src');
+      node.removeAttribute('data-image');
+      node.removeAttribute('data-image-src');
     });
 
     const links = [...document.querySelectorAll('a[href]')].map(a => ({ href: abs(a.getAttribute('href')), text: clean(a.innerText) }));
@@ -460,8 +508,16 @@ async function extractPage(page, url, siteOrigin, progress) {
       links,
       pageStyle,
       sourceCloneHtml: styledClone.innerHTML,
-      sourceCloneStyle: serializeStyle(getComputedStyle(main)),
-      sourceCss: sourceFontCss()
+      sourceCloneStyle: sourceRoot.getAttribute('style') || '',
+      sourceCss: sourceFontCss(),
+      sourceSvgDefs: await sourceSvgDefs(),
+      sourcePageTitle: clean(document.title),
+      sourceHtmlClass: document.documentElement.className || '',
+      sourceHtmlStyle: document.documentElement.getAttribute('style') || '',
+      sourceHtmlId: document.documentElement.id || '',
+      sourceBodyClass: document.body.className || '',
+      sourceBodyStyle: document.body.getAttribute('style') || '',
+      sourceBodyId: document.body.id || ''
     };
   }, siteOrigin);
 
@@ -470,11 +526,11 @@ async function extractPage(page, url, siteOrigin, progress) {
 }
 
 async function extractBehanceProject(page, url, progress) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await scrollBehancePage(page);
 
-  const data = await page.evaluate(() => {
+  const data = await page.evaluate(async () => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const comparable = (s) => clean(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
     const cleanLines = (s) => (s || '')
@@ -627,7 +683,7 @@ function looksLikeNotFoundPage(data = {}) {
 }
 
 async function getHomepageProjects(page, url, progress) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForLoadState('networkidle', { timeout: 25000 }).catch(() => {});
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(900);
@@ -1325,12 +1381,12 @@ function composeBehanceAboutProfile(profile = {}, hints = []) {
 
 async function getBehanceProjects(page, url, progress) {
   const projectsUrl = behanceProjectsUrl(url);
-  await page.goto(projectsUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, projectsUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForSelector('a[href*="/gallery/"]', { timeout: 12000 }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await scrollBehancePage(page);
 
-  const data = await page.evaluate(() => {
+  const data = await page.evaluate(async () => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const profileName = clean(document.querySelector('h1')?.innerText)
@@ -1447,34 +1503,48 @@ async function getBehanceProjects(page, url, progress) {
 }
 
 async function extractHomePage(page, url, progress) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForLoadState('networkidle', { timeout: 25000 }).catch(() => {});
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(700);
 
-  const data = await page.evaluate(() => {
+  const data = await page.evaluate(async () => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
-    const root = document.querySelector('#canvas') || document.querySelector('#siteWrapper') || document.querySelector('main') || document.body;
+    const root = document.querySelector('#siteWrapper') || document.querySelector('#page') || document.querySelector('#canvas') || document.querySelector('main') || document.body;
     const removeSelectors = [
-      'script','style','noscript','svg',
+      'script','style','noscript',
       '.absolute-cart-box','[data-test="cart"]','[class*="Cart"]',
       '#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block'
     ];
-    const serializeStyle = (style) => Array.from(style || [])
-      .map(prop => `${prop}:${style.getPropertyValue(prop)}${style.getPropertyPriority(prop) ? ' !important' : ''};`)
-      .join('');
     const sourceFontCss = () => {
       const chunks = [];
-      document.querySelectorAll('style').forEach(style => {
-        const text = style.textContent || '';
-        if (text.length <= 60000 && /@font-face|font-family|fonts-loading|typekit|proxima|futura/i.test(text)) chunks.push(text);
-      });
       document.querySelectorAll('link[rel~="stylesheet"][href]').forEach(link => {
         const href = link.href || '';
-        if (/fonts|typekit|use\.typekit|cloud\.typography/i.test(href)) chunks.push(`@import url("${href.replace(/"/g, '\\"')}");`);
+        if (href) chunks.push(`@import url("${href.replace(/"/g, '\\"')}");`);
+      });
+      document.querySelectorAll('style').forEach(style => {
+        const text = style.textContent || '';
+        if (text.length <= 180000) chunks.push(text);
       });
       return [...new Set(chunks)].join('\n');
+    };
+    const sourceSvgDefs = async () => {
+      const urls = [...new Set([...document.querySelectorAll('use')].map(use => {
+        const href = use.href?.baseVal || use.getAttribute('href') || use.getAttribute('xlink:href') || '';
+        if (!/\.svg#/i.test(href)) return '';
+        return abs(href.split('#')[0]);
+      }).filter(Boolean))];
+      const defs = [];
+      for (const spriteUrl of urls) {
+        try {
+          const res = await fetch(spriteUrl);
+          if (!res.ok) continue;
+          const text = await res.text();
+          if (/<symbol[\s>]/i.test(text)) defs.push(text.replace(/<\?xml[^>]*>/gi, '').replace(/<!doctype[^>]*>/gi, ''));
+        } catch {}
+      }
+      return defs.join('\n');
     };
     const assetFrom = (el) => {
       if (!el) return '';
@@ -1508,6 +1578,18 @@ async function extractHomePage(page, url, progress) {
         return;
       }
       const tag = node.tagName?.toLowerCase() || '';
+      if (tag === 'use') {
+        const href = node.href?.baseVal || node.getAttribute('href') || node.getAttribute('xlink:href') || node.getAttributeNS?.('http://www.w3.org/1999/xlink', 'href') || '';
+        if (/^https?:\/\/|^\/\//i.test(href)) {
+          const hash = href.includes('#') ? `#${href.split('#').pop()}` : '';
+          if (!hash) {
+            node.remove();
+            return;
+          }
+          node.setAttribute('href', hash);
+          node.setAttributeNS?.('http://www.w3.org/1999/xlink', 'xlink:href', hash);
+        }
+      }
       if (tag === 'img' || tag === 'source') {
         const resolved = assetFrom(source);
         if (resolved) {
@@ -1521,7 +1603,13 @@ async function extractHomePage(page, url, progress) {
       }
       const styleAttr = source.getAttribute?.('style') || '';
       for (const match of styleAttr.matchAll(/url\(["']?([^"')]+)["']?\)/g)) addAsset(match[1]);
-      node.setAttribute('style', serializeStyle(getComputedStyle(source)));
+      if (styleAttr) node.setAttribute('style', styleAttr);
+      else node.removeAttribute('style');
+      [...(node.getAttributeNames?.() || [])].forEach(name => {
+        const value = node.getAttribute(name) || '';
+        if (value.includes('blob:')) node.removeAttribute(name);
+        if (/\.svg#/i.test(value) && (/^https?:\/\//i.test(value) || value.startsWith('//'))) node.setAttribute(name, `#${value.split('#').pop()}`);
+      });
       node.removeAttribute('data-killerwork-home-node');
     });
 
@@ -1531,11 +1619,18 @@ async function extractHomePage(page, url, progress) {
     const rootStyle = getComputedStyle(root);
     return {
       title: clean(document.title) || clean(document.querySelector('h1')?.innerText) || 'Imported Portfolio',
-      style: serializeStyle(rootStyle),
+      style: root.getAttribute('style') || '',
       backgroundColor: clean(rootStyle.backgroundColor && rootStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' ? rootStyle.backgroundColor : bodyStyle.backgroundColor),
       textColor: clean(rootStyle.color || bodyStyle.color),
       html: clone.innerHTML,
       sourceCss: sourceFontCss(),
+      sourceSvgDefs: await sourceSvgDefs(),
+      sourceHtmlClass: document.documentElement.className || '',
+      sourceHtmlStyle: document.documentElement.getAttribute('style') || '',
+      sourceHtmlId: document.documentElement.id || '',
+      sourceBodyClass: document.body.className || '',
+      sourceBodyStyle: document.body.getAttribute('style') || '',
+      sourceBodyId: document.body.id || '',
       assets
     };
   });
@@ -1983,9 +2078,11 @@ function rewriteCloneAssetUrls(html, replacements = []) {
   return out;
 }
 
-function rewriteHomeLinks(html, projects = []) {
+function rewriteHomeLinks(html, projects = [], sourceUrl = '') {
   let out = String(html || '');
   const byPath = new Map();
+  let sourceOrigin = '';
+  try { sourceOrigin = new URL(sourceUrl).origin; } catch {}
   for (const project of projects || []) {
     if (!project?.url || !project?.slug) continue;
     try {
@@ -2000,8 +2097,44 @@ function rewriteHomeLinks(html, projects = []) {
   out = out
     .replace(/href="\/?"/g, 'href="index.html"')
     .replace(/href="\/about\/?"/g, 'href="about.html"')
-    .replace(/href="\/art\/?"/g, 'href="https://kapilbhimekar.com/art"');
+    .replace(/\b(href|data-url)="\/([^"#?]*)([^"]*)"/g, (match, attr, path, suffix) => {
+      const normalized = `/${path}`.replace(/\/$/, '') || '/';
+      const local = byPath.get(normalized);
+      if (local) return `${attr}="${local}"`;
+      return sourceOrigin ? `${attr}="${sourceOrigin}/${path}${suffix || ''}"` : match;
+    });
   return out;
+}
+
+function rewriteProjectCloneLinks(html, projects = [], sourceUrl = '') {
+  let out = String(html || '');
+  const byPath = new Map();
+  let sourceOrigin = '';
+  try { sourceOrigin = new URL(sourceUrl).origin; } catch {}
+  for (const project of projects || []) {
+    if (!project?.url || !project?.slug) continue;
+    try {
+      const path = new URL(project.url).pathname.replace(/\/$/, '') || '/';
+      byPath.set(path, `../${project.slug}/`);
+    } catch {}
+  }
+  return out.replace(/\b(href|data-url)="\/([^"#?]*)([^"]*)"/g, (match, attr, path, suffix) => {
+    const normalized = `/${path}`.replace(/\/$/, '') || '/';
+    const local = byPath.get(normalized);
+    if (local) return `${attr}="${local}"`;
+    return sourceOrigin ? `${attr}="${sourceOrigin}/${path}${suffix || ''}"` : match;
+  });
+}
+
+function rewriteCrossOriginSvgSprites(html) {
+  return String(html || '').replace(/(\s(?:xlink:href|href)=["'])(?:https?:)?\/\/[^"']+\.svg#([^"']+)(["'])/gi, '$1#$2$3');
+}
+
+function mergeStyle(...parts) {
+  return parts
+    .map(part => String(part || '').trim().replace(/;+$/, ''))
+    .filter(Boolean)
+    .join(';');
 }
 
 function renderHomePage(manifest, cards) {
@@ -2013,8 +2146,14 @@ function renderHomePage(manifest, cards) {
       sourceHome.textColor ? `--muted:${sourceHome.textColor}` : ''
     ].filter(Boolean).join(';');
     const wrapperStyle = sourceHome.style ? ` style="${htmlEscape(sourceHome.style)}"` : '';
-    const html = rewriteHomeLinks(sourceHome.html, manifest.projects);
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body class="source-home"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+    const html = rewriteCrossOriginSvgSprites(rewriteHomeLinks(sourceHome.html, manifest.projects, manifest.sourceUrl));
+    const htmlClass = sourceHome.sourceHtmlClass ? ` class="${htmlEscape(sourceHome.sourceHtmlClass)}"` : '';
+    const htmlStyle = sourceHome.sourceHtmlStyle ? ` style="${htmlEscape(sourceHome.sourceHtmlStyle)}"` : '';
+    const htmlId = sourceHome.sourceHtmlId ? ` id="${htmlEscape(sourceHome.sourceHtmlId)}"` : '';
+    const bodyClass = ['source-home', sourceHome.sourceBodyClass].filter(Boolean).join(' ');
+    const bodyStyle = mergeStyle(pageVars, sourceHome.sourceBodyStyle);
+    const bodyId = sourceHome.sourceBodyId ? ` id="${htmlEscape(sourceHome.sourceBodyId)}"` : '';
+    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${sourceHome.sourceSvgDefs || ''}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
   }
   const homeClass = manifest.sourcePlatform === 'behance' ? 'home behance-home' : 'home';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
@@ -2090,8 +2229,25 @@ export async function generateSite(manifest, outDir, progress) {
     p.videos = p.videos || [];
     p.audios = p.audios || [];
     p.documents = p.documents || [];
-    const cloneHtml = p.sourcePlatform === 'behance' ? '' : (shouldUseOrderedContent(p) ? '' : renderSourceClone(p));
+    const cloneHtml = p.sourcePlatform === 'behance' ? '' : renderSourceClone(p);
     const isSourceReplica = !!(cloneHtml || p.sourceCloneHtml);
+    if (cloneHtml) {
+      const pageVars = [
+        p.pageStyle?.backgroundColor ? `--bg:${p.pageStyle.backgroundColor}` : '',
+        p.pageStyle?.textColor ? `--fg:${p.pageStyle.textColor}` : '',
+        p.pageStyle?.textColor ? `--muted:${p.pageStyle.textColor}` : ''
+      ].filter(Boolean).join(';');
+      const title = p.sourcePageTitle || `${p.title} — ${manifest.ownerName}`;
+      const rewrittenClone = rewriteCrossOriginSvgSprites(rewriteProjectCloneLinks(cloneHtml, manifest.projects, manifest.sourceUrl));
+      const htmlClass = p.sourceHtmlClass ? ` class="${htmlEscape(p.sourceHtmlClass)}"` : '';
+      const htmlStyle = p.sourceHtmlStyle ? ` style="${htmlEscape(p.sourceHtmlStyle)}"` : '';
+      const htmlId = p.sourceHtmlId ? ` id="${htmlEscape(p.sourceHtmlId)}"` : '';
+      const bodyClass = ['source-exact', p.sourceBodyClass].filter(Boolean).join(' ');
+      const bodyStyle = mergeStyle(pageVars, p.sourceBodyStyle);
+      const bodyId = p.sourceBodyId ? ` id="${htmlEscape(p.sourceBodyId)}"` : '';
+      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${p.sourceSvgDefs || ''}<main class="source-exact-page">${rewrittenClone}</main></body></html>`);
+      continue;
+    }
     const mediaHtml = renderImportedSourceContent(p, cloneHtml);
     const footerGrid = renderProjectFooterGrid(manifest, p);
     const meta = renderMetaBlocks(p);
@@ -2130,7 +2286,8 @@ export async function validateSite(siteDir) {
     const html = await fs.readFile(file, 'utf8');
     if (html.includes('file://')) errors.push({ file: path.relative(siteDir, file), error: 'file:// reference found' });
     if (html.includes('blob:')) errors.push({ file: path.relative(siteDir, file), error: 'blob: reference found' });
-    const refs = [...html.matchAll(/(?:src|href|poster)="([^"]+)"/g)].map(m => m[1]).filter(r => r && !r.startsWith('http') && !r.startsWith('#') && !r.startsWith('mailto:') && !r.startsWith('tel:'));
+    if (/(?:href|xlink:href)="(?:https?:)?\/\/[^"]+\.svg#[^"]+"/i.test(html)) errors.push({ file: path.relative(siteDir, file), error: 'cross-origin SVG sprite reference found' });
+    const refs = [...html.matchAll(/(?:src|href|poster)="([^"]+)"/g)].map(m => m[1]).filter(r => r && !r.startsWith('http') && !r.startsWith('//') && !r.startsWith('#') && !r.startsWith('mailto:') && !r.startsWith('tel:'));
     for (const ref of refs) {
       if (ref.startsWith('data:')) continue;
       const clean = ref.split('#')[0].split('?')[0];
@@ -2331,6 +2488,13 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       backgroundColor: sourceHome.backgroundColor,
       textColor: sourceHome.textColor,
       sourceCss: sourceHome.sourceCss || '',
+      sourceSvgDefs: sourceHome.sourceSvgDefs || '',
+      sourceHtmlClass: sourceHome.sourceHtmlClass || '',
+      sourceHtmlStyle: sourceHome.sourceHtmlStyle || '',
+      sourceHtmlId: sourceHome.sourceHtmlId || '',
+      sourceBodyClass: sourceHome.sourceBodyClass || '',
+      sourceBodyStyle: sourceHome.sourceBodyStyle || '',
+      sourceBodyId: sourceHome.sourceBodyId || '',
       html: rewriteCloneAssetUrls(sourceHome.html, replacements)
     };
   }
@@ -2461,6 +2625,14 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       sourceCloneHtml,
       sourceCloneStyle: data.sourceCloneStyle || '',
       sourceCss: data.sourceCss || '',
+      sourceSvgDefs: data.sourceSvgDefs || '',
+      sourcePageTitle: data.sourcePageTitle || '',
+      sourceHtmlClass: data.sourceHtmlClass || '',
+      sourceHtmlStyle: data.sourceHtmlStyle || '',
+      sourceHtmlId: data.sourceHtmlId || '',
+      sourceBodyClass: data.sourceBodyClass || '',
+      sourceBodyStyle: data.sourceBodyStyle || '',
+      sourceBodyId: data.sourceBodyId || '',
       thumbnail,
       copyBlocks: data.copyBlocks,
       contentItems: enrichContentItems(data.contentItems, imageIndexByKey, videoIndexBySrc),
