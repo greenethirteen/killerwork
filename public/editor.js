@@ -169,6 +169,10 @@ function selectBlock(index) {
   renderInspector();
 }
 
+function isEditorControl(target) {
+  return !!target?.closest?.('button,input,textarea,select,label,.text-style-toolbar');
+}
+
 function reorderBlock(from, to) {
   if (!currentPage || from === to || from < 0 || to < 0 || from >= currentPage.contentItems.length || to >= currentPage.contentItems.length) return;
   recordHistory();
@@ -280,10 +284,15 @@ function renderCanvas() {
     row.dataset.index = index;
     row.draggable = true;
     row.addEventListener('click', event => {
-      if (event.target.closest('button')) return;
+      if (isEditorControl(event.target)) return;
       selectBlock(index);
     });
     row.addEventListener('dragstart', event => {
+      if (isEditorControl(event.target)) {
+        event.preventDefault();
+        draggedIndex = -1;
+        return;
+      }
       draggedIndex = index;
       event.dataTransfer.effectAllowed = 'move';
     });
@@ -321,6 +330,7 @@ function renderCanvas() {
     row.appendChild(chrome);
 
     if (item.type === 'text') {
+      row.draggable = false;
       const toolbar = document.createElement('div');
       toolbar.className = 'text-style-toolbar';
       toolbar.innerHTML = `
