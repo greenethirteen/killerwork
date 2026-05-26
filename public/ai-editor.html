@@ -22,22 +22,30 @@
       </div>
       <label class="ai-page-label" for="aiPageSelect">Page</label>
       <select id="aiPageSelect" aria-label="Page"></select>
-      <div class="ai-tool-row">
-        <button id="aiUndo" type="button" class="button ghost" disabled>Undo</button>
-        <button id="aiRedo" type="button" class="button ghost" disabled>Redo</button>
-        <button id="aiSave" type="button" class="button secondary">Save</button>
-      </div>
-      <div class="ai-tool-row">
-        <a id="classicEditorLink" class="button ghost" href="#">Editor</a>
-        <a id="aiOpenPreview" class="button ghost" href="#" target="_blank" rel="noopener">Open</a>
-      </div>
-      <section id="aiChatLog" class="ai-chat-log" aria-live="polite"></section>
       <form id="aiPromptForm" class="ai-chat-form">
         <label for="aiPrompt">Prompt</label>
         <textarea id="aiPrompt" rows="5" placeholder="Tell KillaWork™ what to change. Example: split Ikea - Sustainability into a headline and subhead, tighten the copy, or make this section feel more premium."></textarea>
         <button id="aiApply" type="submit">Apply edit</button>
+        <div class="ai-tool-row" aria-label="Editor controls">
+          <button id="aiUndo" type="button" class="ai-icon-button" disabled aria-label="Undo" title="Undo">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M5 12h9a6 6 0 0 1 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="aiRedo" type="button" class="ai-icon-button" disabled aria-label="Redo" title="Redo">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5M19 12h-9a6 6 0 0 0-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="aiSave" type="button" class="ai-icon-button primary" aria-label="Save" title="Save">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M8 3v6h8M8 18h8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <a id="classicEditorLink" class="ai-icon-button" href="#" aria-label="Classic editor" title="Classic editor">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 20 4.5-1 10-10a2.2 2.2 0 0 0-3.1-3.1l-10 10L4 20Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="m13.5 7.5 3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </a>
+          <a id="aiOpenPreview" class="ai-icon-button" href="#" target="_blank" rel="noopener" aria-label="Open preview" title="Open preview">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </a>
+        </div>
         <p id="aiStatus" class="ai-status">Ask for an edit. The preview updates on the right.</p>
       </form>
+      <section id="aiChatLog" class="ai-chat-log" aria-live="polite"></section>
     </aside>
     <section class="ai-preview-stage">
       <iframe id="aiPreview" class="ai-preview" title="Live portfolio preview"></iframe>
