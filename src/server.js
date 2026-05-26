@@ -392,6 +392,7 @@ function publicProject(project) {
   return {
     title: project.title,
     subtitle: project.subtitle || '',
+    titleFontSize: project.titleFontSize || 0,
     slug: project.slug,
     url: project.url,
     images: project.images || [],
@@ -455,6 +456,81 @@ function applyTextReplacementsToProject(project, replacements = []) {
     item.type === 'text' ? { ...item, text: replaceAllText(item.text || '', replacements) } : item
   ));
   if (project.sourceCloneHtml) project.sourceCloneHtml = replaceAllText(project.sourceCloneHtml, replacements);
+}
+
+function formatCreditsText(value = '') {
+  let text = String(value || '')
+    .replace(/\r/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const labels = [
+    'Credits (Film)',
+    'Production House',
+    'Executive Producers',
+    'Creative Director',
+    'Senior Account Manager',
+    'Producer',
+    'Director',
+    'Agency',
+    'DOP'
+  ];
+  for (const label of labels.sort((a, b) => b.length - a.length)) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    text = text.replace(new RegExp(`\\s*(${escaped})\\s*:`, 'gi'), '\n$1:');
+  }
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function compactForMatch(value = '') {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function applyCreditLineBreakEdit(project, prompt = '') {
+  if (!/\b(break|separate|split|line by line|vertically)\b/i.test(prompt) || !/\b(agency|creative director|credits|producer|dop|production house)\b/i.test(prompt)) return '';
+  const pasted = String(prompt).split(/\b(?:break|separate|split)\b/i)[0].trim();
+  const formatted = formatCreditsText(pasted);
+  if (!formatted.includes('\n')) return '';
+  project.contentItems = project.contentItems || [];
+  const targetKey = compactForMatch(pasted).slice(0, 500);
+  let bestIndex = -1;
+  let bestScore = 0;
+  project.contentItems.forEach((item, index) => {
+    if (item.type !== 'text') return;
+    const key = compactForMatch(item.text || '');
+    const score = targetKey && key.includes(targetKey.slice(0, Math.min(120, targetKey.length))) ? 100 : ['agency', 'creativedirector', 'producer', 'dop'].filter(word => key.includes(word)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+  const nextText = formatted;
+  if (bestIndex >= 0) {
+    project.contentItems[bestIndex] = { ...project.contentItems[bestIndex], text: nextText, preserveLineBreaks: true, align: project.contentItems[bestIndex].align || 'left' };
+  } else {
+    project.contentItems.push({ type: 'text', order: project.contentItems.length + 1, tag: 'p', text: nextText, preserveLineBreaks: true, fontSize: 20, align: 'left' });
+  }
+  project.cleaned = null;
+  return 'Separated credits into individual lines.';
+}
+
+function applyHeadlineSizeEdit(project, prompt = '') {
+  if (!/\b(headline|title)\b/i.test(prompt) || !/\b(reduce|smaller|decrease|lower|shrink)\b/i.test(prompt) || !/\b(font|size)\b/i.test(prompt)) return '';
+  const current = Number(project.titleFontSize) || 82;
+  project.titleFontSize = Math.max(28, Math.round(current * 0.78));
+  project.cleaned = null;
+  return 'Reduced the headline font size.';
+}
+
+function applyDirectAiEdit(project, prompt = '') {
+  const messages = [
+    applyHeadlineSizeEdit(project, prompt),
+    applyCreditLineBreakEdit(project, prompt)
+  ].filter(Boolean);
+  return messages.length ? messages.join(' ') : '';
 }
 
 function applyAiEditToProject(project, edit) {
@@ -927,10 +1003,13 @@ app.post('/api/editor/:id/pages/:slug/ai-edit', requireFirebaseAuth, async (req,
   if (!project) return res.status(404).json({ error: 'Page not found.' });
   const before = publicProject(project);
   const uploadedAssets = Array.isArray(req.body?.uploadedAssets) ? req.body.uploadedAssets : [];
-  const edit = uploadedAssets.length && /^place the uploaded ads on this page/i.test(prompt)
-    ? { message: `Added ${uploadedAssets.length} uploaded file${uploadedAssets.length === 1 ? '' : 's'} to the page.`, replaceText: [] }
-    : await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
-  applyAiEditToProject(project, edit);
+  const directMessage = applyDirectAiEdit(project, prompt);
+  const edit = directMessage
+    ? { message: directMessage, replaceText: [] }
+    : uploadedAssets.length && /^place the uploaded ads on this page/i.test(prompt)
+      ? { message: `Added ${uploadedAssets.length} uploaded file${uploadedAssets.length === 1 ? '' : 's'} to the page.`, replaceText: [] }
+      : await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
+  if (!directMessage) applyAiEditToProject(project, edit);
   const validation = await saveManifestAndRebuild(id, manifest);
   res.json({
     ok: true,
@@ -953,7 +1032,7 @@ function sanitizeContentItems(items, project) {
     const order = idx + 1;
     if (item.type === 'text') {
       const text = String(item.text || '').replace(/\r/g, '\n').trim().slice(0, 4000);
-      if (text) safe.push({ type: 'text', order, tag: 'p', text, ...sanitizeTextStyle(item) });
+      if (text) safe.push({ type: 'text', order, tag: 'p', text, ...(item.preserveLineBreaks ? { preserveLineBreaks: true } : {}), ...sanitizeTextStyle(item) });
       return;
     }
     if (item.type === 'image' && Number.isInteger(item.imageIndex) && item.imageIndex >= 0 && item.imageIndex < imageMax) {
@@ -1041,6 +1120,9 @@ app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => 
 
   const title = String(req.body?.title || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   if (title) project.title = title;
+  if (Number.isFinite(Number(req.body?.titleFontSize))) {
+    project.titleFontSize = Math.max(0, Math.min(120, Number(req.body.titleFontSize) || 0));
+  }
   if (Object.prototype.hasOwnProperty.call(req.body || {}, 'subtitle')) {
     project.subtitle = String(req.body?.subtitle || '').replace(/\s+/g, ' ').trim().slice(0, 220);
   }

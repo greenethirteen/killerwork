@@ -49,6 +49,7 @@ function pageSnapshot(page = currentPage) {
   return JSON.parse(JSON.stringify({
     title: page.title || '',
     subtitle: page.subtitle || '',
+    titleFontSize: page.titleFontSize || 0,
     homeIntro: page.homeIntro || '',
     contentItems: page.contentItems || []
   }));
@@ -92,6 +93,7 @@ async function restorePage(snapshot) {
   const body = {
     title: snapshot.title,
     subtitle: snapshot.subtitle,
+    titleFontSize: snapshot.titleFontSize,
     homeIntro: snapshot.homeIntro,
     contentItems: snapshot.contentItems
   };

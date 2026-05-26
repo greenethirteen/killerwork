@@ -266,9 +266,10 @@ function renderCanvas() {
   }
   if (canvasHeadline) {
     canvasHeadline.classList.remove('hidden');
+    const titleStyle = currentPage.titleFontSize ? ` style="font-size:${Math.max(28, Math.min(120, Number(currentPage.titleFontSize) || 82))}px"` : '';
     canvasHeadline.innerHTML = currentPage.kind === 'home'
-      ? `<span class="back-link">Home</span><h1>${escapeHtml(currentPage.title || 'Home page')}</h1>`
-      : `<span class="back-link">← Work</span><h1>${escapeHtml(currentPage.title || 'Untitled project')}</h1>`;
+      ? `<span class="back-link">Home</span><h1${titleStyle}>${escapeHtml(currentPage.title || 'Home page')}</h1>`
+      : `<span class="back-link">← Work</span><h1${titleStyle}>${escapeHtml(currentPage.title || 'Untitled project')}</h1>`;
   }
   if (!currentPage.contentItems.length) {
     const empty = document.createElement('div');
@@ -877,6 +878,7 @@ savePage.addEventListener('click', async () => {
   setStatus('Saving and rebuilding preview/ZIP...');
   const body = {
     title: titleInput.value,
+    titleFontSize: currentPage.titleFontSize || 0,
     contentItems: currentPage.contentItems.map((item, idx) => ({ ...item, order: idx + 1 }))
   };
   let headers;

@@ -2013,6 +2013,11 @@ function textStyleAttr(item = {}) {
 }
 
 function renderInlineText(text = '', projectTitle = '', item = {}) {
+  if (item.preserveLineBreaks) {
+    const lines = String(text || '').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(Boolean);
+    if (!lines.length) return '';
+    return `<div class="media-caption"${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
+  }
   const lines = normalizedMetaLines([{ text }], projectTitle);
   if (!lines.length) return '';
   return `<div class="media-caption"${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
@@ -2508,9 +2513,10 @@ export async function generateSite(manifest, outDir, progress) {
     const generatedHeader = `<header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header>`;
     const sourceHeader = renderSourceHeader(p);
     const subtitleHtml = p.subtitle ? `<p class="project-subhead">${htmlEscape(p.subtitle)}</p>` : '';
+    const titleStyle = p.titleFontSize ? ` style="font-size:${Math.max(28, Math.min(120, Number(p.titleFontSize) || 82))}px"` : '';
     const headerHtml = isSourceReplica
       ? sourceHeader
-      : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1>${htmlEscape(p.title)}</h1>${subtitleHtml}</header>`;
+      : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1${titleStyle}>${htmlEscape(p.title)}</h1>${subtitleHtml}</header>`;
     await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
