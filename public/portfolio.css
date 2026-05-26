@@ -13,3 +13,4 @@
 @media(max-width:650px){.media.document iframe{min-height:520px}}
 @media(max-width:780px){.about-editorial{grid-template-columns:1fr}.about-image-wrap{position:static}.about-portrait{max-height:560px}.about-contact{display:grid}}
 html,body{max-width:100%;overflow-x:hidden}.source-exact,.source-home{margin:0}.source-exact-page,.source-home-page{width:100%;max-width:100%;overflow-x:hidden}
+.killerwork-source-video{width:100%;background:#000}.killerwork-source-video video,.killerwork-source-video iframe{display:block;width:100%;aspect-ratio:16/9;height:auto;border:0;background:#000}

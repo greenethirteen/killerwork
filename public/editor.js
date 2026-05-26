@@ -101,6 +101,7 @@ function escapeHtml(value = '') {
 }
 
 function mediaLabel(item) {
+  if (item.type === 'home-card') return item.title || 'Project thumbnail';
   if (item.type === 'image') return `Image ${Number(item.imageIndex) + 1}`;
   if (item.type === 'video') return `Video ${Number(item.videoIndex) + 1}`;
   if (item.type === 'audio') return `Audio ${Number(item.audioIndex) + 1}`;
@@ -212,6 +213,10 @@ function triggerUpload(kind, mode = 'replace') {
 }
 
 function mediaPreview(item) {
+  if (item.type === 'home-card') {
+    const src = assetUrl({ src: item.thumb });
+    return `<a class="editor-home-card-preview" href="${escapeHtml(item.url || '#')}" target="_blank">${src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.title || 'Project')}">` : '<div class="canvas-placeholder">No thumbnail</div>'}<span>${escapeHtml(item.title || 'Untitled project')}</span></a>`;
+  }
   if (item.type === 'image') {
     const img = imageAsset(item);
     const src = assetUrl(img);
@@ -256,7 +261,9 @@ function renderCanvas() {
   }
   if (canvasHeadline) {
     canvasHeadline.classList.remove('hidden');
-    canvasHeadline.innerHTML = `<span class="back-link">← Work</span><h1>${escapeHtml(currentPage.title || 'Untitled project')}</h1>`;
+    canvasHeadline.innerHTML = currentPage.kind === 'home'
+      ? `<span class="back-link">Home</span><h1>${escapeHtml(currentPage.title || 'Home page')}</h1>`
+      : `<span class="back-link">← Work</span><h1>${escapeHtml(currentPage.title || 'Untitled project')}</h1>`;
   }
   if (!currentPage.contentItems.length) {
     const empty = document.createElement('div');
@@ -299,7 +306,7 @@ function renderCanvas() {
     [
       ['Up', () => reorderBlock(index, index - 1), index === 0],
       ['Down', () => reorderBlock(index, index + 1), index === currentPage.contentItems.length - 1],
-      ['Delete', () => deleteBlock(index), false, 'danger']
+      ['Delete', () => deleteBlock(index), item.type === 'home-card', 'danger']
     ].forEach(([label, action, disabled, tone]) => {
       const button = document.createElement('button');
       button.type = 'button';
@@ -313,10 +320,44 @@ function renderCanvas() {
     row.appendChild(chrome);
 
     if (item.type === 'text') {
+      const toolbar = document.createElement('div');
+      toolbar.className = 'text-style-toolbar';
+      toolbar.innerHTML = `
+        <select data-text-font aria-label="Font">
+          <option value="">Default</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Helvetica Neue, Arial, sans-serif">Helvetica</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Courier New, monospace">Courier</option>
+        </select>
+        <input data-text-size type="number" min="12" max="96" step="1" value="${escapeHtml(item.fontSize || 20)}" aria-label="Font size" />
+        <button type="button" data-text-bold class="${item.bold ? 'active' : ''}">B</button>
+        <button type="button" data-text-italic class="${item.italic ? 'active' : ''}"><i>I</i></button>
+        <select data-text-align aria-label="Text alignment">
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>`;
+      const font = toolbar.querySelector('[data-text-font]');
+      const size = toolbar.querySelector('[data-text-size]');
+      const align = toolbar.querySelector('[data-text-align]');
+      font.value = item.fontFamily || '';
+      align.value = item.align || 'center';
+      font.addEventListener('change', () => { recordHistory(); item.fontFamily = font.value; setDirty(); renderCanvas(); });
+      size.addEventListener('change', () => { recordHistory(); item.fontSize = Math.max(12, Math.min(96, Number(size.value) || 20)); setDirty(); renderCanvas(); });
+      toolbar.querySelector('[data-text-bold]').addEventListener('click', () => { recordHistory(); item.bold = !item.bold; setDirty(); renderCanvas(); });
+      toolbar.querySelector('[data-text-italic]').addEventListener('click', () => { recordHistory(); item.italic = !item.italic; setDirty(); renderCanvas(); });
+      align.addEventListener('change', () => { recordHistory(); item.align = align.value; setDirty(); renderCanvas(); });
+      row.appendChild(toolbar);
       const area = document.createElement('textarea');
       let capturedTextHistory = false;
       area.className = 'canvas-textarea';
       area.value = item.text || '';
+      area.style.fontFamily = item.fontFamily || '';
+      area.style.fontSize = `${item.fontSize || 20}px`;
+      area.style.fontWeight = item.bold ? '800' : '';
+      area.style.fontStyle = item.italic ? 'italic' : '';
+      area.style.textAlign = item.align || 'center';
       area.placeholder = 'Text';
       area.addEventListener('focus', () => {
         if (selectedIndex !== index) {
@@ -537,9 +578,19 @@ function renderInspector() {
     meta.className = 'inspector-note';
     meta.textContent = `${(item.text || '').length} characters`;
     panel.appendChild(meta);
+  } else if (item?.type === 'home-card') {
+    panel.appendChild(inspectorField('Project title', item.title || '', value => {
+      item.title = value;
+      setDirty();
+      renderCanvas();
+    }));
+    const note = document.createElement('p');
+    note.className = 'inspector-note';
+    note.textContent = 'Drag cards up or down to change the homepage order.';
+    panel.appendChild(note);
   }
 
-  panel.appendChild(renderMediaLibrary());
+  if (currentPage.kind !== 'home') panel.appendChild(renderMediaLibrary());
   inspector.appendChild(panel);
 }
 
@@ -692,7 +743,14 @@ async function loadPage(slug) {
   }
   currentPage.contentItems = currentPage.contentItems || [];
   titleInput.value = currentPage.title || '';
-  pagePreview.href = `/generated/${jobId}/site/work/${currentPage.slug}/index.html`;
+  pagePreview.href = currentPage.kind === 'home'
+    ? `/generated/${jobId}/site/index.html`
+    : `/generated/${jobId}/site/work/${currentPage.slug}/index.html`;
+  const titleLabel = document.querySelector('.editor-title-field span');
+  if (titleLabel) titleLabel.textContent = currentPage.kind === 'home' ? 'Home headline' : 'Project Headline';
+  [addTextBlock, addImageBlock, addVideoBlock, addAudioBlock, addPdfBlock, addSliderBlock].forEach(button => {
+    if (button) button.disabled = currentPage.kind === 'home';
+  });
   undoStack = [];
   redoStack = [];
   updateHistoryButtons();
@@ -780,27 +838,8 @@ magicEditForm?.addEventListener('submit', async event => {
     return;
   }
   const promptText = magicPrompt?.value.trim() || '';
-  const files = [...(magicFiles?.files || [])].filter(Boolean);
-  if (!promptText && !files.length) {
-    setStatus('Add a prompt or upload ads first.', 'warn');
-    return;
-  }
-  magicApply.disabled = true;
-  magicApply.textContent = 'Editing...';
-  try {
-    if (promptText) insertBlock(makeTextBlock(promptText), 0);
-    if (files.length) {
-      pendingUploadMode = 'insert';
-      for (const file of files) await uploadOneMedia(file, 'insert');
-    }
-    if (magicPrompt) magicPrompt.value = '';
-    if (magicFiles) magicFiles.value = '';
-    if (magicUploadLabel) magicUploadLabel.textContent = 'Upload ads';
-    setStatus('Prompt and ads added. Save the page to rebuild the portfolio.', 'warn');
-  } finally {
-    magicApply.disabled = false;
-    magicApply.textContent = 'AI Edit';
-  }
+  if (promptText) sessionStorage.setItem('killerwork:aiPrompt', promptText);
+  location.href = `/ai-editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug || 'home')}`;
 });
 
 videoChoiceModal?.addEventListener('click', event => {

@@ -400,6 +400,31 @@ function publicProject(project) {
   };
 }
 
+function publicHomePage(manifest, id) {
+  const items = (manifest.projects || []).map((project, index) => {
+    const thumb = project.thumbnail?.thumbSrc || project.thumbnail?.src || project.images?.[0]?.thumbSrc || project.images?.[0]?.src || '';
+    return {
+      type: 'home-card',
+      order: index + 1,
+      slug: project.slug,
+      title: project.title,
+      thumb,
+      url: `/generated/${id}/site/work/${project.slug}/index.html`
+    };
+  });
+  return {
+    kind: 'home',
+    title: manifest.homeTitle || manifest.ownerName || manifest.siteTitle || 'Home',
+    slug: 'home',
+    url: manifest.sourceUrl || '',
+    images: [],
+    videos: [],
+    audios: [],
+    documents: [],
+    contentItems: items
+  };
+}
+
 function cleanInlineText(value = '', max = 500) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
@@ -625,11 +650,20 @@ app.get('/api/editor/:id/pages', requireFirebaseAuth, async (req, res) => {
     ownerName: manifest.ownerName,
     published: manifest.published || null,
     customDomain: manifest.customDomain || null,
-    pages: (manifest.projects || []).map(p => ({
+    pages: [
+      {
+        slug: 'home',
+        title: 'Home page',
+        kind: 'home',
+        preview: `/generated/${req.params.id}/site/index.html`
+      },
+      ...(manifest.projects || []).map(p => ({
       slug: p.slug,
       title: p.title,
+      kind: 'project',
       preview: `/generated/${req.params.id}/site/work/${p.slug}/index.html`
-    }))
+      }))
+    ]
   });
 });
 
@@ -637,6 +671,7 @@ app.get('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => 
   const manifest = await readManifest(req.params.id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  if (req.params.slug === 'home') return res.json(publicHomePage(manifest, req.params.id));
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
   res.json(publicProject(project));
@@ -760,6 +795,11 @@ app.post('/api/editor/:id/pages/:slug/video-url', requireFirebaseAuth, async (re
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  if (req.params.slug === 'home') {
+    applyHomeEdit(manifest, req.body || {});
+    const validation = await saveManifestAndRebuild(id, manifest);
+    return res.json({ ok: true, validation, page: publicHomePage(manifest, id), preview: `/generated/${id}/site/index.html` });
+  }
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
 
@@ -788,6 +828,39 @@ app.post('/api/editor/:id/pages/:slug/video-url', requireFirebaseAuth, async (re
   });
 });
 
+app.post('/api/editor/:id/pages/:slug/ai-edit', requireFirebaseAuth, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Import not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  const prompt = String(req.body?.prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
+  if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+
+  if (req.params.slug === 'home') {
+    manifest.homeIntro = prompt.replace(/\s+/g, ' ').slice(0, 280);
+    manifest.homeOverride = true;
+    const validation = await saveManifestAndRebuild(id, manifest);
+    return res.json({ ok: true, validation, page: publicHomePage(manifest, id), preview: `/generated/${id}/site/index.html` });
+  }
+
+  const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
+  if (!project) return res.status(404).json({ error: 'Page not found.' });
+  project.contentItems = project.contentItems || [];
+  project.contentItems.unshift({
+    type: 'text',
+    order: 0,
+    tag: 'p',
+    text: prompt,
+    fontSize: 24,
+    bold: false,
+    align: 'center'
+  });
+  project.contentItems = project.contentItems.map((item, index) => ({ ...item, order: index + 1 }));
+  project.cleaned = null;
+  const validation = await saveManifestAndRebuild(id, manifest);
+  res.json({ ok: true, validation, page: publicProject(project), preview: `/generated/${id}/site/work/${project.slug}/index.html` });
+});
+
 function sanitizeContentItems(items, project) {
   const imageMax = (project.images || []).length;
   const videoMax = (project.videos || []).length;
@@ -798,7 +871,7 @@ function sanitizeContentItems(items, project) {
     const order = idx + 1;
     if (item.type === 'text') {
       const text = String(item.text || '').replace(/\r/g, '\n').trim().slice(0, 4000);
-      if (text) safe.push({ type: 'text', order, tag: 'p', text });
+      if (text) safe.push({ type: 'text', order, tag: 'p', text, ...sanitizeTextStyle(item) });
       return;
     }
     if (item.type === 'image' && Number.isInteger(item.imageIndex) && item.imageIndex >= 0 && item.imageIndex < imageMax) {
@@ -831,6 +904,43 @@ function sanitizeContentItems(items, project) {
     }
   });
   return safe;
+}
+
+function sanitizeTextStyle(item = {}) {
+  const fontFamily = cleanInlineText(item.fontFamily || '', 80);
+  const fontSize = Math.max(12, Math.min(96, Number(item.fontSize) || 0));
+  const align = ['left', 'center', 'right'].includes(item.align) ? item.align : '';
+  return {
+    ...(fontFamily ? { fontFamily } : {}),
+    ...(fontSize ? { fontSize } : {}),
+    ...(item.bold ? { bold: true } : {}),
+    ...(item.italic ? { italic: true } : {}),
+    ...(align ? { align } : {})
+  };
+}
+
+function applyHomeEdit(manifest, body = {}) {
+  const title = String(body.title || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (title) manifest.homeTitle = title;
+  const order = Array.isArray(body.contentItems)
+    ? body.contentItems
+      .filter(item => item?.type === 'home-card' && item.slug)
+      .map(item => String(item.slug))
+    : [];
+  if (order.length) {
+    const bySlug = new Map((manifest.projects || []).map(project => [project.slug, project]));
+    const ordered = order.map(slug => bySlug.get(slug)).filter(Boolean);
+    const used = new Set(ordered.map(project => project.slug));
+    const rest = (manifest.projects || []).filter(project => !used.has(project.slug));
+    manifest.projects = [...ordered, ...rest];
+    for (const item of body.contentItems || []) {
+      if (item?.type !== 'home-card' || !item.slug) continue;
+      const project = bySlug.get(String(item.slug));
+      const nextTitle = cleanInlineText(item.title || '', 200);
+      if (project && nextTitle) project.title = nextTitle;
+    }
+    manifest.homeOverride = true;
+  }
 }
 
 app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => {

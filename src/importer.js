@@ -5,6 +5,7 @@ import path from 'path';
 import archiver from 'archiver';
 import mime from 'mime-types';
 import * as cheerio from 'cheerio';
+import sharp from 'sharp';
 import { fileURLToPath } from 'url';
 import { cleanupManifestWithAI } from './ai.js';
 import { safeSlug, hash, extFromUrl, normalizeUrl, canonicalImageKey, isBadMediaUrl, mediaType } from './utils.js';
@@ -1735,10 +1736,37 @@ async function downloadAsset(url, assetsDir, progress, cache) {
     const dest = path.join(assetsDir, fileName);
     await fs.writeFile(dest, buf);
     const out = { src: `assets/imported/${fileName}`, localFile: fileName, type: contentType.startsWith('image/') ? 'image' : mediaType(url), bytes: buf.length };
+    if (out.type === 'image') {
+      const thumb = await createImageThumbnail(buf, fileName, assetsDir, progress);
+      if (thumb) Object.assign(out, thumb);
+    }
     cache.set(url, out);
     return out;
   } catch (e) {
     progress?.('Asset skipped', `${url} — ${e.message}`);
+    return null;
+  }
+}
+
+async function createImageThumbnail(buf, fileName, assetsDir, progress) {
+  const ext = path.extname(fileName).toLowerCase();
+  if (['.svg', '.gif'].includes(ext)) return null;
+  try {
+    const thumbName = `${path.basename(fileName, ext)}-thumb.webp`;
+    const thumbDest = path.join(assetsDir, thumbName);
+    const info = await sharp(buf)
+      .rotate()
+      .resize({ width: 900, withoutEnlargement: true })
+      .webp({ quality: 78, effort: 4 })
+      .toFile(thumbDest);
+    return {
+      thumbSrc: `assets/imported/${thumbName}`,
+      thumbLocalFile: thumbName,
+      thumbWidth: info.width,
+      thumbHeight: info.height
+    };
+  } catch (e) {
+    progress?.('Thumbnail skipped', `${fileName} — ${e.message}`);
     return null;
   }
 }
@@ -1934,10 +1962,20 @@ function renderGallery(imageIndexes = [], project) {
   </section>`;
 }
 
-function renderInlineText(text = '', projectTitle = '') {
+function textStyleAttr(item = {}) {
+  const styles = [];
+  if (item.fontFamily) styles.push(`font-family:${String(item.fontFamily).replace(/[;"<>]/g, '')}`);
+  if (item.fontSize) styles.push(`font-size:${Math.max(12, Math.min(96, Number(item.fontSize) || 20))}px`);
+  if (item.bold) styles.push('font-weight:800');
+  if (item.italic) styles.push('font-style:italic');
+  if (item.align) styles.push(`text-align:${['left', 'center', 'right'].includes(item.align) ? item.align : 'center'}`);
+  return styles.length ? ` style="${htmlEscape(styles.join(';'))}"` : '';
+}
+
+function renderInlineText(text = '', projectTitle = '', item = {}) {
   const lines = normalizedMetaLines([{ text }], projectTitle);
   if (!lines.length) return '';
-  return `<div class="media-caption">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
+  return `<div class="media-caption"${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
 }
 
 function renderSectionMedia(ref, project, poster) {
@@ -2015,7 +2053,7 @@ function renderOrderedContent(project, options = {}) {
   const poster = (project.videos || []).length > 0 && firstImage ? firstImage : null;
   const html = items.map(item => {
     if (skipText && item.type === 'text') return '';
-    if (item.type === 'text') return renderInlineText(item.text, project.title);
+    if (item.type === 'text') return renderInlineText(item.text, project.title, item);
     if (item.type === 'image') return renderImage(project.images?.[item.imageIndex], project.slug, project.title);
     if (item.type === 'video') return renderVideo(project.videos?.[item.videoIndex], project.slug, item.videoIndex === 0 ? poster : null);
     if (item.type === 'audio') return renderAudio(project.audios?.[item.audioIndex], project.slug);
@@ -2029,7 +2067,7 @@ function renderOrderedContent(project, options = {}) {
 function renderSourceClone(project) {
   if (!project.sourceCloneHtml) return '';
   const wrapperStyle = project.sourceCloneStyle ? ` style="${htmlEscape(project.sourceCloneStyle)}"` : '';
-  return `<section class="source-clone"${wrapperStyle}>${project.sourceCloneHtml}</section>`;
+  return `<section class="source-clone"${wrapperStyle}>${hydrateSourceCloneMedia(project.sourceCloneHtml, project)}</section>`;
 }
 
 function shouldUseOrderedContent(project) {
@@ -2053,11 +2091,15 @@ function renderProjectFooterGrid(manifest, currentProject) {
   const linkedProjectSlugs = new Set((manifest.projects || []).map(p => p.slug));
   const projects = linkedProjectSlugs.size > 1 ? manifest.projects : (manifest.relatedProjects || manifest.projects || []);
   const cards = projects.map(p => {
-    const localThumb = p.thumbnail?.src ? relFromPage(currentProject.slug, p.thumbnail.src) : (p.images?.[0]?.src ? relFromPage(currentProject.slug, p.images[0].src) : '');
+    const localThumb = p.thumbnail?.thumbSrc
+      ? relFromPage(currentProject.slug, p.thumbnail.thumbSrc)
+      : p.thumbnail?.src
+        ? relFromPage(currentProject.slug, p.thumbnail.src)
+        : (p.images?.[0]?.thumbSrc ? relFromPage(currentProject.slug, p.images[0].thumbSrc) : (p.images?.[0]?.src ? relFromPage(currentProject.slug, p.images[0].src) : ''));
     const thumb = localThumb || p.thumbnailUrl || '';
     const href = p.slug === currentProject.slug ? '#' : linkedProjectSlugs.has(p.slug) ? `../${htmlEscape(p.slug)}/` : htmlEscape(p.url || '#');
     const media = thumb
-      ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="eager">`
+      ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="lazy" decoding="async">`
       : `<div class="work-card-placeholder">${(p.videos || []).length ? 'Video' : (p.documents || []).length ? 'PDF' : 'Work'}</div>`;
     return `<a class="work-card" href="${href}">${media}<span>${htmlEscape(p.title)}</span></a>`;
   }).join('\n');
@@ -2092,6 +2134,84 @@ function rewriteCloneAssetUrls(html, replacements = []) {
     out = out.replace(new RegExp(escaped, 'g'), to);
   }
   return out;
+}
+
+function addLazyMediaAttributes(html, eagerImageCount = 2) {
+  const $ = cheerio.load(String(html || ''), { decodeEntities: false }, false);
+  $('img').each((index, el) => {
+    const img = $(el);
+    if (!img.attr('loading')) img.attr('loading', index < eagerImageCount ? 'eager' : 'lazy');
+    if (!img.attr('decoding')) img.attr('decoding', 'async');
+    if (index < eagerImageCount && !img.attr('fetchpriority')) img.attr('fetchpriority', 'high');
+  });
+  $('iframe').each((_, el) => {
+    const frame = $(el);
+    if (!frame.attr('loading')) frame.attr('loading', 'lazy');
+  });
+  return $.root().html();
+}
+
+function parseVideoConfig(value = '') {
+  try {
+    return JSON.parse(String(value || '').replace(/&quot;/g, '"'));
+  } catch {
+    return null;
+  }
+}
+
+function matchingExtractedVideo(config = {}, videos = []) {
+  const alexandriaUrl = String(config.alexandriaUrl || '').replace('{variant}', 'playlist.m3u8');
+  const systemDataId = String(config.systemDataId || config.id || '');
+  return videos.find(video => {
+    const haystack = `${video.original || ''} ${video.src || ''}`;
+    return (alexandriaUrl && haystack.includes(alexandriaUrl)) || (systemDataId && haystack.includes(systemDataId));
+  }) || videos.find(video => video.type === 'hls' || video.type === 'video');
+}
+
+function sourceCloneVideoHtml(video, projectSlug, poster = '') {
+  if (!video?.src) return '';
+  const src = relFromPage(projectSlug, video.src);
+  const posterAttr = poster ? ` poster="${htmlEscape(poster)}"` : '';
+  if (video.kind === 'iframe' || video.type === 'iframe' || mediaType(src) === 'youtube' || mediaType(src) === 'vimeo') {
+    return `<div class="killerwork-source-video"><iframe src="${htmlEscape(src)}" title="Video" loading="lazy" allowfullscreen></iframe></div>`;
+  }
+  if (video.type === 'hls' || mediaType(src) === 'hls') {
+    return `<div class="killerwork-source-video"><video class="hls-video" controls playsinline preload="metadata"${posterAttr} data-hls-src="${htmlEscape(src)}"></video></div>`;
+  }
+  return `<div class="killerwork-source-video"><video controls playsinline preload="metadata"${posterAttr} src="${htmlEscape(src)}"></video></div>`;
+}
+
+function hydrateSourceCloneMedia(html, project) {
+  const $ = cheerio.load(addLazyMediaAttributes(html, 2), { decodeEntities: false }, false);
+  $('.sqs-native-video[data-config-video]').each((_, el) => {
+    const node = $(el);
+    const config = parseVideoConfig(node.attr('data-config-video'));
+    const video = matchingExtractedVideo(config, project.videos || []);
+    if (!video) return;
+    const poster = node.find('video[poster]').attr('poster') || node.find('video').attr('data-poster') || '';
+    const replacement = sourceCloneVideoHtml(video, project.slug, poster);
+    if (replacement) node.replaceWith(replacement);
+  });
+  $('video').each((_, el) => {
+    const video = $(el);
+    if (!video.attr('src') && !video.attr('data-hls-src') && !video.find('source[src]').length) {
+      const native = video.closest('.sqs-native-video[data-config-video]');
+      const config = parseVideoConfig(native.attr('data-config-video'));
+      const extracted = matchingExtractedVideo(config, project.videos || []);
+      if (extracted?.src) {
+        if (extracted.type === 'hls' || mediaType(extracted.src) === 'hls') {
+          video.addClass('hls-video');
+          video.attr('data-hls-src', relFromPage(project.slug, extracted.src));
+        } else {
+          video.attr('src', relFromPage(project.slug, extracted.src));
+        }
+        video.attr('controls', '');
+        video.attr('playsinline', '');
+        video.attr('preload', 'metadata');
+      }
+    }
+  });
+  return $.root().html();
 }
 
 function rewriteHomeLinks(html, projects = [], sourceUrl = '') {
@@ -2197,7 +2317,7 @@ function mergeStyle(...parts) {
 
 function renderHomePage(manifest, cards) {
   const sourceHome = manifest.sourceHome || {};
-  if (sourceHome.html) {
+  if (sourceHome.html && !manifest.homeOverride) {
     const pageVars = [
       sourceHome.backgroundColor ? `--bg:${sourceHome.backgroundColor}` : '',
       sourceHome.textColor ? `--fg:${sourceHome.textColor}` : '',
@@ -2214,7 +2334,9 @@ function renderHomePage(manifest, cards) {
     return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(sourceHome.sourceSvgDefs)}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
   }
   const homeClass = manifest.sourcePlatform === 'behance' ? 'home behance-home' : 'home';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
+  const title = manifest.homeTitle || manifest.ownerName;
+  const intro = manifest.homeIntro ? `<p class="intro">${htmlEscape(manifest.homeIntro)}</p>` : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(title)}</h1>${intro}<section class="work-grid">${cards}</section></main></body></html>`;
 }
 
 function renderAboutPage(manifest) {
@@ -2279,7 +2401,11 @@ export async function generateSite(manifest, outDir, progress) {
   await fs.writeFile(path.join(siteDir, 'portfolio.js'), await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.js'), 'utf8'));
 
   const cards = manifest.projects.map(p => {
-    const thumb = p.thumbnail?.src ? relFromPage('', p.thumbnail.src) : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : '');
+    const thumb = p.thumbnail?.thumbSrc
+      ? relFromPage('', p.thumbnail.thumbSrc)
+      : p.thumbnail?.src
+        ? relFromPage('', p.thumbnail.src)
+        : (p.images?.[0]?.thumbSrc ? relFromPage('', p.images[0].thumbSrc) : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : ''));
     const media = thumb
       ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="lazy" decoding="async">`
       : `<div class="work-card-placeholder">${(p.videos || []).length ? 'Video' : (p.documents || []).length ? 'PDF' : 'Work'}</div>`;
@@ -2313,7 +2439,8 @@ export async function generateSite(manifest, outDir, progress) {
       const bodyClass = ['source-exact', p.sourceBodyClass].filter(Boolean).join(' ');
       const bodyStyle = mergeStyle(pageVars, p.sourceBodyStyle);
       const bodyId = p.sourceBodyId ? ` id="${htmlEscape(p.sourceBodyId)}"` : '';
-      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(p.sourceSvgDefs)}<main class="source-exact-page">${rewrittenClone}</main></body></html>`);
+      const needsHls = p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls') || /class=["'][^"']*\bhls-video\b/i.test(rewrittenClone);
+      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(p.sourceSvgDefs)}<main class="source-exact-page">${rewrittenClone}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}</body></html>`);
       continue;
     }
     const mediaHtml = renderImportedSourceContent(p, cloneHtml);
@@ -2322,7 +2449,7 @@ export async function generateSite(manifest, outDir, progress) {
     const hasInlineText = cloneHtml || (p.contentItems || []).some(item => item.type === 'text');
     const showMeta = !hasInlineText ? meta : '';
     const intro = '';
-    const needsHls = !cloneHtml && p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls');
+    const needsHls = p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls');
     const needsGallery = (p.contentItems || []).some(item => item.type === 'gallery');
     const rightsNote = `<footer class="source-note">&copy; ${htmlEscape(manifest.ownerName || p.title || 'Portfolio')}. All rights reserved.</footer>`;
     const pageVars = [
@@ -2558,7 +2685,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     progress('Downloading homepage assets', `${uniqueAssets.length} unique image refs`);
     for (const assetUrl of uniqueAssets) {
       const dl = await downloadAsset(normalizeUrl(assetUrl, url), assetsDir, progress, cache);
-      if (dl?.src && dl.type === 'image') replacements.push({ from: assetUrl, to: relFromPage('', dl.src) });
+      if (dl?.src && dl.type === 'image') replacements.push({ from: assetUrl, to: relFromPage('', dl.thumbSrc || dl.src) });
     }
     rawManifest.sourceHome = {
       title: sourceHome.title,
@@ -2573,7 +2700,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       sourceBodyClass: sourceHome.sourceBodyClass || '',
       sourceBodyStyle: sourceHome.sourceBodyStyle || '',
       sourceBodyId: sourceHome.sourceBodyId || '',
-      html: rewriteCloneAssetUrls(sourceHome.html, replacements)
+      html: addLazyMediaAttributes(rewriteCloneAssetUrls(sourceHome.html, replacements), 2)
     };
   }
 
@@ -2598,7 +2725,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       sourceBodyClass: sourceAbout.sourceBodyClass || '',
       sourceBodyStyle: sourceAbout.sourceBodyStyle || '',
       sourceBodyId: sourceAbout.sourceBodyId || '',
-      html: rewriteCloneAssetUrls(sourceAbout.html, replacements)
+      html: addLazyMediaAttributes(rewriteCloneAssetUrls(sourceAbout.html, replacements), 2)
     };
   }
 
@@ -2653,6 +2780,10 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
         downloadedImages.push({
           src: dl.src,
           localFile: dl.localFile,
+          thumbSrc: dl.thumbSrc || '',
+          thumbLocalFile: dl.thumbLocalFile || '',
+          thumbWidth: dl.thumbWidth || 0,
+          thumbHeight: dl.thumbHeight || 0,
           alt: img.alt,
           original: img.url,
           order: img.order,
@@ -2665,13 +2796,13 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     let thumbnail = null;
     if (base.thumbnailUrl) {
       const dl = await downloadAsset(normalizeUrl(base.thumbnailUrl, base.url), assetsDir, progress, cache);
-      if (dl?.src) thumbnail = { src: dl.src, original: base.thumbnailUrl };
+      if (dl?.src) thumbnail = { src: dl.src, thumbSrc: dl.thumbSrc || '', original: base.thumbnailUrl };
     }
     if (!thumbnail && data.thumbnailUrl) {
       const dl = await downloadAsset(normalizeUrl(data.thumbnailUrl, base.url), assetsDir, progress, cache);
-      if (dl?.src) thumbnail = { src: dl.src, original: data.thumbnailUrl };
+      if (dl?.src) thumbnail = { src: dl.src, thumbSrc: dl.thumbSrc || '', original: data.thumbnailUrl };
     }
-    if (!thumbnail && downloadedImages[0]) thumbnail = { src: downloadedImages[0].src, original: downloadedImages[0].original };
+    if (!thumbnail && downloadedImages[0]) thumbnail = { src: downloadedImages[0].src, thumbSrc: downloadedImages[0].thumbSrc || '', original: downloadedImages[0].original };
 
     const videos = [];
     const videoMap = new Map();
