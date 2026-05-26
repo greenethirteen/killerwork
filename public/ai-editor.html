@@ -17,16 +17,30 @@
         </a>
         <div class="ai-sidebar-title">
           <span>KillaWork™ AI</span>
-          <strong>Website editor</strong>
+          <strong>Build with prompts</strong>
         </div>
       </div>
-      <label class="ai-page-label" for="aiPageSelect">Page</label>
-      <select id="aiPageSelect" aria-label="Page"></select>
+      <div class="ai-page-switcher">
+        <label class="ai-page-label" for="aiPageSelect">Current page</label>
+        <div class="ai-page-picker">
+          <select id="aiPageSelect" aria-label="Page"></select>
+          <button id="aiNewPage" type="button" class="ai-icon-button primary" aria-label="Create new campaign" title="Create new campaign">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="ai-quick-prompts" aria-label="Suggested edits">
+        <button type="button" data-prompt="Make this page feel more premium and portfolio-ready.">Premium</button>
+        <button type="button" data-prompt="Break the credits into clean individual lines.">Credits</button>
+        <button type="button" data-prompt="Reduce the headline size slightly.">Headline</button>
+        <button type="button" data-prompt="Reorder the work so the strongest pieces appear first.">Reorder</button>
+      </div>
+      <section id="aiChatLog" class="ai-chat-log" aria-live="polite"></section>
       <form id="aiPromptForm" class="ai-chat-form">
-        <label for="aiPrompt">Prompt</label>
+        <label for="aiPrompt">Ask KillaWork™ AI</label>
         <textarea id="aiPrompt" rows="5" placeholder="Ask for copy, structure, title, ordering, or styling changes and I’ll update the preview here."></textarea>
         <div id="aiAttachmentList" class="ai-attachment-list" aria-live="polite"></div>
-        <button id="aiApply" type="submit">Apply edit</button>
+        <button id="aiApply" type="submit">Generate edit</button>
         <div class="ai-tool-row" aria-label="Editor controls">
           <label class="ai-icon-button" aria-label="Upload ads" title="Upload ads">
             <input id="aiAssetUpload" type="file" multiple accept="image/*,video/*,audio/*,application/pdf" />
@@ -50,13 +64,51 @@
         </div>
         <p id="aiStatus" class="ai-status">Ask for an edit. The preview updates on the right.</p>
       </form>
-      <section id="aiChatLog" class="ai-chat-log" aria-live="polite"></section>
     </aside>
     <section class="ai-preview-stage">
+      <div class="ai-preview-topbar">
+        <div>
+          <span>Live preview</span>
+          <strong id="aiPreviewTitle">Portfolio</strong>
+        </div>
+        <div class="ai-preview-actions">
+          <a id="aiPreviewTopOpen" href="#" target="_blank" rel="noopener">Open preview</a>
+        </div>
+      </div>
       <iframe id="aiPreview" class="ai-preview" title="Live portfolio preview"></iframe>
     </section>
     <div id="aiPulse" class="ai-pulse hidden">Updating page</div>
   </main>
+  <div id="aiNewPageModal" class="ai-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aiNewPageTitleText">
+    <form id="aiNewPageForm" class="ai-modal-card">
+      <div class="ai-modal-head">
+        <div>
+          <span>New campaign</span>
+          <h2 id="aiNewPageTitleText">Build a page with AI</h2>
+        </div>
+        <button id="aiCloseNewPage" type="button" class="ai-icon-button" aria-label="Close">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <label>
+        Campaign title
+        <input id="aiNewPageTitle" name="title" type="text" placeholder="Ikea - Sustainability" autocomplete="off" />
+      </label>
+      <label>
+        Campaign info
+        <textarea id="aiNewPagePrompt" name="prompt" rows="7" placeholder="Drop in the campaign description, credits, awards, case study notes, and any direction. KillaWork™ AI will build the page in this portfolio’s template."></textarea>
+      </label>
+      <label class="ai-file-drop">
+        <input id="aiNewPageFiles" name="files" type="file" multiple accept="image/*,video/*,audio/*,application/pdf" />
+        <strong>Upload ads, films, case studies or PDFs</strong>
+        <span id="aiNewPageFileCount">No files selected.</span>
+      </label>
+      <div class="ai-modal-actions">
+        <button id="aiCreatePage" type="submit">Create page</button>
+        <button id="aiCancelNewPage" type="button" class="button ghost">Cancel</button>
+      </div>
+    </form>
+  </div>
   <script type="module">
     import('/auth.js?v=20260524-popup').then(() => import('/ai-editor.js'));
   </script>

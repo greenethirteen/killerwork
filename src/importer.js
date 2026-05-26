@@ -1935,19 +1935,23 @@ function renderBehanceCampaignDetails(project) {
   return `<section class="project-meta behance-campaign-details" aria-label="Campaign details">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
 }
 
-function renderVideo(v, projectSlug, posterAsset = null) {
+function treatmentClass(item = {}) {
+  return ['hero', 'full-width', 'contained'].includes(item.treatment) ? ` ${item.treatment}` : '';
+}
+
+function renderVideo(v, projectSlug, posterAsset = null, item = {}) {
   const src = relFromPage(projectSlug, v.src);
   const poster = posterAsset?.src ? relFromPage(projectSlug, posterAsset.src) : '';
   const posterAttr = poster ? ` poster="${htmlEscape(poster)}"` : '';
   const style = v?.width ? ` style="max-width:${Math.round(v.width)}px"` : '';
   if (!src || src.startsWith('blob:') || src.includes('mpegts-') || src.endsWith('.bin') || src.endsWith('.ts')) return '';
   if (v.kind === 'iframe' || v.type === 'iframe' || mediaType(src) === 'youtube' || mediaType(src) === 'vimeo') {
-    return `<figure class="media video"${style}><iframe src="${htmlEscape(src)}" title="Video" loading="lazy" allowfullscreen></iframe></figure>`;
+    return `<figure class="media video${treatmentClass(item)}"${style}><iframe src="${htmlEscape(src)}" title="Video" loading="lazy" allowfullscreen></iframe></figure>`;
   }
   if (v.type === 'hls' || mediaType(src) === 'hls') {
-    return `<figure class="media video"${style}><video class="hls-video" controls playsinline${posterAttr} data-hls-src="${htmlEscape(src)}"></video></figure>`;
+    return `<figure class="media video${treatmentClass(item)}"${style}><video class="hls-video" controls playsinline${posterAttr} data-hls-src="${htmlEscape(src)}"></video></figure>`;
   }
-  return `<figure class="media video"${style}><video controls playsinline${posterAttr} src="${htmlEscape(src)}"></video></figure>`;
+  return `<figure class="media video${treatmentClass(item)}"${style}><video controls playsinline${posterAttr} src="${htmlEscape(src)}"></video></figure>`;
 }
 
 function canonicalVideoKey(src = '', kind = '') {
@@ -1964,12 +1968,12 @@ function canonicalVideoKey(src = '', kind = '') {
   return `${kind}:${key.toLowerCase()}`;
 }
 
-function renderDocument(doc, projectSlug) {
+function renderDocument(doc, projectSlug, item = {}) {
   if (!doc?.src) return '';
   const src = relFromPage(projectSlug, doc.src);
   const title = doc.title || doc.original || 'PDF';
   const style = doc?.width ? ` style="max-width:${Math.round(doc.width)}px"` : '';
-  return `<figure class="media document"${style}><iframe src="${htmlEscape(src)}" title="${htmlEscape(title)}" loading="lazy"></iframe><figcaption><a href="${htmlEscape(src)}" target="_blank" rel="noopener">Open PDF</a></figcaption></figure>`;
+  return `<figure class="media document${treatmentClass(item)}"${style}><iframe src="${htmlEscape(src)}" title="${htmlEscape(title)}" loading="lazy"></iframe><figcaption><a href="${htmlEscape(src)}" target="_blank" rel="noopener">Open PDF</a></figcaption></figure>`;
 }
 
 function renderAudio(audio, projectSlug) {
@@ -1979,13 +1983,13 @@ function renderAudio(audio, projectSlug) {
   return `<figure class="media audio"><figcaption>${htmlEscape(title)}</figcaption><audio controls preload="metadata" src="${htmlEscape(src)}"></audio></figure>`;
 }
 
-function renderImage(img, projectSlug, title) {
+function renderImage(img, projectSlug, title, item = {}) {
   if (!img?.src) return '';
   const size = img?.width ? ` style="max-width:${Math.round(img.width)}px"` : '';
   const widthAttr = img?.width ? ` width="${Math.round(img.width)}"` : '';
   const heightAttr = img?.height ? ` height="${Math.round(img.height)}"` : '';
   const loading = Number(img.order || 0) > 2 ? 'lazy' : 'eager';
-  return `<figure class="media image"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="${loading}" decoding="async"${widthAttr}${heightAttr}></figure>`;
+  return `<figure class="media image${treatmentClass(item)}"${size}><img src="${htmlEscape(relFromPage(projectSlug, img.src))}" alt="${htmlEscape(img.alt || title)}" loading="${loading}" decoding="async"${widthAttr}${heightAttr}></figure>`;
 }
 
 function renderGallery(imageIndexes = [], project) {
@@ -2099,10 +2103,10 @@ function renderOrderedContent(project, options = {}) {
   const html = items.map(item => {
     if (skipText && item.type === 'text') return '';
     if (item.type === 'text') return renderInlineText(item.text, project.title, item);
-    if (item.type === 'image') return renderImage(project.images?.[item.imageIndex], project.slug, project.title);
-    if (item.type === 'video') return renderVideo(project.videos?.[item.videoIndex], project.slug, item.videoIndex === 0 ? poster : null);
+    if (item.type === 'image') return renderImage(project.images?.[item.imageIndex], project.slug, project.title, item);
+    if (item.type === 'video') return renderVideo(project.videos?.[item.videoIndex], project.slug, item.videoIndex === 0 ? poster : null, item);
     if (item.type === 'audio') return renderAudio(project.audios?.[item.audioIndex], project.slug);
-    if (item.type === 'document') return renderDocument(project.documents?.[item.documentIndex], project.slug);
+    if (item.type === 'document') return renderDocument(project.documents?.[item.documentIndex], project.slug, item);
     if (item.type === 'gallery') return renderGallery(item.imageIndexes, project);
     return '';
   }).filter(Boolean).join('\n');
@@ -2509,6 +2513,7 @@ export async function generateSite(manifest, outDir, progress) {
       p.pageStyle?.textColor ? `--fg:${p.pageStyle.textColor}` : '',
       p.pageStyle?.textColor ? `--muted:${p.pageStyle.textColor}` : ''
     ].filter(Boolean).join(';');
+    const layoutClass = p.aiLayout ? ` ai-layout-${String(p.aiLayout).replace(/[^a-z-]/g, '')}` : '';
     const mainStyle = p.pageStyle?.contentWidth ? ` style="max-width:${Math.max(760, Math.round(p.pageStyle.contentWidth))}px"` : '';
     const generatedHeader = `<header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header>`;
     const sourceHeader = renderSourceHeader(p);
@@ -2517,7 +2522,7 @@ export async function generateSite(manifest, outDir, progress) {
     const headerHtml = isSourceReplica
       ? sourceHeader
       : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1${titleStyle}>${htmlEscape(p.title)}</h1>${subtitleHtml}</header>`;
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${isSourceReplica ? '' : generatedHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');

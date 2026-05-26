@@ -80,7 +80,7 @@ async function poll(id){
     previewLink.href = job.links.preview;
     localStorage.setItem('killerwork:lastJobId', job.id);
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
-    editorLink.href = `/editor.html?job=${encodeURIComponent(job.id)}`;
+    editorLink.href = `/ai-editor.html?job=${encodeURIComponent(job.id)}`;
     reviewLink.href = job.links.review;
     manifestLink.href = job.links.manifest;
     downloadLink.href = job.links.zip;

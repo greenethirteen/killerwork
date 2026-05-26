@@ -97,7 +97,7 @@ async function poll(id) {
     actions.classList.remove('hidden');
     currentJobId = job.id;
     localStorage.setItem('killerwork:lastJobId', job.id);
-    editorLink.href = `/editor.html?job=${encodeURIComponent(job.id)}`;
+    editorLink.href = `/ai-editor.html?job=${encodeURIComponent(job.id)}`;
     previewLink.href = job.links.preview;
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
     downloadLink.href = job.links.zip;

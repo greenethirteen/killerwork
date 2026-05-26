@@ -879,6 +879,7 @@ savePage.addEventListener('click', async () => {
   const body = {
     title: titleInput.value,
     titleFontSize: currentPage.titleFontSize || 0,
+    aiLayout: currentPage.aiLayout || '',
     contentItems: currentPage.contentItems.map((item, idx) => ({ ...item, order: idx + 1 }))
   };
   let headers;

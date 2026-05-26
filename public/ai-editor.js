@@ -13,6 +13,8 @@ const statusBox = document.getElementById('aiStatus');
 const pageSelect = document.getElementById('aiPageSelect');
 const editorLink = document.getElementById('classicEditorLink');
 const openPreviewLink = document.getElementById('aiOpenPreview');
+const topOpenPreviewLink = document.getElementById('aiPreviewTopOpen');
+const previewTitle = document.getElementById('aiPreviewTitle');
 const pulse = document.getElementById('aiPulse');
 const chatLog = document.getElementById('aiChatLog');
 const undoButton = document.getElementById('aiUndo');
@@ -20,6 +22,16 @@ const redoButton = document.getElementById('aiRedo');
 const saveButton = document.getElementById('aiSave');
 const assetUpload = document.getElementById('aiAssetUpload');
 const attachmentList = document.getElementById('aiAttachmentList');
+const newPageButton = document.getElementById('aiNewPage');
+const newPageModal = document.getElementById('aiNewPageModal');
+const newPageForm = document.getElementById('aiNewPageForm');
+const newPageTitle = document.getElementById('aiNewPageTitle');
+const newPagePrompt = document.getElementById('aiNewPagePrompt');
+const newPageFiles = document.getElementById('aiNewPageFiles');
+const newPageFileCount = document.getElementById('aiNewPageFileCount');
+const closeNewPageButton = document.getElementById('aiCloseNewPage');
+const cancelNewPageButton = document.getElementById('aiCancelNewPage');
+const createPageButton = document.getElementById('aiCreatePage');
 let pendingFiles = [];
 
 function setStatus(text, tone = '') {
@@ -50,6 +62,7 @@ function pageSnapshot(page = currentPage) {
     title: page.title || '',
     subtitle: page.subtitle || '',
     titleFontSize: page.titleFontSize || 0,
+    aiLayout: page.aiLayout || '',
     homeIntro: page.homeIntro || '',
     contentItems: page.contentItems || []
   }));
@@ -70,12 +83,24 @@ function refreshPreview() {
   preview.src = url;
   editorLink.href = `/editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug)}`;
   openPreviewLink.href = previewUrl(currentSlug, false);
+  if (topOpenPreviewLink) topOpenPreviewLink.href = previewUrl(currentSlug, false);
+  if (previewTitle) previewTitle.textContent = pageSelect.selectedOptions[0]?.textContent || currentPage?.title || 'Portfolio';
 }
 
 function showPulse(text = 'Updating page') {
   pulse.textContent = text;
   pulse.classList.remove('hidden');
   setTimeout(() => pulse.classList.add('hidden'), 1300);
+}
+
+function renderPageOptions(pages = []) {
+  pageSelect.innerHTML = '';
+  for (const page of pages) {
+    const option = document.createElement('option');
+    option.value = page.slug;
+    option.textContent = page.title;
+    pageSelect.appendChild(option);
+  }
 }
 
 async function fetchPage() {
@@ -94,6 +119,7 @@ async function restorePage(snapshot) {
     title: snapshot.title,
     subtitle: snapshot.subtitle,
     titleFontSize: snapshot.titleFontSize,
+    aiLayout: snapshot.aiLayout,
     homeIntro: snapshot.homeIntro,
     contentItems: snapshot.contentItems
   };
@@ -126,13 +152,7 @@ async function loadPages() {
     setStatus(data.error || 'Could not load pages.', 'error');
     return;
   }
-  pageSelect.innerHTML = '';
-  for (const page of data.pages || []) {
-    const option = document.createElement('option');
-    option.value = page.slug;
-    option.textContent = page.title;
-    pageSelect.appendChild(option);
-  }
+  renderPageOptions(data.pages || []);
   if (![...pageSelect.options].some(option => option.value === currentSlug)) currentSlug = 'home';
   pageSelect.value = currentSlug;
   await fetchPage();
@@ -143,6 +163,9 @@ async function loadPages() {
     sessionStorage.removeItem('killerwork:aiPrompt');
   }
   updateHistoryButtons();
+  if (!chatLog.children.length) {
+    addMessage('assistant', 'Tell me what to change, or upload work and I’ll place it on the page. I’ll apply the edit, rebuild the preview, and report exactly what changed.');
+  }
 }
 
 pageSelect.addEventListener('change', async () => {
@@ -198,6 +221,41 @@ async function uploadPendingFiles() {
   return uploaded;
 }
 
+function openNewPageModal() {
+  newPageModal?.classList.remove('hidden');
+  newPageTitle?.focus();
+}
+
+function closeNewPageModal() {
+  newPageModal?.classList.add('hidden');
+}
+
+function titleFromPrompt(value = '') {
+  const first = String(value || '').replace(/\r/g, '\n').split('\n').map(line => line.trim()).find(Boolean);
+  return (first || 'New campaign').replace(/^(campaign|title|headline)\s*:\s*/i, '').slice(0, 90);
+}
+
+async function createNewPage({ title = '', prompt = '', files = [] } = {}) {
+  const headers = await authHeaders();
+  const body = new FormData();
+  body.append('title', title || titleFromPrompt(prompt));
+  body.append('prompt', prompt || '');
+  for (const file of files) body.append('files', file);
+  const res = await fetch(`/api/editor/${jobId}/pages`, { method: 'POST', headers, body });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Could not create the page.');
+  if (Array.isArray(data.pages)) renderPageOptions(data.pages);
+  currentSlug = data.page.slug;
+  currentPage = data.page;
+  pageSelect.value = currentSlug;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  updateHistoryButtons();
+  history.replaceState(null, '', `/ai-editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug)}`);
+  refreshPreview();
+  return data;
+}
+
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const prompt = promptBox.value.trim();
@@ -213,6 +271,19 @@ form.addEventListener('submit', async event => {
   addMessage('user', uploadCount ? `${prompt || 'Add these ads to the page.'}\n\nAttached: ${uploadCount} file${uploadCount === 1 ? '' : 's'}` : prompt);
   const pending = addMessage('assistant', 'Working on it...', true);
   try {
+    if (currentSlug === 'home' && pendingFiles.length) {
+      const files = [...pendingFiles];
+      const title = titleFromPrompt(prompt);
+      const data = await createNewPage({ title, prompt, files });
+      pendingFiles = [];
+      if (assetUpload) assetUpload.value = '';
+      renderAttachments();
+      promptBox.value = '';
+      pending.classList.remove('pending');
+      pending.querySelector('p').textContent = `Created ${data.page.title} and added the uploaded work as a new campaign page.`;
+      setStatus('New campaign created.', 'ok');
+      return;
+    }
     const before = pageSnapshot(await fetchPage());
     const uploaded = await uploadPendingFiles();
     const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
@@ -241,7 +312,7 @@ form.addEventListener('submit', async event => {
     setStatus(err.message || 'AI edit failed.', 'error');
   } finally {
     applyButton.disabled = false;
-    applyButton.textContent = 'Apply edit';
+    applyButton.textContent = 'Generate edit';
   }
 });
 
@@ -249,6 +320,13 @@ assetUpload?.addEventListener('change', () => {
   pendingFiles = [...(assetUpload.files || [])].filter(Boolean);
   renderAttachments();
   if (pendingFiles.length) setStatus(`${pendingFiles.length} file${pendingFiles.length === 1 ? '' : 's'} attached. Add a prompt or click Apply edit.`, 'ok');
+});
+
+document.querySelectorAll('[data-prompt]').forEach(button => {
+  button.addEventListener('click', () => {
+    promptBox.value = button.dataset.prompt || '';
+    promptBox.focus();
+  });
 });
 
 undoButton.addEventListener('click', async () => {
@@ -288,6 +366,48 @@ saveButton.addEventListener('click', () => {
   refreshPreview();
   addMessage('assistant', 'Saved. AI edits are written to the portfolio as soon as they are applied.');
   setStatus('Saved.', 'ok');
+});
+
+newPageButton?.addEventListener('click', openNewPageModal);
+closeNewPageButton?.addEventListener('click', closeNewPageModal);
+cancelNewPageButton?.addEventListener('click', closeNewPageModal);
+newPageModal?.addEventListener('click', event => {
+  if (event.target === newPageModal) closeNewPageModal();
+});
+newPageFiles?.addEventListener('change', () => {
+  const count = newPageFiles.files?.length || 0;
+  if (newPageFileCount) newPageFileCount.textContent = count ? `${count} file${count === 1 ? '' : 's'} selected.` : 'No files selected.';
+});
+newPageForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const title = newPageTitle.value.trim();
+  const prompt = newPagePrompt.value.trim();
+  const files = [...(newPageFiles.files || [])].filter(Boolean);
+  if (!title && !prompt && !files.length) {
+    setStatus('Add a title, prompt, or files for the new campaign.', 'warn');
+    return;
+  }
+  createPageButton.disabled = true;
+  createPageButton.textContent = 'Creating...';
+  showPulse('Creating page');
+  addMessage('user', `Create a new campaign page${title ? `: ${title}` : ''}.${files.length ? `\n\nAttached: ${files.length} file${files.length === 1 ? '' : 's'}` : ''}`);
+  const pending = addMessage('assistant', 'Building the new page...', true);
+  try {
+    const data = await createNewPage({ title, prompt, files });
+    pending.classList.remove('pending');
+    pending.querySelector('p').textContent = `Created ${data.page.title}. It is now in the portfolio and open in the live preview.`;
+    newPageForm.reset();
+    if (newPageFileCount) newPageFileCount.textContent = 'No files selected.';
+    closeNewPageModal();
+    setStatus('New campaign created.', 'ok');
+  } catch (err) {
+    pending.classList.remove('pending');
+    pending.querySelector('p').textContent = err.message || 'Could not create the new page.';
+    setStatus(err.message || 'Could not create the new page.', 'error');
+  } finally {
+    createPageButton.disabled = false;
+    createPageButton.textContent = 'Create page';
+  }
 });
 
 loadPages();

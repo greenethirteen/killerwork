@@ -6,9 +6,9 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
-import { planPageEditWithAI } from './ai.js';
+import { planPageEditWithAI, planPageOperationsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
-import { hash } from './utils.js';
+import { hash, safeSlug } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -393,6 +393,8 @@ function publicProject(project) {
     title: project.title,
     subtitle: project.subtitle || '',
     titleFontSize: project.titleFontSize || 0,
+    aiLayout: project.aiLayout || '',
+    pageStyle: project.pageStyle || {},
     slug: project.slug,
     url: project.url,
     images: project.images || [],
@@ -427,6 +429,25 @@ function publicHomePage(manifest, id) {
     documents: [],
     contentItems: items
   };
+}
+
+function uniqueProjectSlug(manifest, title = 'new-campaign') {
+  const base = safeSlug(title || 'new-campaign');
+  const used = new Set((manifest.projects || []).map(project => project.slug));
+  let slug = base;
+  let suffix = 2;
+  while (used.has(slug)) slug = `${base}-${suffix++}`;
+  return slug;
+}
+
+function titleFromPrompt(value = '') {
+  const lines = String(value || '')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map(line => cleanInlineText(line, 120))
+    .filter(Boolean);
+  const first = lines.find(line => line.length >= 3) || 'New campaign';
+  return first.replace(/^(campaign|title|headline)\s*:\s*/i, '').slice(0, 90) || 'New campaign';
 }
 
 function cleanInlineText(value = '', max = 500) {
@@ -533,6 +554,113 @@ function applyDirectAiEdit(project, prompt = '') {
   return messages.length ? messages.join(' ') : '';
 }
 
+function mediaRank(item) {
+  if (item.type === 'video') return 0;
+  if (item.type === 'image') return 1;
+  if (item.type === 'gallery') return 2;
+  if (item.type === 'text') return 3;
+  return 4;
+}
+
+function setMediaTreatment(project, target = '', treatment = '') {
+  const safeTreatment = ['hero', 'full-width', 'contained'].includes(treatment) ? treatment : 'full-width';
+  const items = project.contentItems || [];
+  const isMedia = item => ['image', 'video', 'gallery', 'document'].includes(item.type);
+  if (target === 'first-media') {
+    const item = items.find(isMedia);
+    if (item) item.treatment = safeTreatment;
+    return !!item;
+  }
+  const predicate = target === 'all-images' ? item => item.type === 'image' : isMedia;
+  let changed = false;
+  for (const item of items) {
+    if (predicate(item)) {
+      item.treatment = safeTreatment;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function applyPageOperation(project, operation = {}, prompt = '') {
+  const op = String(operation.op || '').trim();
+  project.contentItems = project.contentItems || [];
+  if (op === 'updateTitle') {
+    if (operation.title) project.title = cleanInlineText(operation.title, 200);
+    if (Object.prototype.hasOwnProperty.call(operation, 'subtitle')) project.subtitle = cleanInlineText(operation.subtitle, 220);
+    return 'Updated the page headline.';
+  }
+  if (op === 'resizeHeadline') {
+    const current = Number(project.titleFontSize) || 82;
+    project.titleFontSize = operation.size ? Math.max(28, Math.min(120, Number(operation.size))) : Math.max(28, Math.round(current * (operation.scale || 0.82)));
+    return 'Resized the headline.';
+  }
+  if (op === 'replaceText' && operation.find && operation.replace) {
+    applyTextReplacementsToProject(project, [{ find: operation.find, replace: operation.replace }]);
+    return 'Replaced matching page text.';
+  }
+  if (op === 'splitCredits') {
+    return applyCreditLineBreakEdit(project, operation.text || prompt);
+  }
+  if (op === 'insertText' && operation.text) {
+    project.contentItems.unshift({
+      type: 'text',
+      order: 0,
+      tag: 'p',
+      text: operation.text,
+      fontSize: 22,
+      align: ['left', 'center', 'right'].includes(operation.align) ? operation.align : 'center',
+      preserveLineBreaks: operation.text.includes('\n')
+    });
+    return 'Added a text section.';
+  }
+  if (op === 'setPageLayout') {
+    const layout = ['editorial', 'gallery', 'case-study', 'video-led', 'minimal'].includes(operation.layout) ? operation.layout : 'editorial';
+    project.aiLayout = layout;
+    project.pageStyle = project.pageStyle || {};
+    if (layout === 'editorial') project.pageStyle.contentWidth = 1040;
+    if (layout === 'gallery') project.pageStyle.contentWidth = 1280;
+    if (layout === 'minimal') project.pageStyle.contentWidth = 900;
+    return `Changed the page layout to ${layout}.`;
+  }
+  if (op === 'setMediaTreatment') {
+    return setMediaTreatment(project, operation.target || 'first-media', operation.treatment || 'full-width') ? 'Changed media sizing and treatment.' : '';
+  }
+  if (op === 'reorderBlocks') {
+    project.contentItems.sort((a, b) => mediaRank(a) - mediaRank(b));
+    return 'Reordered the page blocks.';
+  }
+  if (op === 'groupImagesIntoSlider') {
+    const imageIndexes = project.contentItems.filter(item => item.type === 'image' && Number.isInteger(item.imageIndex)).map(item => item.imageIndex);
+    if (imageIndexes.length < 2) return '';
+    project.contentItems = [
+      { type: 'gallery', order: 1, imageIndexes: [...new Set(imageIndexes)] },
+      ...project.contentItems.filter(item => item.type !== 'image')
+    ];
+    return 'Grouped images into a slider.';
+  }
+  if (op === 'setColors') {
+    project.pageStyle = project.pageStyle || {};
+    if (/^#[0-9a-f]{3,8}$/i.test(operation.backgroundColor || '')) project.pageStyle.backgroundColor = operation.backgroundColor;
+    if (/^#[0-9a-f]{3,8}$/i.test(operation.textColor || '')) project.pageStyle.textColor = operation.textColor;
+    return 'Updated page colors.';
+  }
+  return '';
+}
+
+function applyPageOperations(project, plan = {}, prompt = '') {
+  const applied = [];
+  for (const operation of plan.operations || []) {
+    const message = applyPageOperation(project, operation, prompt);
+    if (message) applied.push(message);
+  }
+  if (applied.length) {
+    project.contentItems = (project.contentItems || []).map((item, index) => ({ ...item, order: index + 1 }));
+    project.cleaned = null;
+  }
+  return applied;
+}
+
 function applyAiEditToProject(project, edit) {
   const previousTitle = project.title || '';
   applyTextReplacementsToProject(project, edit.replaceText || []);
@@ -601,6 +729,106 @@ function mediaKindForUpload(file) {
   return '';
 }
 
+async function moveUploadedPortfolioAsset(id, file) {
+  const kind = mediaKindForUpload(file);
+  if (!kind) {
+    await fs.remove(file.path).catch(() => {});
+    return null;
+  }
+  const assetsDir = path.join(jobDir(id), 'assets-imported');
+  await fs.ensureDir(assetsDir);
+  const fileName = uploadedAssetName(file);
+  await fs.move(file.path, path.join(assetsDir, fileName), { overwrite: true });
+  return {
+    kind,
+    src: `assets/imported/${fileName}`,
+    fileName,
+    original: file.originalname || fileName
+  };
+}
+
+async function createProjectFromUploads(id, manifest, { title, prompt, files = [] } = {}) {
+  const projectTitle = cleanInlineText(title || titleFromPrompt(prompt), 160) || 'New campaign';
+  const project = {
+    title: projectTitle,
+    subtitle: '',
+    slug: uniqueProjectSlug(manifest, projectTitle),
+    url: '',
+    sourcePlatform: 'ai-editor',
+    images: [],
+    videos: [],
+    audios: [],
+    documents: [],
+    contentItems: [],
+    aiLayout: 'editorial',
+    pageStyle: { contentWidth: 1040 },
+    importedAt: new Date().toISOString()
+  };
+  const contentItems = [];
+  for (const file of files) {
+    const moved = await moveUploadedPortfolioAsset(id, file);
+    if (!moved) continue;
+    const order = contentItems.length + 1;
+    if (moved.kind === 'image') {
+      const imageIndex = project.images.push({
+        src: moved.src,
+        localFile: moved.fileName,
+        alt: projectTitle,
+        original: moved.original,
+        order
+      }) - 1;
+      if (!project.thumbnail) project.thumbnail = { src: moved.src, original: moved.original };
+      contentItems.push({ type: 'image', order, imageIndex, original: moved.original, treatment: order === 1 ? 'hero' : 'contained' });
+    } else if (moved.kind === 'video') {
+      const videoIndex = project.videos.push({
+        kind: 'video',
+        type: 'video',
+        src: moved.src,
+        localFile: moved.fileName,
+        title: projectTitle,
+        original: moved.original,
+        order
+      }) - 1;
+      contentItems.push({ type: 'video', order, videoIndex, original: moved.original, treatment: order === 1 ? 'hero' : 'contained' });
+    } else if (moved.kind === 'audio') {
+      const audioIndex = project.audios.push({
+        kind: 'audio',
+        type: 'audio',
+        src: moved.src,
+        localFile: moved.fileName,
+        title: moved.original,
+        original: moved.original,
+        order
+      }) - 1;
+      contentItems.push({ type: 'audio', order, audioIndex, original: moved.original });
+    } else if (moved.kind === 'document') {
+      const documentIndex = project.documents.push({
+        src: moved.src,
+        localFile: moved.fileName,
+        title: moved.original,
+        original: moved.original,
+        order
+      }) - 1;
+      contentItems.push({ type: 'document', order, documentIndex, original: moved.original });
+    }
+  }
+  const description = String(prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
+  if (description) {
+    contentItems.push({
+      type: 'text',
+      order: contentItems.length + 1,
+      tag: 'p',
+      text: description,
+      preserveLineBreaks: true,
+      align: 'left',
+      fontSize: 18
+    });
+  }
+  project.contentItems = contentItems;
+  if (!project.thumbnail && project.images[0]) project.thumbnail = { src: project.images[0].src, original: project.images[0].original };
+  return project;
+}
+
 function projectSummary(project, id) {
   return {
     title: project.title,
@@ -610,7 +838,8 @@ function projectSummary(project, id) {
     audios: (project.audios || []).length,
     documents: (project.documents || []).length,
     preview: `/generated/${id}/site/work/${project.slug}/index.html`,
-    editor: `/editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`
+    editor: `/ai-editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`,
+    manualEditor: `/editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`
   };
 }
 
@@ -625,7 +854,8 @@ function publicPortfolio(id, manifest, validation = null) {
     review: `/generated/${id}/site/import-review.html`,
     manifest: `/generated/${id}/manifest.json`,
     zip: `/api/download/${id}`,
-    editor: `/editor.html?job=${encodeURIComponent(id)}`,
+    editor: `/ai-editor.html?job=${encodeURIComponent(id)}`,
+    manualEditor: `/editor.html?job=${encodeURIComponent(id)}`,
     published: manifest.published || null,
     customDomain: manifest.customDomain || null,
     projects: (manifest.projects || []).map(project => projectSummary(project, id)),
@@ -643,7 +873,8 @@ function publicPortfolioListItem(id, manifest) {
     projectCount: (manifest.projects || []).length,
     preview: `/generated/${id}/site/index.html`,
     manage: `/manage.html?job=${encodeURIComponent(id)}`,
-    editor: `/editor.html?job=${encodeURIComponent(id)}`,
+    editor: `/ai-editor.html?job=${encodeURIComponent(id)}`,
+    manualEditor: `/editor.html?job=${encodeURIComponent(id)}`,
     zip: `/api/download/${id}`,
     published: manifest.published || null,
     customDomain: manifest.customDomain || null
@@ -799,6 +1030,64 @@ app.get('/api/editor/:id/pages', requireFirebaseAuth, async (req, res) => {
       }))
     ]
   });
+});
+
+app.post('/api/editor/:id/pages', requireFirebaseAuth, upload.array('files', 60), async (req, res) => {
+  const id = req.params.id;
+  const files = req.files || [];
+  const manifest = await readManifest(id);
+  if (!manifest) {
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+    return res.status(404).json({ error: 'Import not found.' });
+  }
+  if (!canAccessPortfolio(manifest, req.user)) {
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+    return res.status(403).json({ error: 'Not your portfolio.' });
+  }
+  const title = cleanInlineText(req.body?.title || '', 160);
+  const prompt = String(req.body?.prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
+  if (!title && !prompt && !files.length) {
+    return res.status(400).json({ error: 'Add a campaign title, prompt, or files.' });
+  }
+  try {
+    const project = await createProjectFromUploads(id, manifest, { title, prompt, files });
+    manifest.projects = manifest.projects || [];
+    manifest.projects.push(project);
+    manifest.homeOverride = true;
+    const buildPrompt = prompt
+      ? `Make this new campaign page portfolio-ready. Preserve all campaign facts from the campaign info.\n\nCampaign info:\n${prompt}`
+      : 'Make this new campaign page portfolio-ready.';
+    const plan = await planPageOperationsWithAI({
+      prompt: buildPrompt,
+      page: { kind: 'project', ...publicProject(project) },
+      manifest
+    });
+    if (prompt && Array.isArray(plan.operations)) {
+      const promptKey = compactForMatch(prompt);
+      plan.operations = plan.operations.filter(op => op?.op !== 'insertText' || !promptKey.includes(compactForMatch(op.text || '').slice(0, 120)));
+    }
+    applyPageOperations(project, plan, buildPrompt);
+    const validation = await saveManifestAndRebuild(id, manifest);
+    res.json({
+      ok: true,
+      message: `Created ${project.title}.`,
+      validation,
+      page: publicProject(project),
+      pages: [
+        { slug: 'home', title: 'Home page', kind: 'home', preview: `/generated/${id}/site/index.html` },
+        ...(manifest.projects || []).map(p => ({
+          slug: p.slug,
+          title: p.title,
+          kind: 'project',
+          preview: `/generated/${id}/site/work/${p.slug}/index.html`
+        }))
+      ],
+      preview: `/generated/${id}/site/work/${project.slug}/index.html`
+    });
+  } catch (err) {
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+    res.status(500).json({ error: err.message || 'Could not create the page.' });
+  }
 });
 
 app.get('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => {
@@ -1003,18 +1292,20 @@ app.post('/api/editor/:id/pages/:slug/ai-edit', requireFirebaseAuth, async (req,
   if (!project) return res.status(404).json({ error: 'Page not found.' });
   const before = publicProject(project);
   const uploadedAssets = Array.isArray(req.body?.uploadedAssets) ? req.body.uploadedAssets : [];
-  const directMessage = applyDirectAiEdit(project, prompt);
-  const edit = directMessage
-    ? { message: directMessage, replaceText: [] }
-    : uploadedAssets.length && /^place the uploaded ads on this page/i.test(prompt)
-      ? { message: `Added ${uploadedAssets.length} uploaded file${uploadedAssets.length === 1 ? '' : 's'} to the page.`, replaceText: [] }
-      : await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
-  if (!directMessage) applyAiEditToProject(project, edit);
+  const plan = uploadedAssets.length && /^place the uploaded ads on this page/i.test(prompt)
+    ? { message: `Added ${uploadedAssets.length} uploaded file${uploadedAssets.length === 1 ? '' : 's'} to the page.`, operations: [] }
+    : await planPageOperationsWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
+  const applied = applyPageOperations(project, plan, prompt);
+  if (!applied.length && !uploadedAssets.length) {
+    const edit = await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
+    applyAiEditToProject(project, edit);
+    applied.push(edit.message || 'Applied the requested edit.');
+  }
   const validation = await saveManifestAndRebuild(id, manifest);
   res.json({
     ok: true,
-    message: edit.message,
-    changes: edit,
+    message: applied.length ? applied.join(' ') : plan.message,
+    changes: { operations: plan.operations || [], applied },
     before,
     validation,
     page: publicProject(project),
@@ -1038,13 +1329,13 @@ function sanitizeContentItems(items, project) {
     if (item.type === 'image' && Number.isInteger(item.imageIndex) && item.imageIndex >= 0 && item.imageIndex < imageMax) {
       const alt = String(item.alt || '').slice(0, 500);
       if (alt && project.images?.[item.imageIndex]) project.images[item.imageIndex].alt = alt;
-      safe.push({ type: 'image', order, alt, imageIndex: item.imageIndex, original: item.original || project.images[item.imageIndex]?.original || '' });
+      safe.push({ type: 'image', order, alt, imageIndex: item.imageIndex, original: item.original || project.images[item.imageIndex]?.original || '', ...sanitizedTreatmentObject(item) });
       return;
     }
     if (item.type === 'video' && Number.isInteger(item.videoIndex) && item.videoIndex >= 0 && item.videoIndex < videoMax) {
       const title = String(item.title || '').slice(0, 500);
       if (title && project.videos?.[item.videoIndex]) project.videos[item.videoIndex].title = title;
-      safe.push({ type: 'video', order, title, videoIndex: item.videoIndex, original: item.original || project.videos[item.videoIndex]?.original || '' });
+      safe.push({ type: 'video', order, title, videoIndex: item.videoIndex, original: item.original || project.videos[item.videoIndex]?.original || '', ...sanitizedTreatmentObject(item) });
       return;
     }
     if (item.type === 'audio' && Number.isInteger(item.audioIndex) && item.audioIndex >= 0 && item.audioIndex < audioMax) {
@@ -1056,15 +1347,19 @@ function sanitizeContentItems(items, project) {
     if (item.type === 'document' && Number.isInteger(item.documentIndex) && item.documentIndex >= 0 && item.documentIndex < documentMax) {
       const title = String(item.title || '').slice(0, 500);
       if (title && project.documents?.[item.documentIndex]) project.documents[item.documentIndex].title = title;
-      safe.push({ type: 'document', order, title, documentIndex: item.documentIndex, original: item.original || project.documents[item.documentIndex]?.original || '' });
+      safe.push({ type: 'document', order, title, documentIndex: item.documentIndex, original: item.original || project.documents[item.documentIndex]?.original || '', ...sanitizedTreatmentObject(item) });
       return;
     }
     if (item.type === 'gallery' && Array.isArray(item.imageIndexes)) {
       const imageIndexes = item.imageIndexes.filter(n => Number.isInteger(n) && n >= 0 && n < imageMax);
-      if (imageIndexes.length) safe.push({ type: 'gallery', order, imageIndexes, originals: imageIndexes.map(n => project.images[n]?.original || '') });
+      if (imageIndexes.length) safe.push({ type: 'gallery', order, imageIndexes, originals: imageIndexes.map(n => project.images[n]?.original || ''), ...sanitizedTreatmentObject(item) });
     }
   });
   return safe;
+}
+
+function sanitizedTreatmentObject(item = {}) {
+  return ['hero', 'full-width', 'contained'].includes(item.treatment) ? { treatment: item.treatment } : {};
 }
 
 function sanitizeTextStyle(item = {}) {
@@ -1122,6 +1417,9 @@ app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => 
   if (title) project.title = title;
   if (Number.isFinite(Number(req.body?.titleFontSize))) {
     project.titleFontSize = Math.max(0, Math.min(120, Number(req.body.titleFontSize) || 0));
+  }
+  if (typeof req.body?.aiLayout === 'string') {
+    project.aiLayout = ['editorial', 'gallery', 'case-study', 'video-led', 'minimal'].includes(req.body.aiLayout) ? req.body.aiLayout : '';
   }
   if (Object.prototype.hasOwnProperty.call(req.body || {}, 'subtitle')) {
     project.subtitle = String(req.body?.subtitle || '').replace(/\s+/g, ' ').trim().slice(0, 220);

@@ -149,6 +149,144 @@ Rules:
   }
 }
 
+function normalizeOperations(result = {}, prompt = '', page = {}) {
+  const rawOps = Array.isArray(result.operations) ? result.operations : [];
+  const operations = rawOps.map(op => {
+    const type = String(op?.op || op?.type || '').trim();
+    if (!type) return null;
+    return {
+      op: type,
+      title: String(op.title || '').trim().slice(0, 200),
+      subtitle: String(op.subtitle || '').trim().slice(0, 220),
+      text: String(op.text || '').replace(/\r/g, '\n').trim().slice(0, 4000),
+      find: String(op.find || '').trim().slice(0, 800),
+      replace: String(op.replace || '').trim().slice(0, 4000),
+      layout: String(op.layout || '').trim(),
+      treatment: String(op.treatment || '').trim(),
+      target: String(op.target || '').trim(),
+      blockIndex: Number.isInteger(op.blockIndex) ? op.blockIndex : Number.isInteger(op.index) ? op.index : null,
+      scale: Number.isFinite(Number(op.scale)) ? Number(op.scale) : null,
+      size: Number.isFinite(Number(op.size)) ? Number(op.size) : null,
+      align: String(op.align || '').trim(),
+      backgroundColor: String(op.backgroundColor || '').trim(),
+      textColor: String(op.textColor || '').trim()
+    };
+  }).filter(Boolean).slice(0, 12);
+  if (!operations.length) return fallbackOperations(prompt, page);
+  return {
+    message: String(result.message || 'Applied the requested page edits.').replace(/\s+/g, ' ').trim().slice(0, 500),
+    operations
+  };
+}
+
+function fallbackOperations(prompt = '', page = {}) {
+  const text = String(prompt || '');
+  const operations = [];
+  const splitSource = splitTitleParts(text.match(/["“']([^"”']+?\s*(?:[-–—|:])\s*[^"”']+)["”']/)?.[1] || page.title || '');
+  if (/\b(break|split|separate|line break|new line)\b/i.test(text) && splitSource && /\b(headline|title|subhead|subhead)\b/i.test(text)) {
+    operations.push({ op: 'updateTitle', title: splitSource.title, subtitle: splitSource.subtitle });
+  }
+  if (/\b(headline|title)\b/i.test(text) && /\b(reduce|smaller|decrease|lower|shrink)\b/i.test(text) && /\b(font|size)\b/i.test(text)) {
+    operations.push({ op: 'resizeHeadline', scale: 0.78 });
+  }
+  if (/\b(break|separate|split|line by line|vertically)\b/i.test(text) && /\b(agency|creative director|credits|producer|dop|production house)\b/i.test(text)) {
+    operations.push({ op: 'splitCredits', text });
+  }
+  if (/\b(premium|portfolio-ready|beautiful|polish|high.end|better design)\b/i.test(text)) {
+    operations.push({ op: 'setPageLayout', layout: 'editorial' });
+    operations.push({ op: 'setMediaTreatment', target: 'first-media', treatment: 'hero' });
+  }
+  if (/\b(reorder|strongest|best|first)\b/i.test(text)) operations.push({ op: 'reorderBlocks', target: 'strongest-first' });
+  if (!operations.length && text.trim()) operations.push({ op: 'insertText', text: text.trim(), align: 'center' });
+  return {
+    message: operations.length === 1 && operations[0].op === 'insertText'
+      ? 'Added your prompt as an editable text block.'
+      : 'Applied the requested page edits.',
+    operations
+  };
+}
+
+export async function planPageOperationsWithAI({ prompt, page, manifest }, { model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}) {
+  const fallback = () => fallbackOperations(prompt, page);
+  if (!process.env.OPENAI_API_KEY) return fallback();
+
+  const payload = {
+    prompt,
+    page: {
+      kind: page.kind || 'project',
+      title: page.title || '',
+      subtitle: page.subtitle || '',
+      layout: page.aiLayout || '',
+      titleFontSize: page.titleFontSize || 0,
+      contentItems: (page.contentItems || []).map((item, index) => ({
+        index,
+        type: item.type,
+        text: item.type === 'text' ? item.text : '',
+        treatment: item.treatment || '',
+        imageIndex: item.imageIndex,
+        videoIndex: item.videoIndex
+      })).slice(0, 80)
+    },
+    portfolio: {
+      ownerName: manifest.ownerName || '',
+      siteTitle: manifest.siteTitle || '',
+      sourcePlatform: manifest.sourcePlatform || ''
+    }
+  };
+  const system = `You are KillaWork AI, a professional portfolio webpage editor.
+Return JSON only. Do not include markdown.
+
+Return:
+{
+  "message": "short summary of what will change",
+  "operations": [
+    { "op": "updateTitle", "title": "", "subtitle": "" },
+    { "op": "resizeHeadline", "scale": 0.8 },
+    { "op": "replaceText", "find": "exact text", "replace": "replacement" },
+    { "op": "splitCredits", "text": "credits text from prompt or page" },
+    { "op": "insertText", "text": "", "align": "left|center|right" },
+    { "op": "setPageLayout", "layout": "editorial|gallery|case-study|video-led|minimal" },
+    { "op": "setMediaTreatment", "target": "first-media|all-images|all-media", "treatment": "hero|full-width|contained" },
+    { "op": "reorderBlocks", "target": "strongest-first" },
+    { "op": "groupImagesIntoSlider" },
+    { "op": "setColors", "backgroundColor": "#000000", "textColor": "#ffffff" }
+  ]
+}
+
+Rules:
+- Use operations, not prose, to make changes.
+- Never claim a change unless it is represented by an operation.
+- Prefer specific operations over insertText.
+- For credits, use splitCredits.
+- For visual polish, use setPageLayout plus setMediaTreatment.
+- For headline size, use resizeHeadline.
+- Do not invent facts, awards, clients, or media.`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.12,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: JSON.stringify(payload) }
+        ]
+      })
+    });
+    if (!res.ok) return fallback();
+    const data = await res.json();
+    return normalizeOperations(jsonFromText(data.choices?.[0]?.message?.content || '{}'), prompt, page);
+  } catch {
+    return fallback();
+  }
+}
+
 function normalizeCleaned(cleaned, project) {
   const isPlaceholder = (value) => /^(optional|brand|campaign|agency|award|publication|date|client)$/i.test(String(value || '').trim());
   const imgMax = (project.images || []).length;
