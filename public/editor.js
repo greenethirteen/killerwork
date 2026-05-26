@@ -44,6 +44,7 @@ let pendingGalleryIndex = -1;
 let undoStack = [];
 let redoStack = [];
 let restoringHistory = false;
+let loadPageSeq = 0;
 
 async function authHeaders() {
   const token = await window.KillerWorkAuth.requireToken();
@@ -215,7 +216,7 @@ function triggerUpload(kind, mode = 'replace') {
 function mediaPreview(item) {
   if (item.type === 'home-card') {
     const src = assetUrl({ src: item.thumb });
-    return `<a class="editor-home-card-preview" href="${escapeHtml(item.url || '#')}" target="_blank">${src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.title || 'Project')}">` : '<div class="canvas-placeholder">No thumbnail</div>'}<span>${escapeHtml(item.title || 'Untitled project')}</span></a>`;
+    return `<a class="editor-home-card-preview" href="${escapeHtml(item.url || '#')}" target="_blank">${src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.title || 'Project')}" loading="lazy" decoding="async">` : '<div class="canvas-placeholder">No thumbnail</div>'}<span>${escapeHtml(item.title || 'Untitled project')}</span></a>`;
   }
   if (item.type === 'image') {
     const img = imageAsset(item);
@@ -724,10 +725,12 @@ async function uploadMedia(files) {
 
 async function loadPage(slug) {
   if (dirty && !confirm('Discard unsaved changes on this page?')) return;
+  const seq = ++loadPageSeq;
   currentSlug = slug;
   selectedIndex = -1;
   dirty = false;
   setStatus('Loading page...');
+  [...pageList.querySelectorAll('button')].forEach(btn => btn.classList.toggle('active', btn.dataset.slug === slug));
   let headers;
   try {
     headers = await authHeaders();
@@ -736,7 +739,9 @@ async function loadPage(slug) {
     return;
   }
   const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(slug)}`, { headers });
-  currentPage = await res.json();
+  const pageData = await res.json();
+  if (seq !== loadPageSeq) return;
+  currentPage = pageData;
   if (!res.ok) {
     setStatus(currentPage.error || 'Could not load page.', 'error');
     return;
@@ -754,7 +759,6 @@ async function loadPage(slug) {
   undoStack = [];
   redoStack = [];
   updateHistoryButtons();
-  [...pageList.querySelectorAll('button')].forEach(btn => btn.classList.toggle('active', btn.dataset.slug === slug));
   renderCanvas();
   renderInspector();
   setDirty(false);
@@ -794,7 +798,10 @@ async function loadPages() {
   });
   const requestedPage = params.get('page');
   if (requestedPage && pages.some(page => page.slug === requestedPage)) loadPage(requestedPage);
-  else if (pages[0]) loadPage(pages[0].slug);
+  else {
+    const firstProject = pages.find(page => page.slug !== 'home') || pages[0];
+    if (firstProject) loadPage(firstProject.slug);
+  }
 }
 
 titleInput.addEventListener('focus', () => recordHistory());

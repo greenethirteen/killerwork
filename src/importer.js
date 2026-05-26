@@ -71,6 +71,46 @@ function styleTag(css = '') {
   return safeCss ? `<style>${safeCss}</style>` : '';
 }
 
+function absolutizeCssUrls(css = '', cssUrl = '') {
+  return String(css || '').replace(/url\((['"]?)(?!data:|https?:|\/\/|#)([^'")]+)\1\)/gi, (match, quote, raw) => {
+    try {
+      return `url("${new URL(raw.trim(), cssUrl).href}")`;
+    } catch {
+      return match;
+    }
+  });
+}
+
+async function localizeCssImports(css = '', pageDepth = 0, assetsDir = '', progress, cache = new Map()) {
+  const input = String(css || '');
+  const importPattern = /@import\s+url\((['"]?)(https?:\/\/[^'")]+)\1\)\s*;/gi;
+  const imports = [...input.matchAll(importPattern)];
+  if (!imports.length || !assetsDir) return input;
+  let out = input;
+  await fs.ensureDir(assetsDir);
+  for (const match of imports) {
+    const url = match[2];
+    try {
+      let fileName = cache.get(url);
+      if (!fileName) {
+        const res = await fetch(url, { redirect: 'follow' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const contentType = res.headers.get('content-type') || '';
+        if (!/css|text\/plain/i.test(contentType)) throw new Error(`Unexpected ${contentType || 'content type'}`);
+        const body = absolutizeCssUrls(await res.text(), url).replace(/<\/style/gi, '<\\/style');
+        fileName = `${hash(url)}-${path.basename(new URL(url).pathname).replace(/[^a-z0-9._-]/gi, '').slice(-70) || 'source'}.css`;
+        await fs.writeFile(path.join(assetsDir, fileName), body);
+        cache.set(url, fileName);
+      }
+      const local = `${'../'.repeat(pageDepth)}assets/imported/${fileName}`;
+      out = out.replace(match[0], `@import url("${local}");`);
+    } catch (e) {
+      progress?.('CSS import kept remote', `${url} — ${e.message}`);
+    }
+  }
+  return out;
+}
+
 function cleanTitle(title = '', owner = '') {
   let t = String(title || '').replace(/\s*[—|-]\s*Abdullah.*$/i, '').replace(/\s*—\s*Imported Portfolio$/i, '').trim();
   if (owner) t = t.replace(new RegExp(`\\s*[—|-]\\s*${owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*$`, 'i'), '').trim();
@@ -2386,6 +2426,13 @@ function renderAboutPage(manifest) {
 export async function generateSite(manifest, outDir, progress) {
   const siteDir = path.join(outDir, 'site');
   const stagingAssetsDir = path.join(outDir, 'assets-imported');
+  await fs.ensureDir(stagingAssetsDir);
+  const cssCache = new Map();
+  if (manifest.sourceHome?.sourceCss) manifest.sourceHome.sourceCss = await localizeCssImports(manifest.sourceHome.sourceCss, 0, stagingAssetsDir, progress, cssCache);
+  if (manifest.sourceAbout?.sourceCss) manifest.sourceAbout.sourceCss = await localizeCssImports(manifest.sourceAbout.sourceCss, 0, stagingAssetsDir, progress, cssCache);
+  for (const project of manifest.projects || []) {
+    if (project.sourceCss) project.sourceCss = await localizeCssImports(project.sourceCss, 2, stagingAssetsDir, progress, cssCache);
+  }
   await fs.remove(siteDir);
   await fs.ensureDir(path.join(siteDir, 'assets', 'imported'));
   // IMPORTANT: Assets are downloaded to a staging folder outside /site.
