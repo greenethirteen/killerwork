@@ -8,23 +8,41 @@
 </head>
 <body class="ai-editor-body">
   <main class="ai-editor-shell">
-    <iframe id="aiPreview" class="ai-preview" title="Live portfolio preview"></iframe>
-    <div id="aiPulse" class="ai-pulse hidden">Updating page</div>
-    <form id="aiPromptForm" class="ai-prompt-panel">
-      <div class="ai-prompt-top">
+    <aside class="ai-chat-sidebar" aria-label="AI website editor">
+      <div class="ai-sidebar-head">
         <a class="home-icon-button" href="/" aria-label="Home">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
             <path d="M3 10.8 12 3l9 7.8V21h-6v-6H9v6H3V10.8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
         </a>
-        <select id="aiPageSelect" aria-label="Page"></select>
-        <a id="classicEditorLink" class="button ghost" href="#">Editor</a>
+        <div class="ai-sidebar-title">
+          <span>KillaWork™ AI</span>
+          <strong>Website editor</strong>
+        </div>
       </div>
-      <label for="aiPrompt">AI Edit</label>
-      <textarea id="aiPrompt" rows="4" placeholder="Tell KillaWork™ what to change on this page. Example: add a short award note above the work, tighten the intro, or make the page feel more premium."></textarea>
-      <button id="aiApply" type="submit">Apply edit</button>
-      <p id="aiStatus" class="ai-status">Preview updates here after each prompt.</p>
-    </form>
+      <label class="ai-page-label" for="aiPageSelect">Page</label>
+      <select id="aiPageSelect" aria-label="Page"></select>
+      <div class="ai-tool-row">
+        <button id="aiUndo" type="button" class="button ghost" disabled>Undo</button>
+        <button id="aiRedo" type="button" class="button ghost" disabled>Redo</button>
+        <button id="aiSave" type="button" class="button secondary">Save</button>
+      </div>
+      <div class="ai-tool-row">
+        <a id="classicEditorLink" class="button ghost" href="#">Editor</a>
+        <a id="aiOpenPreview" class="button ghost" href="#" target="_blank" rel="noopener">Open</a>
+      </div>
+      <section id="aiChatLog" class="ai-chat-log" aria-live="polite"></section>
+      <form id="aiPromptForm" class="ai-chat-form">
+        <label for="aiPrompt">Prompt</label>
+        <textarea id="aiPrompt" rows="5" placeholder="Tell KillaWork™ what to change. Example: split Ikea - Sustainability into a headline and subhead, tighten the copy, or make this section feel more premium."></textarea>
+        <button id="aiApply" type="submit">Apply edit</button>
+        <p id="aiStatus" class="ai-status">Ask for an edit. The preview updates on the right.</p>
+      </form>
+    </aside>
+    <section class="ai-preview-stage">
+      <iframe id="aiPreview" class="ai-preview" title="Live portfolio preview"></iframe>
+    </section>
+    <div id="aiPulse" class="ai-pulse hidden">Updating page</div>
   </main>
   <script type="module">
     import('/auth.js?v=20260524-popup').then(() => import('/ai-editor.js'));

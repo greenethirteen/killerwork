@@ -6,6 +6,7 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
+import { planPageEditWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { hash } from './utils.js';
 
@@ -390,6 +391,7 @@ async function readManifest(id) {
 function publicProject(project) {
   return {
     title: project.title,
+    subtitle: project.subtitle || '',
     slug: project.slug,
     url: project.url,
     images: project.images || [],
@@ -415,6 +417,7 @@ function publicHomePage(manifest, id) {
   return {
     kind: 'home',
     title: manifest.homeTitle || manifest.ownerName || manifest.siteTitle || 'Home',
+    homeIntro: manifest.homeIntro || '',
     slug: 'home',
     url: manifest.sourceUrl || '',
     images: [],
@@ -427,6 +430,61 @@ function publicHomePage(manifest, id) {
 
 function cleanInlineText(value = '', max = 500) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function replaceAllText(value, replacements = []) {
+  let out = String(value || '');
+  for (const item of replacements) {
+    if (!item.find) continue;
+    out = out.split(item.find).join(item.replace);
+  }
+  return out;
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function applyTextReplacementsToProject(project, replacements = []) {
+  if (!replacements.length) return;
+  project.title = replaceAllText(project.title, replacements).replace(/\s+/g, ' ').trim();
+  project.subtitle = replaceAllText(project.subtitle || '', replacements).replace(/\s+/g, ' ').trim();
+  project.description = replaceAllText(project.description || '', replacements);
+  project.copyBlocks = (project.copyBlocks || []).map(block => ({ ...block, text: replaceAllText(block.text || '', replacements) }));
+  project.contentItems = (project.contentItems || []).map(item => (
+    item.type === 'text' ? { ...item, text: replaceAllText(item.text || '', replacements) } : item
+  ));
+  if (project.sourceCloneHtml) project.sourceCloneHtml = replaceAllText(project.sourceCloneHtml, replacements);
+}
+
+function applyAiEditToProject(project, edit) {
+  const previousTitle = project.title || '';
+  applyTextReplacementsToProject(project, edit.replaceText || []);
+  if (edit.title) project.title = edit.title;
+  if (edit.subtitle) project.subtitle = edit.subtitle;
+  if (project.sourceCloneHtml && edit.title && previousTitle && previousTitle !== project.title) {
+    const titleMarkup = edit.subtitle
+      ? `<span class="killerwork-ai-title">${escapeHtml(edit.title)}<br><span>${escapeHtml(edit.subtitle)}</span></span>`
+      : escapeHtml(edit.title);
+    project.sourceCloneHtml = replaceAllText(project.sourceCloneHtml, [
+      { find: previousTitle, replace: titleMarkup },
+      { find: escapeHtml(previousTitle), replace: titleMarkup }
+    ]);
+  }
+  if (edit.prependText) {
+    project.contentItems = project.contentItems || [];
+    project.contentItems.unshift({
+      type: 'text',
+      order: 0,
+      tag: 'p',
+      text: edit.prependText,
+      fontSize: 24,
+      bold: false,
+      align: 'center'
+    });
+  }
+  project.contentItems = (project.contentItems || []).map((item, index) => ({ ...item, order: index + 1 }));
+  project.cleaned = null;
 }
 
 function extensionForMime(type = '') {
@@ -837,28 +895,43 @@ app.post('/api/editor/:id/pages/:slug/ai-edit', requireFirebaseAuth, async (req,
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
 
   if (req.params.slug === 'home') {
-    manifest.homeIntro = prompt.replace(/\s+/g, ' ').slice(0, 280);
+    const before = publicHomePage(manifest, id);
+    const edit = await planPageEditWithAI({ prompt, page: before, manifest });
+    if (edit.homeTitle || edit.title) manifest.homeTitle = edit.homeTitle || edit.title;
+    if (edit.homeIntro || edit.prependText) manifest.homeIntro = edit.homeIntro || edit.prependText.replace(/\s+/g, ' ').slice(0, 500);
+    if (edit.replaceText?.length) {
+      manifest.homeTitle = replaceAllText(manifest.homeTitle || manifest.ownerName || '', edit.replaceText).replace(/\s+/g, ' ').trim();
+      manifest.homeIntro = replaceAllText(manifest.homeIntro || '', edit.replaceText).replace(/\s+/g, ' ').trim();
+      for (const project of manifest.projects || []) project.title = replaceAllText(project.title || '', edit.replaceText).replace(/\s+/g, ' ').trim();
+    }
     manifest.homeOverride = true;
     const validation = await saveManifestAndRebuild(id, manifest);
-    return res.json({ ok: true, validation, page: publicHomePage(manifest, id), preview: `/generated/${id}/site/index.html` });
+    return res.json({
+      ok: true,
+      message: edit.message,
+      changes: edit,
+      before,
+      validation,
+      page: publicHomePage(manifest, id),
+      preview: `/generated/${id}/site/index.html`
+    });
   }
 
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
-  project.contentItems = project.contentItems || [];
-  project.contentItems.unshift({
-    type: 'text',
-    order: 0,
-    tag: 'p',
-    text: prompt,
-    fontSize: 24,
-    bold: false,
-    align: 'center'
-  });
-  project.contentItems = project.contentItems.map((item, index) => ({ ...item, order: index + 1 }));
-  project.cleaned = null;
+  const before = publicProject(project);
+  const edit = await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
+  applyAiEditToProject(project, edit);
   const validation = await saveManifestAndRebuild(id, manifest);
-  res.json({ ok: true, validation, page: publicProject(project), preview: `/generated/${id}/site/work/${project.slug}/index.html` });
+  res.json({
+    ok: true,
+    message: edit.message,
+    changes: edit,
+    before,
+    validation,
+    page: publicProject(project),
+    preview: `/generated/${id}/site/work/${project.slug}/index.html`
+  });
 });
 
 function sanitizeContentItems(items, project) {
@@ -948,11 +1021,20 @@ app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => 
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Import not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  if (req.params.slug === 'home') {
+    applyHomeEdit(manifest, req.body || {});
+    if (typeof req.body?.homeIntro === 'string') manifest.homeIntro = req.body.homeIntro.replace(/\s+/g, ' ').trim().slice(0, 500);
+    const validation = await saveManifestAndRebuild(id, manifest);
+    return res.json({ ok: true, validation, page: publicHomePage(manifest, id), preview: `/generated/${id}/site/index.html` });
+  }
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
 
   const title = String(req.body?.title || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   if (title) project.title = title;
+  if (Object.prototype.hasOwnProperty.call(req.body || {}, 'subtitle')) {
+    project.subtitle = String(req.body?.subtitle || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+  }
   if (Array.isArray(req.body?.contentItems)) {
     project.contentItems = sanitizeContentItems(req.body.contentItems, project);
     project.cleaned = null;

@@ -14,3 +14,5 @@
 @media(max-width:780px){.about-editorial{grid-template-columns:1fr}.about-image-wrap{position:static}.about-portrait{max-height:560px}.about-contact{display:grid}}
 html,body{max-width:100%;overflow-x:hidden}.source-exact,.source-home{margin:0}.source-exact-page,.source-home-page{width:100%;max-width:100%;overflow-x:hidden}
 .killerwork-source-video{width:100%;background:#000}.killerwork-source-video video,.killerwork-source-video iframe{display:block;width:100%;aspect-ratio:16/9;height:auto;border:0;background:#000}
+.project-subhead{margin:10px 0 0;color:var(--muted);font-size:clamp(24px,3.2vw,44px);line-height:1.05;font-weight:700}
+.killerwork-ai-title{display:inline-block;line-height:1.05}.killerwork-ai-title span{display:inline-block;opacity:.72;font-size:.68em;font-weight:600}

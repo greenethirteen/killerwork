@@ -1,6 +1,9 @@
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job') || localStorage.getItem('killerwork:lastJobId') || '';
 let currentSlug = params.get('page') || 'home';
+let currentPage = null;
+const undoStack = [];
+const redoStack = [];
 
 const preview = document.getElementById('aiPreview');
 const form = document.getElementById('aiPromptForm');
@@ -9,7 +12,12 @@ const applyButton = document.getElementById('aiApply');
 const statusBox = document.getElementById('aiStatus');
 const pageSelect = document.getElementById('aiPageSelect');
 const editorLink = document.getElementById('classicEditorLink');
+const openPreviewLink = document.getElementById('aiOpenPreview');
 const pulse = document.getElementById('aiPulse');
+const chatLog = document.getElementById('aiChatLog');
+const undoButton = document.getElementById('aiUndo');
+const redoButton = document.getElementById('aiRedo');
+const saveButton = document.getElementById('aiSave');
 
 function setStatus(text, tone = '') {
   statusBox.textContent = text;
@@ -21,21 +29,78 @@ async function authHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
-function previewUrl(slug = currentSlug) {
+function previewUrl(slug = currentSlug, bust = true) {
   const base = slug === 'home'
     ? `/generated/${jobId}/site/index.html`
     : `/generated/${jobId}/site/work/${encodeURIComponent(slug)}/index.html`;
-  return `${base}?v=${Date.now()}`;
+  return bust ? `${base}?v=${Date.now()}` : base;
+}
+
+function updateHistoryButtons() {
+  undoButton.disabled = !undoStack.length;
+  redoButton.disabled = !redoStack.length;
+}
+
+function pageSnapshot(page = currentPage) {
+  if (!page) return null;
+  return JSON.parse(JSON.stringify({
+    title: page.title || '',
+    subtitle: page.subtitle || '',
+    homeIntro: page.homeIntro || '',
+    contentItems: page.contentItems || []
+  }));
+}
+
+function addMessage(role, text, pending = false) {
+  const item = document.createElement('article');
+  item.className = `ai-message ${role}${pending ? ' pending' : ''}`;
+  item.innerHTML = `<span>${role === 'user' ? 'You' : 'KillaWork™ AI'}</span><p></p>`;
+  item.querySelector('p').textContent = text;
+  chatLog.appendChild(item);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return item;
 }
 
 function refreshPreview() {
-  preview.src = previewUrl();
+  const url = previewUrl();
+  preview.src = url;
   editorLink.href = `/editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug)}`;
+  openPreviewLink.href = previewUrl(currentSlug, false);
 }
 
-function showPulse() {
+function showPulse(text = 'Updating page') {
+  pulse.textContent = text;
   pulse.classList.remove('hidden');
   setTimeout(() => pulse.classList.add('hidden'), 1300);
+}
+
+async function fetchPage() {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Could not load this page.');
+  currentPage = data;
+  return data;
+}
+
+async function restorePage(snapshot) {
+  if (!snapshot) return;
+  const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+  const body = {
+    title: snapshot.title,
+    subtitle: snapshot.subtitle,
+    homeIntro: snapshot.homeIntro,
+    contentItems: snapshot.contentItems
+  };
+  const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Could not restore page.');
+  currentPage = data.page;
+  refreshPreview();
 }
 
 async function loadPages() {
@@ -65,18 +130,32 @@ async function loadPages() {
   }
   if (![...pageSelect.options].some(option => option.value === currentSlug)) currentSlug = 'home';
   pageSelect.value = currentSlug;
+  await fetchPage();
   refreshPreview();
   const savedPrompt = sessionStorage.getItem('killerwork:aiPrompt') || '';
   if (savedPrompt) {
     promptBox.value = savedPrompt;
     sessionStorage.removeItem('killerwork:aiPrompt');
   }
+  addMessage('assistant', 'I can edit this page directly. Ask for copy, structure, title, ordering, or styling changes and I’ll update the preview here.');
+  updateHistoryButtons();
 }
 
-pageSelect.addEventListener('change', () => {
+pageSelect.addEventListener('change', async () => {
   currentSlug = pageSelect.value;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  updateHistoryButtons();
   history.replaceState(null, '', `/ai-editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug)}`);
-  refreshPreview();
+  setStatus('Loading page...');
+  try {
+    await fetchPage();
+    refreshPreview();
+    addMessage('assistant', `Switched to ${pageSelect.selectedOptions[0]?.textContent || currentSlug}.`);
+    setStatus('Page loaded.', 'ok');
+  } catch (err) {
+    setStatus(err.message || 'Could not load page.', 'error');
+  }
 });
 
 form.addEventListener('submit', async event => {
@@ -89,8 +168,11 @@ form.addEventListener('submit', async event => {
   applyButton.disabled = true;
   applyButton.textContent = 'Applying...';
   setStatus('Applying edit and rebuilding preview...');
-  showPulse();
+  showPulse('Applying edit');
+  addMessage('user', prompt);
+  const pending = addMessage('assistant', 'Working on it...', true);
   try {
+    const before = pageSnapshot(await fetchPage());
     const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
     const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}/ai-edit`, {
       method: 'POST',
@@ -99,15 +181,62 @@ form.addEventListener('submit', async event => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'AI edit failed.');
+    if (before) undoStack.push(before);
+    redoStack.length = 0;
+    currentPage = data.page;
     promptBox.value = '';
     refreshPreview();
-    setStatus('Edit applied. The live preview has been refreshed.', 'ok');
+    pending.classList.remove('pending');
+    pending.querySelector('p').textContent = data.message || 'Edit applied. The live preview has been refreshed.';
+    setStatus('Saved. Preview refreshed.', 'ok');
+    updateHistoryButtons();
   } catch (err) {
+    pending.classList.remove('pending');
+    pending.querySelector('p').textContent = err.message || 'AI edit failed.';
     setStatus(err.message || 'AI edit failed.', 'error');
   } finally {
     applyButton.disabled = false;
     applyButton.textContent = 'Apply edit';
   }
+});
+
+undoButton.addEventListener('click', async () => {
+  if (!undoStack.length) return;
+  const target = undoStack.pop();
+  const current = pageSnapshot(await fetchPage().catch(() => currentPage));
+  if (current) redoStack.push(current);
+  showPulse('Undo');
+  try {
+    await restorePage(target);
+    addMessage('assistant', 'Undid the last edit and refreshed the preview.');
+    setStatus('Undo complete.', 'ok');
+  } catch (err) {
+    setStatus(err.message || 'Undo failed.', 'error');
+  }
+  updateHistoryButtons();
+});
+
+redoButton.addEventListener('click', async () => {
+  if (!redoStack.length) return;
+  const target = redoStack.pop();
+  const current = pageSnapshot(await fetchPage().catch(() => currentPage));
+  if (current) undoStack.push(current);
+  showPulse('Redo');
+  try {
+    await restorePage(target);
+    addMessage('assistant', 'Redid the edit and refreshed the preview.');
+    setStatus('Redo complete.', 'ok');
+  } catch (err) {
+    setStatus(err.message || 'Redo failed.', 'error');
+  }
+  updateHistoryButtons();
+});
+
+saveButton.addEventListener('click', () => {
+  showPulse('Saved');
+  refreshPreview();
+  addMessage('assistant', 'Saved. AI edits are written to the portfolio as soon as they are applied.');
+  setStatus('Saved.', 'ok');
 });
 
 loadPages();

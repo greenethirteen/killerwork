@@ -846,7 +846,7 @@ magicEditForm?.addEventListener('submit', async event => {
   }
   const promptText = magicPrompt?.value.trim() || '';
   if (promptText) sessionStorage.setItem('killerwork:aiPrompt', promptText);
-  location.href = `/ai-editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug || 'home')}`;
+  window.open(`/ai-editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug || 'home')}`, '_blank', 'noopener');
 });
 
 videoChoiceModal?.addEventListener('click', event => {

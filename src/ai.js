@@ -27,6 +27,128 @@ function jsonFromText(text) {
   throw new Error('AI did not return valid JSON');
 }
 
+function splitTitleParts(value = '') {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  const match = text.match(/^(.+?)\s*(?:[-–—|:])\s*(.+)$/);
+  if (!match) return null;
+  const title = match[1].trim();
+  const subtitle = match[2].trim();
+  if (!title || !subtitle || title.length > 90 || subtitle.length > 140) return null;
+  return { title, subtitle };
+}
+
+function fallbackPageEdit(prompt = '', page = {}) {
+  const text = String(prompt || '');
+  const splitSource = splitTitleParts(text.match(/["“']([^"”']+?\s*(?:[-–—|:])\s*[^"”']+)["”']/)?.[1] || page.title || '');
+  if (/\b(break|split|separate|line break|new line)\b/i.test(text) && splitSource) {
+    return {
+      message: `I split "${splitSource.title}" and "${splitSource.subtitle}" into a headline and subhead.`,
+      title: splitSource.title,
+      subtitle: splitSource.subtitle,
+      replaceText: [{ find: `${splitSource.title} - ${splitSource.subtitle}`, replace: `${splitSource.title}\n${splitSource.subtitle}` }]
+    };
+  }
+  const titleMatch = text.match(/\b(?:change|rename|make)\s+(?:the\s+)?(?:title|headline)\s+(?:to|as)\s+["“']?([^"”'\n]+)["”']?/i);
+  if (titleMatch?.[1]) {
+    return {
+      message: `I changed the page headline to "${titleMatch[1].trim()}".`,
+      title: titleMatch[1].trim()
+    };
+  }
+  return {
+    message: 'I added your prompt as an editable text block because this request needs more specific page instructions.',
+    prependText: text.replace(/\s+/g, ' ').slice(0, 900)
+  };
+}
+
+function normalizePageEdit(result = {}, prompt = '', page = {}) {
+  const edit = {
+    message: String(result.message || '').replace(/\s+/g, ' ').trim().slice(0, 400),
+    title: String(result.title || '').replace(/\s+/g, ' ').trim().slice(0, 200),
+    subtitle: String(result.subtitle || '').replace(/\s+/g, ' ').trim().slice(0, 220),
+    homeTitle: String(result.homeTitle || '').replace(/\s+/g, ' ').trim().slice(0, 200),
+    homeIntro: String(result.homeIntro || '').replace(/\s+/g, ' ').trim().slice(0, 500),
+    prependText: String(result.prependText || '').replace(/\r/g, '\n').trim().slice(0, 4000),
+    replaceText: Array.isArray(result.replaceText)
+      ? result.replaceText.map(item => ({
+        find: String(item?.find || '').trim().slice(0, 500),
+        replace: String(item?.replace || '').trim().slice(0, 1000)
+      })).filter(item => item.find && item.replace)
+      : []
+  };
+  if (!edit.message) edit.message = 'I updated the page and refreshed the live preview.';
+  if (!edit.title && !edit.subtitle && !edit.homeTitle && !edit.homeIntro && !edit.prependText && !edit.replaceText.length) {
+    return fallbackPageEdit(prompt, page);
+  }
+  return edit;
+}
+
+export async function planPageEditWithAI({ prompt, page, manifest }, { model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}) {
+  const fallback = () => fallbackPageEdit(prompt, page);
+  if (!process.env.OPENAI_API_KEY) return fallback();
+
+  const payload = {
+    prompt,
+    page: {
+      kind: page.kind || 'project',
+      title: page.title || '',
+      subtitle: page.subtitle || '',
+      contentItems: (page.contentItems || []).filter(item => item.type === 'text').slice(0, 30),
+      visibleHomeCards: page.kind === 'home' ? (page.contentItems || []).slice(0, 40) : []
+    },
+    portfolio: {
+      ownerName: manifest.ownerName || '',
+      siteTitle: manifest.siteTitle || '',
+      sourcePlatform: manifest.sourcePlatform || ''
+    }
+  };
+  const system = `You are the edit planner for KillaWork, a portfolio website editor.
+Return JSON only. Do not include markdown.
+
+Schema:
+{
+  "message": "short human summary of the change",
+  "title": "optional new project title/headline",
+  "subtitle": "optional project subhead",
+  "homeTitle": "optional home title",
+  "homeIntro": "optional home intro",
+  "prependText": "optional text block to add at the top",
+  "replaceText": [{ "find": "exact visible text to replace", "replace": "replacement text" }]
+}
+
+Rules:
+- Apply the user's requested edit directly to the current page.
+- If the user asks to split a campaign line such as "Ikea - Sustainability", set title to "Ikea" and subtitle to "Sustainability".
+- Use title/subtitle for headline formatting requests. Do not add that request as body copy.
+- Use replaceText for exact copy changes inside existing text blocks.
+- Do not invent awards, clients, facts, links, or media.
+- Keep message concise and specific.`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.15,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: JSON.stringify(payload) }
+        ]
+      })
+    });
+    if (!res.ok) return fallback();
+    const data = await res.json();
+    return normalizePageEdit(jsonFromText(data.choices?.[0]?.message?.content || '{}'), prompt, page);
+  } catch {
+    return fallback();
+  }
+}
+
 function normalizeCleaned(cleaned, project) {
   const isPlaceholder = (value) => /^(optional|brand|campaign|agency|award|publication|date|client)$/i.test(String(value || '').trim());
   const imgMax = (project.images || []).length;
