@@ -815,6 +815,12 @@ app.post('/api/editor/:id/pages/:slug/assets', requireFirebaseAuth, upload.singl
     assetRef = { type: 'document', documentIndex: index };
   }
 
+  if (String(req.body?.insert || '').toLowerCase() === 'true') {
+    project.contentItems = project.contentItems || [];
+    project.contentItems.unshift({ ...assetRef, order: 0 });
+    project.contentItems = project.contentItems.map((item, index) => ({ ...item, order: index + 1 }));
+  }
+
   project.cleaned = null;
   const validation = await saveManifestAndRebuild(id, manifest);
   res.json({
@@ -920,7 +926,10 @@ app.post('/api/editor/:id/pages/:slug/ai-edit', requireFirebaseAuth, async (req,
   const project = (manifest.projects || []).find(p => p.slug === req.params.slug);
   if (!project) return res.status(404).json({ error: 'Page not found.' });
   const before = publicProject(project);
-  const edit = await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
+  const uploadedAssets = Array.isArray(req.body?.uploadedAssets) ? req.body.uploadedAssets : [];
+  const edit = uploadedAssets.length && /^place the uploaded ads on this page/i.test(prompt)
+    ? { message: `Added ${uploadedAssets.length} uploaded file${uploadedAssets.length === 1 ? '' : 's'} to the page.`, replaceText: [] }
+    : await planPageEditWithAI({ prompt, page: { kind: 'project', ...before }, manifest });
   applyAiEditToProject(project, edit);
   const validation = await saveManifestAndRebuild(id, manifest);
   res.json({

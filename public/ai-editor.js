@@ -18,6 +18,9 @@ const chatLog = document.getElementById('aiChatLog');
 const undoButton = document.getElementById('aiUndo');
 const redoButton = document.getElementById('aiRedo');
 const saveButton = document.getElementById('aiSave');
+const assetUpload = document.getElementById('aiAssetUpload');
+const attachmentList = document.getElementById('aiAttachmentList');
+let pendingFiles = [];
 
 function setStatus(text, tone = '') {
   statusBox.textContent = text;
@@ -137,7 +140,6 @@ async function loadPages() {
     promptBox.value = savedPrompt;
     sessionStorage.removeItem('killerwork:aiPrompt');
   }
-  addMessage('assistant', 'I can edit this page directly. Ask for copy, structure, title, ordering, or styling changes and I’ll update the preview here.');
   updateHistoryButtons();
 }
 
@@ -158,26 +160,67 @@ pageSelect.addEventListener('change', async () => {
   }
 });
 
+function renderAttachments() {
+  attachmentList.innerHTML = '';
+  if (!pendingFiles.length) return;
+  for (const file of pendingFiles) {
+    const chip = document.createElement('span');
+    chip.textContent = file.name;
+    attachmentList.appendChild(chip);
+  }
+}
+
+async function uploadPendingFiles() {
+  const files = [...pendingFiles];
+  if (!files.length) return [];
+  if (currentSlug === 'home') throw new Error('Upload ads to a project page, then ask AI to place them.');
+  const headers = await authHeaders();
+  const uploaded = [];
+  for (const file of files) {
+    const body = new FormData();
+    body.append('file', file);
+    body.append('insert', 'true');
+    const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}/assets`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Could not upload ${file.name}.`);
+    uploaded.push(data.asset);
+    currentPage = data.page;
+  }
+  pendingFiles = [];
+  if (assetUpload) assetUpload.value = '';
+  renderAttachments();
+  return uploaded;
+}
+
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const prompt = promptBox.value.trim();
-  if (!prompt) {
-    setStatus('Write a prompt first.', 'warn');
+  if (!prompt && !pendingFiles.length) {
+    setStatus('Write a prompt or attach ads first.', 'warn');
     return;
   }
   applyButton.disabled = true;
   applyButton.textContent = 'Applying...';
-  setStatus('Applying edit and rebuilding preview...');
+  setStatus(pendingFiles.length ? 'Uploading ads and applying edit...' : 'Applying edit and rebuilding preview...');
   showPulse('Applying edit');
-  addMessage('user', prompt);
+  const uploadCount = pendingFiles.length;
+  addMessage('user', uploadCount ? `${prompt || 'Add these ads to the page.'}\n\nAttached: ${uploadCount} file${uploadCount === 1 ? '' : 's'}` : prompt);
   const pending = addMessage('assistant', 'Working on it...', true);
   try {
     const before = pageSnapshot(await fetchPage());
+    const uploaded = await uploadPendingFiles();
     const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
     const res = await fetch(`/api/editor/${jobId}/pages/${encodeURIComponent(currentSlug)}/ai-edit`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({
+        prompt: prompt || 'Place the uploaded ads on this page in a clean portfolio-ready order.',
+        uploadedAssets: uploaded
+      })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'AI edit failed.');
@@ -198,6 +241,12 @@ form.addEventListener('submit', async event => {
     applyButton.disabled = false;
     applyButton.textContent = 'Apply edit';
   }
+});
+
+assetUpload?.addEventListener('change', () => {
+  pendingFiles = [...(assetUpload.files || [])].filter(Boolean);
+  renderAttachments();
+  if (pendingFiles.length) setStatus(`${pendingFiles.length} file${pendingFiles.length === 1 ? '' : 's'} attached. Add a prompt or click Apply edit.`, 'ok');
 });
 
 undoButton.addEventListener('click', async () => {

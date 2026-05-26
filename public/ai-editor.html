@@ -24,9 +24,14 @@
       <select id="aiPageSelect" aria-label="Page"></select>
       <form id="aiPromptForm" class="ai-chat-form">
         <label for="aiPrompt">Prompt</label>
-        <textarea id="aiPrompt" rows="5" placeholder="Tell KillaWork™ what to change. Example: split Ikea - Sustainability into a headline and subhead, tighten the copy, or make this section feel more premium."></textarea>
+        <textarea id="aiPrompt" rows="5" placeholder="Ask for copy, structure, title, ordering, or styling changes and I’ll update the preview here."></textarea>
+        <div id="aiAttachmentList" class="ai-attachment-list" aria-live="polite"></div>
         <button id="aiApply" type="submit">Apply edit</button>
         <div class="ai-tool-row" aria-label="Editor controls">
+          <label class="ai-icon-button" aria-label="Upload ads" title="Upload ads">
+            <input id="aiAssetUpload" type="file" multiple accept="image/*,video/*,audio/*,application/pdf" />
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 16v3h14v-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </label>
           <button id="aiUndo" type="button" class="ai-icon-button" disabled aria-label="Undo" title="Undo">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M5 12h9a6 6 0 0 1 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
