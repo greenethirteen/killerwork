@@ -146,6 +146,22 @@ function pickBestAssetRef(current, candidate) {
   return scoreAssetRef(candidate) > scoreAssetRef(current) ? candidate : current;
 }
 
+const SOURCE_AUTH_SELECTORS = [
+  '.user-accounts-link',
+  '.customerAccountLoginDesktop',
+  '.customerAccountLoginMobile',
+  '[data-controller="UserAccountLink"]',
+  '[class*="user-accounts"]',
+  '[class*="UserAccount"]',
+  '.sqs-custom-cart',
+  '.absolute-cart-box',
+  '[data-test="cart"]',
+  '[class*="Cart"]',
+  'a[href*="/account"]',
+  'a[href*="/login"]',
+  'a[href*="/cart"]'
+];
+
 async function gotoWithRetry(page, url, options = {}, attempts = 3) {
   let lastError;
   for (let i = 0; i < attempts; i += 1) {
@@ -179,7 +195,7 @@ async function extractPage(page, url, siteOrigin, progress) {
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(900);
 
-  const data = await page.evaluate(async (siteOrigin) => {
+  const data = await page.evaluate(async ({ siteOrigin, sourceAuthSelectors }) => {
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const cleanLines = (s) => (s || '')
@@ -408,7 +424,7 @@ async function extractPage(page, url, siteOrigin, progress) {
     }
 
     const styledClone = sourceRoot.cloneNode(true);
-    ['script','style','noscript','#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block','.absolute-cart-box','[data-test="cart"]','[class*="Cart"]']
+    ['script','style','noscript','#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block', ...sourceAuthSelectors]
       .forEach(sel => styledClone.querySelectorAll(sel).forEach(n => n.remove()));
     const originalsById = new Map(
       [...sourceRoot.querySelectorAll('[data-killerwork-node]')].map(node => [node.getAttribute('data-killerwork-node'), node])
@@ -519,7 +535,7 @@ async function extractPage(page, url, siteOrigin, progress) {
       sourceBodyStyle: document.body.getAttribute('style') || '',
       sourceBodyId: document.body.id || ''
     };
-  }, siteOrigin);
+  }, { siteOrigin, sourceAuthSelectors: SOURCE_AUTH_SELECTORS });
 
   progress?.('Extracted page', `${data.title} — ${data.images.length} image refs, ${data.videos.length} video refs`);
   return data;
@@ -530,7 +546,7 @@ async function extractBehanceProject(page, url, progress) {
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await scrollBehancePage(page);
 
-  const data = await page.evaluate(async () => {
+  const data = await page.evaluate(async (sourceAuthSelectors) => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const comparable = (s) => clean(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
     const cleanLines = (s) => (s || '')
@@ -1386,7 +1402,7 @@ async function getBehanceProjects(page, url, progress) {
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await scrollBehancePage(page);
 
-  const data = await page.evaluate(async () => {
+  const data = await page.evaluate(async (sourceAuthSelectors) => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const profileName = clean(document.querySelector('h1')?.innerText)
@@ -1482,7 +1498,7 @@ async function getBehanceProjects(page, url, progress) {
       },
       projects
     };
-  });
+  }, SOURCE_AUTH_SELECTORS);
 
   let projects = mergeProjectCandidates(data.projects || []);
   if (!projects.length) {
@@ -1508,13 +1524,13 @@ async function extractHomePage(page, url, progress) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(700);
 
-  const data = await page.evaluate(async () => {
+  const data = await page.evaluate(async (sourceAuthSelectors) => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
     const root = document.querySelector('#siteWrapper') || document.querySelector('#page') || document.querySelector('#canvas') || document.querySelector('main') || document.body;
     const removeSelectors = [
       'script','style','noscript',
-      '.absolute-cart-box','[data-test="cart"]','[class*="Cart"]',
+      ...sourceAuthSelectors,
       '#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block'
     ];
     const sourceFontCss = () => {
@@ -1633,7 +1649,7 @@ async function extractHomePage(page, url, progress) {
       sourceBodyId: document.body.id || '',
       assets
     };
-  });
+  }, SOURCE_AUTH_SELECTORS);
 
   progress?.('Extracted homepage', `${data.assets.length} homepage asset ref(s)`);
   return data;
@@ -1682,7 +1698,7 @@ async function discoverSitemapProjects(url, progress) {
       strategy: 'sitemap',
       score
     };
-  });
+  }, SOURCE_AUTH_SELECTORS);
   const projects = mergeProjectCandidates(candidates);
   progress?.('Sitemap discovery', `${projects.length} sitemap project candidate(s)`);
   return projects;
@@ -2090,19 +2106,25 @@ function rewriteHomeLinks(html, projects = [], sourceUrl = '') {
       byPath.set(path, `work/${project.slug}/`);
     } catch {}
   }
-  for (const [sourcePath, target] of byPath.entries()) {
-    const escaped = sourcePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    out = out.replace(new RegExp(`(href|data-url)="${escaped}/?"`, 'g'), `$1="${target}"`);
-  }
-  out = out
-    .replace(/href="\/?"/g, 'href="index.html"')
-    .replace(/href="\/about\/?"/g, 'href="about.html"')
-    .replace(/\b(href|data-url)="\/([^"#?]*)([^"]*)"/g, (match, attr, path, suffix) => {
-      const normalized = `/${path}`.replace(/\/$/, '') || '/';
-      const local = byPath.get(normalized);
-      if (local) return `${attr}="${local}"`;
-      return sourceOrigin ? `${attr}="${sourceOrigin}/${path}${suffix || ''}"` : match;
+  const localTarget = (rawPath = '/', suffix = '') => {
+    const normalized = `/${String(rawPath || '').replace(/^\/+/, '')}`.replace(/\/$/, '') || '/';
+    if (normalized === '/' || normalized === '/work' || normalized === '/portfolio' || normalized === '/projects') return 'index.html';
+    if (/^\/(?:about|about-us|contact|contact-us)(?:\/|$)/i.test(normalized)) return 'about.html';
+    const local = byPath.get(normalized);
+    if (local) return local;
+    return sourceOrigin ? `${sourceOrigin}${normalized}${suffix || ''}` : '';
+  };
+  if (sourceOrigin) {
+    const escapedOrigin = sourceOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(`\\b(href|data-url)="${escapedOrigin}(/[^"#?]*)?([^"]*)"`, 'g'), (match, attr, rawPath = '/', suffix = '') => {
+      const target = localTarget(rawPath, suffix);
+      return target ? `${attr}="${target}"` : match;
     });
+  }
+  out = out.replace(/\b(href|data-url)="\/([^"#?]*)([^"]*)"/g, (match, attr, path, suffix) => {
+    const target = localTarget(`/${path}`, suffix);
+    return target ? `${attr}="${target}"` : match;
+  });
   return out;
 }
 
@@ -2118,16 +2140,52 @@ function rewriteProjectCloneLinks(html, projects = [], sourceUrl = '') {
       byPath.set(path, `../${project.slug}/`);
     } catch {}
   }
-  return out.replace(/\b(href|data-url)="\/([^"#?]*)([^"]*)"/g, (match, attr, path, suffix) => {
-    const normalized = `/${path}`.replace(/\/$/, '') || '/';
+  const localTarget = (rawPath = '/', suffix = '') => {
+    const normalized = `/${String(rawPath || '').replace(/^\/+/, '')}`.replace(/\/$/, '') || '/';
+    if (normalized === '/' || normalized === '/work' || normalized === '/portfolio' || normalized === '/projects') return '../../index.html';
+    if (/^\/(?:about|about-us|contact|contact-us)(?:\/|$)/i.test(normalized)) return '../../about.html';
     const local = byPath.get(normalized);
-    if (local) return `${attr}="${local}"`;
-    return sourceOrigin ? `${attr}="${sourceOrigin}/${path}${suffix || ''}"` : match;
+    if (local) return local;
+    return sourceOrigin ? `${sourceOrigin}${normalized}${suffix || ''}` : '';
+  };
+  if (sourceOrigin) {
+    const escapedOrigin = sourceOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(`\\b(href|data-url)="${escapedOrigin}(/[^"#?]*)?([^"]*)"`, 'g'), (match, attr, rawPath = '/', suffix = '') => {
+      const target = localTarget(rawPath, suffix);
+      return target ? `${attr}="${target}"` : match;
+    });
+  }
+  return out.replace(/\b(href|data-url)="\/([^"#?]*)([^"]*)"/g, (match, attr, path, suffix) => {
+    const target = localTarget(`/${path}`, suffix);
+    return target ? `${attr}="${target}"` : match;
   });
 }
 
 function rewriteCrossOriginSvgSprites(html) {
   return String(html || '').replace(/(\s(?:xlink:href|href)=["'])(?:https?:)?\/\/[^"']+\.svg#([^"']+)(["'])/gi, '$1#$2$3');
+}
+
+function hiddenSvgDefs(defs = '') {
+  return defs ? `<div hidden style="display:none">${defs}</div>` : '';
+}
+
+function findSourceAboutUrl(sourceHome = {}, sourceUrl = '') {
+  if (!sourceHome?.html || !sourceUrl) return '';
+  const $ = cheerio.load(sourceHome.html);
+  const candidates = [];
+  $('a[href]').each((_, el) => {
+    const href = String($(el).attr('href') || '');
+    const text = String($(el).text() || '').trim();
+    const score = /about/i.test(text) ? 4 : /contact/i.test(text) ? 3 : /about|contact/i.test(href) ? 2 : 0;
+    if (!score) return;
+    try {
+      const resolved = new URL(href, sourceUrl);
+      if (resolved.origin !== new URL(sourceUrl).origin) return;
+      candidates.push({ url: resolved.href, score });
+    } catch {}
+  });
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.url || '';
 }
 
 function mergeStyle(...parts) {
@@ -2153,13 +2211,23 @@ function renderHomePage(manifest, cards) {
     const bodyClass = ['source-home', sourceHome.sourceBodyClass].filter(Boolean).join(' ');
     const bodyStyle = mergeStyle(pageVars, sourceHome.sourceBodyStyle);
     const bodyId = sourceHome.sourceBodyId ? ` id="${htmlEscape(sourceHome.sourceBodyId)}"` : '';
-    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${sourceHome.sourceSvgDefs || ''}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(sourceHome.sourceSvgDefs)}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
   }
   const homeClass = manifest.sourcePlatform === 'behance' ? 'home behance-home' : 'home';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(manifest.siteTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(manifest.ownerName)}</h1><section class="work-grid">${cards}</section></main></body></html>`;
 }
 
 function renderAboutPage(manifest) {
+  const sourceAbout = manifest.sourceAbout || {};
+  if (sourceAbout.html) {
+    const html = rewriteCrossOriginSvgSprites(rewriteHomeLinks(sourceAbout.html, manifest.projects, manifest.sourceUrl));
+    const htmlClass = sourceAbout.sourceHtmlClass ? ` class="${htmlEscape(sourceAbout.sourceHtmlClass)}"` : '';
+    const htmlStyle = sourceAbout.sourceHtmlStyle ? ` style="${htmlEscape(sourceAbout.sourceHtmlStyle)}"` : '';
+    const htmlId = sourceAbout.sourceHtmlId ? ` id="${htmlEscape(sourceAbout.sourceHtmlId)}"` : '';
+    const bodyClass = ['source-home', sourceAbout.sourceBodyClass].filter(Boolean).join(' ');
+    const bodyId = sourceAbout.sourceBodyId ? ` id="${htmlEscape(sourceAbout.sourceBodyId)}"` : '';
+    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(sourceAbout.title || `About — ${manifest.ownerName}`)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceAbout.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${sourceAbout.sourceBodyStyle ? ` style="${htmlEscape(sourceAbout.sourceBodyStyle)}"` : ''}>${hiddenSvgDefs(sourceAbout.sourceSvgDefs)}<main class="source-home-page"${sourceAbout.style ? ` style="${htmlEscape(sourceAbout.style)}"` : ''}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+  }
   const profile = manifest.aboutProfile || {};
   const name = profile.name || manifest.ownerName || 'About';
   const image = profile.image?.src ? relFromPage('', profile.image.src) : '';
@@ -2245,7 +2313,7 @@ export async function generateSite(manifest, outDir, progress) {
       const bodyClass = ['source-exact', p.sourceBodyClass].filter(Boolean).join(' ');
       const bodyStyle = mergeStyle(pageVars, p.sourceBodyStyle);
       const bodyId = p.sourceBodyId ? ` id="${htmlEscape(p.sourceBodyId)}"` : '';
-      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${p.sourceSvgDefs || ''}<main class="source-exact-page">${rewrittenClone}</main></body></html>`);
+      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(p.sourceSvgDefs)}<main class="source-exact-page">${rewrittenClone}</main></body></html>`);
       continue;
     }
     const mediaHtml = renderImportedSourceContent(p, cloneHtml);
@@ -2415,6 +2483,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   let projects = [];
   let relatedProjects = [];
   let sourceHome = null;
+  let sourceAbout = null;
   let sourceOwnerName = siteUrl.hostname.replace(/^www\./, '');
   let aboutProfile = null;
   let aboutProfileImageUrl = '';
@@ -2441,6 +2510,14 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       progress('Homepage clone warning', e.message);
       return null;
     });
+    const aboutUrl = findSourceAboutUrl(sourceHome, url);
+    if (aboutUrl) {
+      progress('Scanning about page', aboutUrl);
+      sourceAbout = await extractHomePage(page, aboutUrl, progress).catch((e) => {
+        progress('About clone warning', e.message);
+        return null;
+      });
+    }
     if (!projects.length) {
       progress('Scanning sitemap', siteUrl.origin);
       projects = await discoverSitemapProjects(url, progress);
@@ -2461,6 +2538,7 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
     ownerName: sourceOwnerName,
     relatedProjects,
     sourceHome: null,
+    sourceAbout: null,
     aboutProfile,
     projects: [],
     generatedAt: new Date().toISOString()
@@ -2496,6 +2574,31 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
       sourceBodyStyle: sourceHome.sourceBodyStyle || '',
       sourceBodyId: sourceHome.sourceBodyId || '',
       html: rewriteCloneAssetUrls(sourceHome.html, replacements)
+    };
+  }
+
+  if (sourceAbout?.html) {
+    const replacements = [];
+    const uniqueAssets = [...new Set(sourceAbout.assets || [])].slice(0, 160);
+    progress('Downloading about assets', `${uniqueAssets.length} unique image refs`);
+    for (const assetUrl of uniqueAssets) {
+      const dl = await downloadAsset(normalizeUrl(assetUrl, sourceAbout.url || url), assetsDir, progress, cache);
+      if (dl?.src && dl.type === 'image') replacements.push({ from: assetUrl, to: relFromPage('', dl.src) });
+    }
+    rawManifest.sourceAbout = {
+      title: sourceAbout.title,
+      style: sourceAbout.style,
+      backgroundColor: sourceAbout.backgroundColor,
+      textColor: sourceAbout.textColor,
+      sourceCss: sourceAbout.sourceCss || '',
+      sourceSvgDefs: sourceAbout.sourceSvgDefs || '',
+      sourceHtmlClass: sourceAbout.sourceHtmlClass || '',
+      sourceHtmlStyle: sourceAbout.sourceHtmlStyle || '',
+      sourceHtmlId: sourceAbout.sourceHtmlId || '',
+      sourceBodyClass: sourceAbout.sourceBodyClass || '',
+      sourceBodyStyle: sourceAbout.sourceBodyStyle || '',
+      sourceBodyId: sourceAbout.sourceBodyId || '',
+      html: rewriteCloneAssetUrls(sourceAbout.html, replacements)
     };
   }
 

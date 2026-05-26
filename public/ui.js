@@ -100,11 +100,13 @@ async function poll(id){
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  window.KillerWorkAnalytics?.track('import_click', { event_category: 'import', event_label: urlInput.value });
   activeButton = startBtn;
   actions.classList.add('hidden');
   publishControl.hide();
   logs.textContent = '';
   panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   startBtn.disabled = true;
   startBtn.textContent = 'Signing in...';
   bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting import'; detail.textContent = urlInput.value;

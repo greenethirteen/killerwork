@@ -6,6 +6,8 @@ if (jobId) localStorage.setItem('killerwork:lastJobId', jobId);
 const pageList = document.getElementById('pageList');
 const titleInput = document.getElementById('titleInput');
 const pagePreview = document.getElementById('pagePreview');
+const undoEdit = document.getElementById('undoEdit');
+const redoEdit = document.getElementById('redoEdit');
 const savePage = document.getElementById('savePage');
 const statusBox = document.getElementById('editorStatus');
 const blockEditor = document.getElementById('blockEditor');
@@ -39,6 +41,9 @@ let draggedIndex = -1;
 let dirty = false;
 let pendingUploadMode = 'insert';
 let pendingGalleryIndex = -1;
+let undoStack = [];
+let redoStack = [];
+let restoringHistory = false;
 
 async function authHeaders() {
   const token = await window.KillerWorkAuth.requireToken();
@@ -56,6 +61,39 @@ function setDirty(value = true) {
   savePage.dataset.dirty = dirty ? 'true' : '';
   const saveState = savePage.querySelector('[data-save-state]');
   if (saveState) saveState.textContent = dirty ? 'Unsaved changes' : 'Saved';
+}
+
+function pageSnapshot() {
+  return currentPage ? JSON.stringify(currentPage) : '';
+}
+
+function updateHistoryButtons() {
+  if (undoEdit) undoEdit.disabled = !undoStack.length;
+  if (redoEdit) redoEdit.disabled = !redoStack.length;
+}
+
+function recordHistory() {
+  if (!currentPage || restoringHistory) return;
+  const snapshot = pageSnapshot();
+  if (!snapshot || undoStack[undoStack.length - 1] === snapshot) return;
+  undoStack.push(snapshot);
+  if (undoStack.length > 60) undoStack.shift();
+  redoStack = [];
+  updateHistoryButtons();
+}
+
+function restoreHistory(snapshot) {
+  if (!snapshot) return;
+  restoringHistory = true;
+  currentPage = JSON.parse(snapshot);
+  currentPage.contentItems = currentPage.contentItems || [];
+  titleInput.value = currentPage.title || '';
+  selectedIndex = Math.max(-1, Math.min(selectedIndex, currentPage.contentItems.length - 1));
+  setDirty(true);
+  renderCanvas();
+  renderInspector();
+  updateHistoryButtons();
+  restoringHistory = false;
 }
 
 function escapeHtml(value = '') {
@@ -131,6 +169,7 @@ function selectBlock(index) {
 
 function reorderBlock(from, to) {
   if (!currentPage || from === to || from < 0 || to < 0 || from >= currentPage.contentItems.length || to >= currentPage.contentItems.length) return;
+  recordHistory();
   const [item] = currentPage.contentItems.splice(from, 1);
   currentPage.contentItems.splice(to, 0, item);
   selectedIndex = to;
@@ -141,6 +180,7 @@ function reorderBlock(from, to) {
 
 function deleteBlock(index) {
   if (!currentPage || index < 0) return;
+  recordHistory();
   currentPage.contentItems.splice(index, 1);
   selectedIndex = Math.min(index, currentPage.contentItems.length - 1);
   setDirty();
@@ -150,6 +190,7 @@ function deleteBlock(index) {
 
 function insertBlock(item, index = 0) {
   if (!currentPage) return;
+  recordHistory();
   const safeIndex = Math.max(0, Math.min(index, currentPage.contentItems.length));
   currentPage.contentItems.splice(safeIndex, 0, item);
   selectedIndex = safeIndex;
@@ -273,10 +314,21 @@ function renderCanvas() {
 
     if (item.type === 'text') {
       const area = document.createElement('textarea');
+      let capturedTextHistory = false;
       area.className = 'canvas-textarea';
       area.value = item.text || '';
       area.placeholder = 'Text';
-      area.addEventListener('focus', () => selectBlock(index));
+      area.addEventListener('focus', () => {
+        if (selectedIndex !== index) {
+          selectedIndex = index;
+          row.classList.add('selected');
+          renderInspector();
+        }
+        if (!capturedTextHistory) {
+          recordHistory();
+          capturedTextHistory = true;
+        }
+      });
       area.addEventListener('input', () => {
         item.text = area.value;
         setDirty();
@@ -367,7 +419,14 @@ function inspectorField(label, value, onInput) {
   wrap.className = 'inspector-field';
   wrap.innerHTML = `<span>${escapeHtml(label)}</span>`;
   const input = document.createElement('input');
+  let capturedHistory = false;
   input.value = value || '';
+  input.addEventListener('focus', () => {
+    if (!capturedHistory) {
+      recordHistory();
+      capturedHistory = true;
+    }
+  });
   input.addEventListener('input', () => onInput(input.value));
   wrap.appendChild(input);
   return wrap;
@@ -396,6 +455,7 @@ function renderInspector() {
     actions.innerHTML = '<button class="button secondary" type="button" data-upload="image">Upload replacement</button><button class="button ghost" type="button" data-gallery="true">Convert to slider</button>';
     actions.querySelector('[data-upload]').addEventListener('click', () => triggerUpload('image', 'replace'));
     actions.querySelector('[data-gallery]').addEventListener('click', () => {
+      recordHistory();
       currentPage.contentItems[selectedIndex] = { type: 'gallery', order: item.order || 0, imageIndexes: [item.imageIndex] };
       setDirty();
       renderCanvas();
@@ -453,6 +513,7 @@ function renderInspector() {
       remove.className = 'mini-button danger';
       remove.textContent = 'Remove';
       remove.addEventListener('click', () => {
+        recordHistory();
         item.imageIndexes.splice(position, 1);
         setDirty();
         renderCanvas();
@@ -569,6 +630,7 @@ async function uploadOneMedia(file, mode = pendingUploadMode) {
   if (mode === 'gallery-add' && asset.type === 'image') {
     const gallery = currentPage.contentItems[pendingGalleryIndex] || item;
     if (gallery?.type === 'gallery') {
+      recordHistory();
       gallery.imageIndexes = [...new Set([...(gallery.imageIndexes || []), asset.imageIndex])];
       selectedIndex = currentPage.contentItems.indexOf(gallery);
     } else {
@@ -582,8 +644,10 @@ async function uploadOneMedia(file, mode = pendingUploadMode) {
     return asset;
   }
   if (item?.type === asset.type) {
+    recordHistory();
     Object.assign(item, asset);
   } else if (item?.type === 'gallery' && asset.type === 'image') {
+    recordHistory();
     item.imageIndexes = [...new Set([...(item.imageIndexes || []), asset.imageIndex])];
   } else {
     insertBlock(asset, 0);
@@ -629,6 +693,9 @@ async function loadPage(slug) {
   currentPage.contentItems = currentPage.contentItems || [];
   titleInput.value = currentPage.title || '';
   pagePreview.href = `/generated/${jobId}/site/work/${currentPage.slug}/index.html`;
+  undoStack = [];
+  redoStack = [];
+  updateHistoryButtons();
   [...pageList.querySelectorAll('button')].forEach(btn => btn.classList.toggle('active', btn.dataset.slug === slug));
   renderCanvas();
   renderInspector();
@@ -672,11 +739,26 @@ async function loadPages() {
   else if (pages[0]) loadPage(pages[0].slug);
 }
 
+titleInput.addEventListener('focus', () => recordHistory());
 titleInput.addEventListener('input', () => {
   if (!currentPage) return;
   currentPage.title = titleInput.value;
   setDirty();
   renderCanvas();
+});
+
+undoEdit?.addEventListener('click', () => {
+  if (!undoStack.length || !currentPage) return;
+  redoStack.push(pageSnapshot());
+  const previous = undoStack.pop();
+  restoreHistory(previous);
+});
+
+redoEdit?.addEventListener('click', () => {
+  if (!redoStack.length || !currentPage) return;
+  undoStack.push(pageSnapshot());
+  const next = redoStack.pop();
+  restoreHistory(next);
 });
 
 addTextBlock.addEventListener('click', () => insertBlock(makeTextBlock('')));
