@@ -1,23 +1,16 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  ArrowLeft,
-  Bot,
   Check,
-  Code2,
   ExternalLink,
-  FileCode2,
   FolderPlus,
   Home,
   Loader2,
   Paperclip,
-  Play,
   Redo2,
   Rocket,
   Save,
-  Sparkles,
   Undo2,
-  Upload,
   Wand2
 } from 'lucide-react';
 import './styles.css';
@@ -76,6 +69,7 @@ function App() {
   ]);
   const [busy, setBusy] = React.useState('Loading editor...');
   const [status, setStatus] = React.useState('');
+  const [previewRefreshing, setPreviewRefreshing] = React.useState(false);
   const [history, setHistory] = React.useState({ undoCount: 0, redoCount: 0 });
   const [publishOpen, setPublishOpen] = React.useState(false);
   const [subdomain, setSubdomain] = React.useState('');
@@ -133,6 +127,11 @@ function App() {
     }
   }
 
+  function refreshPreview(path = selectedPage) {
+    setPreviewRefreshing(true);
+    setPreviewSrc(previewUrl(jobId, path || 'index.html'));
+  }
+
   async function saveFile() {
     setBusy('Saving file...');
     try {
@@ -141,7 +140,7 @@ function App() {
         body: JSON.stringify({ path: selectedFile, content: fileContent })
       });
       setHistory(data.history || history);
-      setPreviewSrc(previewUrl(jobId, selectedPage));
+      refreshPreview();
       addMessage('ai', `Saved ${selectedFile}.`);
       setStatus('Saved.');
     } catch (err) {
@@ -180,7 +179,7 @@ function App() {
       if (fileInputRef.current) fileInputRef.current.value = '';
       addMessage('ai', `${data.message || 'Done.'}${data.changedFiles?.length ? `\n\nChanged: ${data.changedFiles.join(', ')}` : ''}`);
       await openFile(data.changedFiles?.find(path => path === selectedFile) || selectedFile, data.pages || pages);
-      setPreviewSrc(previewUrl(jobId, selectedPage));
+      refreshPreview(selectedPage);
       setStatus('Edit applied.');
     } catch (err) {
       addMessage('ai', err.message || 'AI edit failed.');
@@ -198,7 +197,7 @@ function App() {
       setPages(data.pages || pages);
       setHistory({ undoCount: data.undoCount || 0, redoCount: data.redoCount || 0 });
       await openFile(selectedFile, data.pages || pages);
-      setPreviewSrc(previewUrl(jobId, selectedPage));
+      refreshPreview(selectedPage);
       addMessage('ai', action === 'undo' ? 'Undid the last file edit.' : 'Redid the file edit.');
       setStatus(action === 'undo' ? 'Undo complete.' : 'Redo complete.');
     } catch (err) {
@@ -328,34 +327,22 @@ function App() {
           </div>
           <div className="status-line">{busy ? <><Loader2 className="spin" size={16} /> {busy}</> : <><Check size={16} /> {status || 'Ready'}</>}</div>
         </div>
-        <iframe className="preview" src={previewSrc || previewUrl(jobId, selectedPage)} title="Live portfolio preview" />
-      </section>
-
-      <aside className="code-panel">
-        <header>
-          <div><Code2 size={18} /> Site files</div>
-          <button type="button" onClick={() => loadSite(selectedFile)}><Play size={15} /> Refresh</button>
-        </header>
-        <div className="file-list">
-          {files.map(file => (
-            <button
-              key={file.path}
-              type="button"
-              className={file.path === selectedFile ? 'active' : ''}
-              onClick={() => openFile(file.path)}
-            >
-              <FileCode2 size={14} />
-              <span>{file.path}</span>
-            </button>
-          ))}
-        </div>
-        <textarea
-          className="code-editor"
-          value={fileContent}
-          onChange={event => setFileContent(event.target.value)}
-          spellCheck="false"
+        {previewRefreshing && (
+          <div className="preview-refresh-overlay" aria-live="polite">
+            <div className="refresh-orb"><Wand2 size={26} /></div>
+            <strong>Applying changes</strong>
+            <span>Refreshing the live preview</span>
+          </div>
+        )}
+        <iframe
+          className={`preview${previewRefreshing ? ' is-refreshing' : ''}`}
+          src={previewSrc || previewUrl(jobId, selectedPage)}
+          title="Live portfolio preview"
+          onLoad={() => {
+            if (previewRefreshing) setTimeout(() => setPreviewRefreshing(false), 420);
+          }}
         />
-      </aside>
+      </section>
     </main>
   );
 }
