@@ -1,5 +1,6 @@
 export function setupPublishControl({ control, getJobId, setStatus }) {
-  if (!control) return { show() {}, hide() {}, setPublished() {} };
+  const noop = { show() {}, hide() {}, setPublished() {} };
+  if (!control) return noop;
   const toggle = control.querySelector('[data-publish-toggle]');
   const panel = control.querySelector('[data-publish-panel]');
   const form = control.querySelector('[data-publish-form]');
@@ -16,6 +17,11 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   const dnsValue = control.querySelector('[data-dns-value]');
   const customBlock = control.querySelector('[data-custom-domain-block]');
   let publishedState = null;
+
+  if (!toggle || !panel || !form || !input || !submit) {
+    console.warn('Publish control is missing required elements and has been disabled.');
+    return noop;
+  }
 
   if (panel && !panel.querySelector('[data-founder-help]')) {
     const help = document.createElement('p');
@@ -139,6 +145,10 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
 
   customForm?.addEventListener('submit', async event => {
     event.preventDefault();
+    if (!customInput || !customSubmit) {
+      setStatus?.('Custom domain form is not ready.', 'error');
+      return;
+    }
     const jobId = getJobId();
     const customDomain = cleanDomain(customInput?.value || '');
     if (!jobId) return setStatus?.('Build or import a portfolio before connecting a domain.', 'error');

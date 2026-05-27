@@ -38,9 +38,13 @@ const publishControl = setupPublishControl({
 });
 
 if (switcher && panels.length) {
+  const setActivePanel = panelName => {
+    if (panelName) switcher.dataset.activePanel = panelName;
+  };
+
   panels.forEach(panel => {
     const activate = () => {
-      switcher.dataset.activePanel = panel.dataset.panel;
+      setActivePanel(panel.dataset.panel);
     };
     panel.addEventListener('click', activate);
     panel.addEventListener('keydown', event => {
@@ -49,6 +53,13 @@ if (switcher && panels.length) {
         activate();
       }
     });
+  });
+
+  buildUploadBtn?.addEventListener('click', event => {
+    if (buildUploadBtn.classList.contains('button-disabled') || buildUploadBtn.getAttribute('aria-disabled') === 'true') {
+      event.preventDefault();
+      setActivePanel('build');
+    }
   });
 }
 
