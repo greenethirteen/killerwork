@@ -164,3 +164,6 @@
   .url-form input,.url-form button{width:100%;max-width:100%;min-width:0}
   .url-form button{display:flex}
 }
+
+.dual-panel-build p span{display:block}
+@media(max-width:760px){.dual-panel-build p span{display:inline}}
