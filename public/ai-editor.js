@@ -36,11 +36,35 @@ const cancelNewPageButton = document.getElementById('aiCancelNewPage');
 const createPageButton = document.getElementById('aiCreatePage');
 let pendingFiles = [];
 
-const publishControl = setupPublishControl({
+const requiredShell = [
+  preview,
+  form,
+  promptBox,
+  applyButton,
+  statusBox,
+  pageSelect,
+  chatLog,
+  undoButton,
+  redoButton,
+  saveButton
+];
+
+const editorReady = !requiredShell.some(element => !element);
+
+if (!editorReady) {
+  console.error('KillaWork AI editor could not start: required editor elements are missing.');
+  const fallback = document.createElement('main');
+  fallback.style.cssText = 'min-height:100vh;display:grid;place-items:center;padding:24px;background:#080811;color:#fffaf2;font-family:system-ui,sans-serif;';
+  fallback.innerHTML = '<div><h1>KillaWork AI editor could not load.</h1><p>Please refresh this page. If it keeps happening, open the editor from Manage projects.</p><p><a style="color:#ffd166" href="/manage.html">Manage projects</a></p></div>';
+  document.body.innerHTML = '';
+  document.body.appendChild(fallback);
+}
+
+const publishControl = editorReady ? setupPublishControl({
   control: document.getElementById('aiPublishControl'),
   getJobId: () => jobId,
   setStatus
-});
+}) : { setPublished() {} };
 
 function setStatus(text, tone = '') {
   statusBox.textContent = text;
@@ -177,7 +201,7 @@ async function loadPages() {
   }
 }
 
-pageSelect.addEventListener('change', async () => {
+pageSelect?.addEventListener('change', async () => {
   currentSlug = pageSelect.value;
   undoStack.length = 0;
   redoStack.length = 0;
@@ -265,7 +289,7 @@ async function createNewPage({ title = '', prompt = '', files = [] } = {}) {
   return data;
 }
 
-form.addEventListener('submit', async event => {
+form?.addEventListener('submit', async event => {
   event.preventDefault();
   const prompt = promptBox.value.trim();
   if (!prompt && !pendingFiles.length) {
@@ -338,7 +362,7 @@ document.querySelectorAll('[data-prompt]').forEach(button => {
   });
 });
 
-undoButton.addEventListener('click', async () => {
+undoButton?.addEventListener('click', async () => {
   if (!undoStack.length) return;
   const target = undoStack.pop();
   const current = pageSnapshot(await fetchPage().catch(() => currentPage));
@@ -354,7 +378,7 @@ undoButton.addEventListener('click', async () => {
   updateHistoryButtons();
 });
 
-redoButton.addEventListener('click', async () => {
+redoButton?.addEventListener('click', async () => {
   if (!redoStack.length) return;
   const target = redoStack.pop();
   const current = pageSnapshot(await fetchPage().catch(() => currentPage));
@@ -370,7 +394,7 @@ redoButton.addEventListener('click', async () => {
   updateHistoryButtons();
 });
 
-saveButton.addEventListener('click', () => {
+saveButton?.addEventListener('click', () => {
   showPulse('Saved');
   refreshPreview();
   addMessage('assistant', 'Saved. AI edits are written to the portfolio as soon as they are applied.');
@@ -419,4 +443,4 @@ newPageForm?.addEventListener('submit', async event => {
   }
 });
 
-loadPages();
+if (editorReady) loadPages();

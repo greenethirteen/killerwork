@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import compression from 'compression';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs-extra';
@@ -15,6 +16,9 @@ const root = path.join(__dirname, '..');
 const app = express();
 const PORT = process.env.PORT || 8787;
 const jobs = new Map();
+const generatedRoot = process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? path.resolve(process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH)
+  : path.join(root, 'generated');
 const tmpUploadsDir = path.join(root, '.uploads-tmp');
 const upload = multer({
   dest: tmpUploadsDir,
@@ -26,12 +30,17 @@ const upload = multer({
   }
 });
 
+await fs.ensureDir(generatedRoot);
+await fs.ensureDir(tmpUploadsDir);
+
 app.use(express.json({ limit: '2mb' }));
+app.use(compression());
 app.get('*', serveCustomDomainIfMapped);
 app.get(['/published/:subdomain', '/published/:subdomain/*'], servePublishedSite);
 app.get('*', serveKillaWorkHost);
 app.use('/', express.static(path.join(root, 'public')));
-app.use('/generated', express.static(path.join(root, 'generated')));
+app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
+app.get('/generated/:id/*', generatedMissingHandler);
 
 function firebaseServiceAccount() {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
@@ -121,12 +130,26 @@ function validDomain(value = '') {
   return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(value);
 }
 
+function setGeneratedStaticHeaders(res, filePath) {
+  const normalized = String(filePath || '');
+  const isImportedAsset = normalized.includes(`${path.sep}assets${path.sep}imported${path.sep}`);
+  if (isImportedAsset) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return;
+  }
+  if (/\.(?:css|js|png|jpe?g|webp|gif|ico|svg|mp4|webm|mov|m4a|mp3|wav|pdf)$/i.test(normalized)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    return;
+  }
+  res.setHeader('Cache-Control', 'no-cache');
+}
+
 function publishedUrlFor(subdomain) {
   return `https://${subdomain}.${publicHost()}`;
 }
 
 async function publishedIndex() {
-  const generatedDir = path.join(root, 'generated');
+  const generatedDir = generatedRoot;
   if (!(await fs.pathExists(generatedDir))) return new Map();
   const entries = await fs.readdir(generatedDir);
   const index = new Map();
@@ -204,6 +227,37 @@ async function serveKillaWorkHost(req, res, next) {
   }
 }
 
+async function generatedMissingHandler(req, res) {
+  const id = String(req.params.id || '');
+  const manifestExists = await fs.pathExists(path.join(jobDir(id), 'manifest.json'));
+  res.status(404).type('html').send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Preview unavailable - KillaWork</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#080811;color:#fffaf2;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{width:min(620px,calc(100% - 32px));padding:32px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.045));box-shadow:0 30px 90px rgba(0,0,0,.35)}
+    h1{margin:0 0 12px;font-size:40px;line-height:1;letter-spacing:-.05em}
+    p{margin:0 0 18px;color:#b8b1a8;font-size:16px;line-height:1.5}
+    a{display:inline-flex;margin-right:10px;padding:12px 16px;border-radius:14px;background:#fffaf2;color:#111;text-decoration:none;font-weight:900}
+    a.secondary{background:rgba(255,255,255,.1);color:#fffaf2;border:1px solid rgba(255,255,255,.14)}
+    code{color:#ffd166}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Preview unavailable</h1>
+    <p>${manifestExists ? 'The portfolio manifest exists, but the static site files are missing. Open the AI editor and save or rebuild the portfolio.' : 'This generated portfolio is not present on this server. It may have been created before the latest deploy or before persistent generated storage was mounted.'}</p>
+    <p>Portfolio id: <code>${escapeHtml(id)}</code></p>
+    <a href="/ai-editor.html?job=${encodeURIComponent(id)}">Open AI editor</a>
+    <a class="secondary" href="/manage.html">Manage projects</a>
+  </main>
+</body>
+</html>`);
+}
+
 app.get('/api/firebase-config', (req, res) => {
   const config = firebaseWebConfig();
   res.json({
@@ -231,7 +285,7 @@ app.post('/api/import', requireFirebaseAuth, async (req, res) => {
   const aiCleanup = !!req.body?.aiCleanup;
   if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Enter a valid http/https URL.' });
   const id = `${Date.now()}-${hash(url)}`;
-  const outDir = path.join(root, 'generated', id);
+  const outDir = jobDir(id);
   const job = { id, url, aiCleanup, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
   jobs.set(id, job);
   res.json({ id });
@@ -276,7 +330,7 @@ app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), as
   const files = req.files || [];
   if (!files.length) return res.status(400).json({ error: 'Upload at least one image, video, or PDF.' });
   const id = `${Date.now()}-${hash(`${title}:${files.map(f => f.originalname).join('|')}`)}`;
-  const outDir = path.join(root, 'generated', id);
+  const outDir = jobDir(id);
   const job = { id, url: 'uploaded-files', aiCleanup, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
   jobs.set(id, job);
   res.json({ id });
@@ -327,7 +381,7 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
   if (!files.length) return res.status(400).json({ error: 'Upload at least one asset.' });
 
   const id = `${Date.now()}-${hash(`${title}:${campaigns.map(c => c.title || c.campaign || '').join('|')}:${files.map(f => f.originalname).join('|')}`)}`;
-  const outDir = path.join(root, 'generated', id);
+  const outDir = jobDir(id);
   const job = { id, url: 'campaign-builder', aiCleanup: true, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
   jobs.set(id, job);
   res.json({ id });
@@ -373,13 +427,13 @@ app.get('/api/jobs/:id', requireFirebaseAuth, (req, res) => {
 });
 
 app.get('/api/download/:id', async (req, res) => {
-  const zip = path.join(root, 'generated', req.params.id, 'site.zip');
+  const zip = path.join(jobDir(req.params.id), 'site.zip');
   if (!(await fs.pathExists(zip))) return res.status(404).send('ZIP not ready');
   res.download(zip, 'killawork-import.zip');
 });
 
 function jobDir(id) {
-  return path.join(root, 'generated', id);
+  return path.join(generatedRoot, id);
 }
 
 async function readManifest(id) {
@@ -883,7 +937,7 @@ function publicPortfolioListItem(id, manifest) {
 }
 
 async function userPortfolioList(user) {
-  const generatedDir = path.join(root, 'generated');
+  const generatedDir = generatedRoot;
   if (!(await fs.pathExists(generatedDir))) return [];
   const entries = await fs.readdir(generatedDir);
   const portfolios = await Promise.all(entries.map(async id => {
