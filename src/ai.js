@@ -287,6 +287,109 @@ Rules:
   }
 }
 
+function normalizeSiteEditPlan(result = {}) {
+  const rawOps = Array.isArray(result.operations) ? result.operations : [];
+  const operations = rawOps.map(op => {
+    const type = String(op?.op || op?.type || '').trim();
+    const filePath = String(op?.path || op?.file || '').replace(/^\/+/, '').trim();
+    if (!type || !filePath) return null;
+    return {
+      op: type,
+      path: filePath,
+      content: typeof op.content === 'string' ? op.content : '',
+      find: typeof op.find === 'string' ? op.find : '',
+      replace: typeof op.replace === 'string' ? op.replace : '',
+      to: typeof op.to === 'string' ? op.to.replace(/^\/+/, '').trim() : ''
+    };
+  }).filter(Boolean).slice(0, 40);
+  return {
+    message: String(result.message || 'Applied the requested file edits.').replace(/\s+/g, ' ').trim().slice(0, 700),
+    operations
+  };
+}
+
+function fallbackSiteEditPlan(prompt = '', files = []) {
+  const text = String(prompt || '').trim();
+  const firstFile = files.find(file => /\.html?$/i.test(file.path)) || files[0];
+  if (!firstFile || !text) return { message: 'I need a prompt and at least one editable file.', operations: [] };
+  const replaceMatch = text.match(/(?:change|replace)\s+["“']([^"”']+)["”']\s+(?:to|with)\s+["“']([^"”']+)["”']/i);
+  if (replaceMatch) {
+    return {
+      message: `Replaced "${replaceMatch[1]}" with "${replaceMatch[2]}".`,
+      operations: [{ op: 'replace', path: firstFile.path, find: replaceMatch[1], replace: replaceMatch[2] }]
+    };
+  }
+  return { message: 'AI editing needs OPENAI_API_KEY for this request.', operations: [] };
+}
+
+export async function planSiteFileEditsWithAI(
+  { prompt, files = [], fileTree = [], uploadedAssets = [], pagePath = '' },
+  { model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}
+) {
+  const fallback = () => fallbackSiteEditPlan(prompt, files);
+  if (!process.env.OPENAI_API_KEY) return fallback();
+
+  const payload = {
+    prompt,
+    pagePath,
+    uploadedAssets,
+    fileTree: fileTree.slice(0, 500),
+    files: files.map(file => ({
+      path: file.path,
+      content: String(file.content || '').slice(0, 70000)
+    }))
+  };
+  const system = `You are KillaWork AI, a senior front-end engineer editing a static portfolio website.
+You edit real site files. You are not editing a grid, template, manifest, or block system.
+
+Return JSON only:
+{
+  "message": "short clear summary",
+  "operations": [
+    { "op": "replace", "path": "index.html", "find": "exact text or markup", "replace": "replacement" },
+    { "op": "writeFile", "path": "styles.css", "content": "complete new file content" },
+    { "op": "createFile", "path": "work/new-campaign/index.html", "content": "complete file content" },
+    { "op": "deleteFile", "path": "old.html" },
+    { "op": "renameFile", "path": "old.html", "to": "new.html" }
+  ]
+}
+
+Rules:
+- Make the requested change directly in HTML/CSS/JS.
+- Preserve the imported site's design unless the user asks to change it.
+- Prefer small exact replace operations when safe.
+- Use writeFile only when a broader rewrite is necessary.
+- If uploaded assets are provided, reference them by their provided relative paths.
+- For new campaign pages, copy the structure and styling conventions from existing pages in context.
+- Keep links local to the generated site when possible.
+- Do not invent factual claims, awards, clients, or credits.
+- Do not return prose outside JSON.`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.08,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: JSON.stringify(payload) }
+        ]
+      })
+    });
+    if (!res.ok) return fallback();
+    const data = await res.json();
+    return normalizeSiteEditPlan(jsonFromText(data.choices?.[0]?.message?.content || '{}'));
+  } catch {
+    return fallback();
+  }
+}
+
 function normalizeCleaned(cleaned, project) {
   const isPlaceholder = (value) => /^(optional|brand|campaign|agency|award|publication|date|client)$/i.test(String(value || '').trim());
   const imgMax = (project.images || []).length;

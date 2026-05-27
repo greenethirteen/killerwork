@@ -7,7 +7,7 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
-import { planPageEditWithAI, planPageOperationsWithAI } from './ai.js';
+import { planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { hash, safeSlug } from './utils.js';
 
@@ -25,8 +25,9 @@ const upload = multer({
   limits: { files: 60, fileSize: 250 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const type = String(file.mimetype || '');
-    if (type.startsWith('image/') || type.startsWith('video/') || type.startsWith('audio/') || type === 'application/pdf') return cb(null, true);
-    cb(new Error('Only images, videos, audio files, and PDFs are supported.'));
+    const codeTypes = new Set(['text/plain', 'text/html', 'text/css', 'text/javascript', 'application/javascript', 'application/json', 'image/svg+xml']);
+    if (type.startsWith('image/') || type.startsWith('video/') || type.startsWith('audio/') || type === 'application/pdf' || codeTypes.has(type)) return cb(null, true);
+    cb(new Error('Only images, videos, audio files, PDFs, and web text files are supported.'));
   }
 });
 
@@ -434,6 +435,131 @@ app.get('/api/download/:id', async (req, res) => {
 
 function jobDir(id) {
   return path.join(generatedRoot, id);
+}
+
+function siteDir(id) {
+  return path.join(jobDir(id), 'site');
+}
+
+function editorSnapshotsDir(id) {
+  return path.join(jobDir(id), '.editor-snapshots');
+}
+
+function safeSitePath(id, requested = '') {
+  const siteRoot = siteDir(id);
+  const clean = String(requested || '').replace(/^\/+/, '');
+  if (!clean || clean.includes('\0')) throw new Error('Bad path');
+  const normalized = path.normalize(clean);
+  if (normalized.startsWith('..') || path.isAbsolute(normalized)) throw new Error('Bad path');
+  const target = path.join(siteRoot, normalized);
+  if (target !== siteRoot && !target.startsWith(siteRoot + path.sep)) throw new Error('Bad path');
+  return { target, relative: normalized.replaceAll(path.sep, '/') };
+}
+
+const editableTextExtensions = new Set([
+  '.html', '.htm', '.css', '.js', '.mjs', '.json', '.txt', '.md', '.svg', '.xml', '.webmanifest'
+]);
+
+function isTextSiteFile(filePath = '') {
+  return editableTextExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+async function listSiteFiles(id, dir = siteDir(id), prefix = '') {
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+  const files = [];
+  for (const entry of entries) {
+    if (entry.name === '.DS_Store') continue;
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listSiteFiles(id, abs, rel));
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    const stat = await fs.stat(abs).catch(() => null);
+    files.push({
+      path: rel,
+      size: stat?.size || 0,
+      editable: isTextSiteFile(rel),
+      kind: path.extname(rel).replace(/^\./, '').toLowerCase() || 'file',
+      page: /(^|\/)index\.html?$/i.test(rel)
+    });
+  }
+  return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+async function listSitePages(id) {
+  const files = await listSiteFiles(id);
+  return files
+    .filter(file => /\.html?$/i.test(file.path))
+    .map(file => {
+      const isHome = file.path === 'index.html';
+      const slug = isHome ? 'home' : file.path.replace(/\/index\.html?$/i, '').replace(/^work\//, '');
+      return {
+        slug,
+        path: file.path,
+        title: isHome ? 'Home' : slug.split('/').pop().replace(/[-_]+/g, ' '),
+        preview: `/generated/${id}/site/${file.path}`
+      };
+    });
+}
+
+async function readTextSiteFile(id, relativePath) {
+  const { target, relative } = safeSitePath(id, relativePath);
+  if (!isTextSiteFile(relative)) throw new Error('This file type cannot be edited as text.');
+  const stat = await fs.stat(target).catch(() => null);
+  if (!stat?.isFile()) throw new Error('File not found');
+  if (stat.size > 900000) throw new Error('File is too large to edit here.');
+  return { path: relative, content: await fs.readFile(target, 'utf8') };
+}
+
+async function writeTextSiteFile(id, relativePath, content) {
+  const { target, relative } = safeSitePath(id, relativePath);
+  if (!isTextSiteFile(relative)) throw new Error('This file type cannot be written as text.');
+  await fs.ensureDir(path.dirname(target));
+  await fs.writeFile(target, String(content || ''), 'utf8');
+  return relative;
+}
+
+async function createEditorSnapshot(id) {
+  const source = siteDir(id);
+  if (!(await fs.pathExists(source))) throw new Error('Generated site files are missing.');
+  const snapshots = editorSnapshotsDir(id);
+  await fs.ensureDir(snapshots);
+  const name = `${Date.now()}`;
+  const target = path.join(snapshots, name);
+  await fs.copy(source, target, {
+    filter: src => !src.includes(`${path.sep}.editor-snapshots${path.sep}`)
+  });
+  const historyFile = path.join(snapshots, 'history.json');
+  const history = await fs.readJson(historyFile).catch(() => ({ undo: [], redo: [] }));
+  history.undo = [...(history.undo || []), name].slice(-20);
+  history.redo = [];
+  await fs.writeJson(historyFile, history, { spaces: 2 });
+  return name;
+}
+
+async function restoreEditorSnapshot(id, direction = 'undo') {
+  const snapshots = editorSnapshotsDir(id);
+  const historyFile = path.join(snapshots, 'history.json');
+  const history = await fs.readJson(historyFile).catch(() => ({ undo: [], redo: [] }));
+  const from = direction === 'redo' ? 'redo' : 'undo';
+  const to = from === 'undo' ? 'redo' : 'undo';
+  const snapshot = (history[from] || []).pop();
+  if (!snapshot) return null;
+  const current = `${Date.now()}-current`;
+  await fs.copy(siteDir(id), path.join(snapshots, current));
+  history[to] = [...(history[to] || []), current].slice(-20);
+  await fs.emptyDir(siteDir(id));
+  await fs.copy(path.join(snapshots, snapshot), siteDir(id));
+  await fs.writeJson(historyFile, history, { spaces: 2 });
+  await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
+  return { restored: snapshot, undoCount: history.undo?.length || 0, redoCount: history.redo?.length || 0 };
+}
+
+async function editorHistoryState(id) {
+  const history = await fs.readJson(path.join(editorSnapshotsDir(id), 'history.json')).catch(() => ({ undo: [], redo: [] }));
+  return { undoCount: history.undo?.length || 0, redoCount: history.redo?.length || 0 };
 }
 
 async function readManifest(id) {
@@ -1058,6 +1184,231 @@ app.delete('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   await fs.remove(dir);
   jobs.delete(req.params.id);
   res.json({ ok: true });
+});
+
+async function requireEditablePortfolio(id, user) {
+  const manifest = await readManifest(id);
+  if (!manifest) {
+    const err = new Error('Portfolio not found.');
+    err.status = 404;
+    throw err;
+  }
+  if (!canAccessPortfolio(manifest, user)) {
+    const err = new Error('Not your portfolio.');
+    err.status = 403;
+    throw err;
+  }
+  if (!(await fs.pathExists(siteDir(id)))) {
+    const err = new Error('Generated site files are missing.');
+    err.status = 404;
+    throw err;
+  }
+  return manifest;
+}
+
+function parseJsonField(value, fallback) {
+  if (Array.isArray(value)) value = value[value.length - 1];
+  if (value === undefined || value === null || value === '') return fallback;
+  try { return JSON.parse(String(value)); } catch { return fallback; }
+}
+
+async function moveAiEditorUploads(id, files = []) {
+  const moved = [];
+  if (!files.length) return moved;
+  const assetsDir = path.join(siteDir(id), 'assets', 'ai');
+  await fs.ensureDir(assetsDir);
+  for (const file of files) {
+    const fileName = uploadedAssetName(file);
+    const target = path.join(assetsDir, fileName);
+    await fs.move(file.path, target, { overwrite: true });
+    moved.push({
+      path: `assets/ai/${fileName}`,
+      original: file.originalname || fileName,
+      mime: file.mimetype || '',
+      size: file.size || 0
+    });
+  }
+  return moved;
+}
+
+async function contextFilesForAi(id, requestedPaths = [], pagePath = '') {
+  const files = [];
+  const seen = new Set();
+  const add = async rel => {
+    if (!rel || seen.has(rel)) return;
+    seen.add(rel);
+    try {
+      const file = await readTextSiteFile(id, rel);
+      files.push(file);
+    } catch {}
+  };
+  await add(pagePath || 'index.html');
+  for (const rel of requestedPaths || []) await add(String(rel || ''));
+  for (const rel of ['styles.css', 'portfolio.js', 'index.html']) await add(rel);
+  return files.slice(0, 12);
+}
+
+async function applySiteEditOperations(id, operations = []) {
+  const changed = [];
+  for (const operation of operations) {
+    const op = String(operation.op || '').trim();
+    if (op === 'replace') {
+      const current = await readTextSiteFile(id, operation.path);
+      if (!operation.find) throw new Error(`Missing find text for ${operation.path}.`);
+      if (!current.content.includes(operation.find)) throw new Error(`Could not find requested text in ${operation.path}.`);
+      const next = current.content.split(operation.find).join(operation.replace || '');
+      await writeTextSiteFile(id, current.path, next);
+      changed.push(current.path);
+      continue;
+    }
+    if (op === 'writeFile' || op === 'createFile') {
+      const rel = await writeTextSiteFile(id, operation.path, operation.content || '');
+      changed.push(rel);
+      continue;
+    }
+    if (op === 'deleteFile') {
+      const { target, relative } = safeSitePath(id, operation.path);
+      await fs.remove(target);
+      changed.push(relative);
+      continue;
+    }
+    if (op === 'renameFile') {
+      const from = safeSitePath(id, operation.path);
+      const to = safeSitePath(id, operation.to);
+      await fs.ensureDir(path.dirname(to.target));
+      await fs.move(from.target, to.target, { overwrite: true });
+      changed.push(from.relative, to.relative);
+    }
+  }
+  return [...new Set(changed)];
+}
+
+app.get('/api/code-editor/:id/site', requireFirebaseAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    const [files, pages, history] = await Promise.all([
+      listSiteFiles(id),
+      listSitePages(id),
+      editorHistoryState(id)
+    ]);
+    res.json({
+      id,
+      siteTitle: manifest.siteTitle || manifest.ownerName || 'Portfolio',
+      ownerName: manifest.ownerName || '',
+      preview: `/generated/${id}/site/index.html`,
+      published: manifest.published || null,
+      customDomain: manifest.customDomain || null,
+      files,
+      pages,
+      history
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Could not load site.' });
+  }
+});
+
+app.get('/api/code-editor/:id/file', requireFirebaseAuth, async (req, res) => {
+  try {
+    await requireEditablePortfolio(req.params.id, req.user);
+    res.json(await readTextSiteFile(req.params.id, req.query.path || 'index.html'));
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message || 'Could not read file.' });
+  }
+});
+
+app.put('/api/code-editor/:id/file', requireFirebaseAuth, async (req, res) => {
+  try {
+    await requireEditablePortfolio(req.params.id, req.user);
+    await createEditorSnapshot(req.params.id);
+    const rel = await writeTextSiteFile(req.params.id, req.body?.path || '', req.body?.content || '');
+    const validation = await validateSite(siteDir(req.params.id));
+    await zipDir(siteDir(req.params.id), path.join(jobDir(req.params.id), 'site.zip'));
+    res.json({ ok: true, path: rel, validation, history: await editorHistoryState(req.params.id) });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message || 'Could not save file.' });
+  }
+});
+
+app.post('/api/code-editor/:id/upload', requireFirebaseAuth, upload.array('files', 60), async (req, res) => {
+  const files = req.files || [];
+  try {
+    await requireEditablePortfolio(req.params.id, req.user);
+    await createEditorSnapshot(req.params.id);
+    const uploaded = await moveAiEditorUploads(req.params.id, files);
+    await zipDir(siteDir(req.params.id), path.join(jobDir(req.params.id), 'site.zip'));
+    res.json({ ok: true, uploaded, files: await listSiteFiles(req.params.id), history: await editorHistoryState(req.params.id) });
+  } catch (err) {
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+    res.status(err.status || 500).json({ error: err.message || 'Could not upload files.' });
+  }
+});
+
+app.post('/api/code-editor/:id/ai-edit', requireFirebaseAuth, upload.array('files', 60), async (req, res) => {
+  const files = req.files || [];
+  try {
+    const id = req.params.id;
+    await requireEditablePortfolio(id, req.user);
+    const prompt = String(req.body?.prompt || '').replace(/\r/g, '\n').trim().slice(0, 12000);
+    if (!prompt && !files.length) return res.status(400).json({ error: 'Write a prompt or upload files first.' });
+    const pagePath = String(req.body?.pagePath || 'index.html').replace(/^\/+/, '');
+    const contextPaths = parseJsonField(req.body?.contextPaths, []);
+    const fileTree = await listSiteFiles(id);
+    const contextFiles = await contextFilesForAi(id, contextPaths, pagePath);
+    await createEditorSnapshot(id);
+    const uploadedAssets = await moveAiEditorUploads(id, files);
+    const plan = await planSiteFileEditsWithAI({
+      prompt: prompt || 'Add the uploaded assets to the current page in a polished portfolio layout.',
+      files: contextFiles,
+      fileTree: fileTree.map(file => ({ path: file.path, size: file.size, editable: file.editable })),
+      uploadedAssets,
+      pagePath
+    });
+    const changedFiles = await applySiteEditOperations(id, plan.operations || []);
+    const validation = await validateSite(siteDir(id));
+    await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
+    const manifest = await readManifest(id);
+    if (manifest) {
+      manifest.editorUpdatedAt = new Date().toISOString();
+      await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+    }
+    res.json({
+      ok: true,
+      message: plan.message || 'Applied the requested file edits.',
+      changedFiles,
+      uploadedAssets,
+      operations: plan.operations || [],
+      validation,
+      files: await listSiteFiles(id),
+      pages: await listSitePages(id),
+      history: await editorHistoryState(id)
+    });
+  } catch (err) {
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+    res.status(err.status || 500).json({ error: err.message || 'AI edit failed.' });
+  }
+});
+
+app.post('/api/code-editor/:id/undo', requireFirebaseAuth, async (req, res) => {
+  try {
+    await requireEditablePortfolio(req.params.id, req.user);
+    const restored = await restoreEditorSnapshot(req.params.id, 'undo');
+    if (!restored) return res.status(400).json({ error: 'Nothing to undo.' });
+    res.json({ ok: true, ...restored, files: await listSiteFiles(req.params.id), pages: await listSitePages(req.params.id) });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Undo failed.' });
+  }
+});
+
+app.post('/api/code-editor/:id/redo', requireFirebaseAuth, async (req, res) => {
+  try {
+    await requireEditablePortfolio(req.params.id, req.user);
+    const restored = await restoreEditorSnapshot(req.params.id, 'redo');
+    if (!restored) return res.status(400).json({ error: 'Nothing to redo.' });
+    res.json({ ok: true, ...restored, files: await listSiteFiles(req.params.id), pages: await listSitePages(req.params.id) });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Redo failed.' });
+  }
 });
 
 app.get('/api/editor/:id/pages', requireFirebaseAuth, async (req, res) => {
