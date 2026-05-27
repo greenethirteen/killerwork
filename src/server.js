@@ -1252,6 +1252,20 @@ async function applySiteEditOperations(id, operations = []) {
   const changed = [];
   for (const operation of operations) {
     const op = String(operation.op || '').trim();
+    if (op === 'replaceAll') {
+      if (!operation.find) throw new Error('Missing find text for sitewide replacement.');
+      const files = await listSiteFiles(id);
+      for (const file of files) {
+        if (!file.editable || file.size > 900000) continue;
+        const current = await readTextSiteFile(id, file.path).catch(() => null);
+        if (!current?.content?.includes(operation.find)) continue;
+        const next = current.content.split(operation.find).join(operation.replace || '');
+        await writeTextSiteFile(id, current.path, next);
+        changed.push(current.path);
+      }
+      if (!changed.length) throw new Error('Could not find that text anywhere in the generated site.');
+      continue;
+    }
     if (op === 'replace') {
       const current = await readTextSiteFile(id, operation.path);
       if (!operation.find) throw new Error(`Missing find text for ${operation.path}.`);

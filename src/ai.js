@@ -287,12 +287,17 @@ Rules:
   }
 }
 
-function normalizeSiteEditPlan(result = {}) {
+function sitewidePrompt(prompt = '') {
+  return /\b(all pages|whole site|sitewide|site-wide|global|every page|common|header|nav|navigation|browser title|page title|portfolio site|main portfolio|site headline|portfolio headline|brand|name|role)\b/i.test(String(prompt || ''));
+}
+
+function normalizeSiteEditPlan(result = {}, prompt = '') {
   const rawOps = Array.isArray(result.operations) ? result.operations : [];
   const operations = rawOps.map(op => {
     const type = String(op?.op || op?.type || '').trim();
     const filePath = String(op?.path || op?.file || '').replace(/^\/+/, '').trim();
-    if (!type || !filePath) return null;
+    if (!type) return null;
+    if (type !== 'replaceAll' && !filePath) return null;
     return {
       op: type,
       path: filePath,
@@ -302,6 +307,11 @@ function normalizeSiteEditPlan(result = {}) {
       to: typeof op.to === 'string' ? op.to.replace(/^\/+/, '').trim() : ''
     };
   }).filter(Boolean).slice(0, 40);
+  if (sitewidePrompt(prompt)) {
+    for (const operation of operations) {
+      if (operation.op === 'replace' && operation.find && operation.replace) operation.op = 'replaceAll';
+    }
+  }
   return {
     message: String(result.message || 'Applied the requested file edits.').replace(/\s+/g, ' ').trim().slice(0, 700),
     operations
@@ -312,11 +322,16 @@ function fallbackSiteEditPlan(prompt = '', files = []) {
   const text = String(prompt || '').trim();
   const firstFile = files.find(file => /\.html?$/i.test(file.path)) || files[0];
   if (!firstFile || !text) return { message: 'I need a prompt and at least one editable file.', operations: [] };
-  const replaceMatch = text.match(/(?:change|replace)\s+["“']([^"”']+)["”']\s+(?:to|with)\s+["“']([^"”']+)["”']/i);
+  const replaceMatch =
+    text.match(/\bfrom\s+["“']([^"”']+)["”']\s+to\s+["“']([^"”']+)["”']/i) ||
+    text.match(/(?:change|replace)\s+["“']([^"”']+)["”']\s+(?:to|with)\s+["“']([^"”']+)["”']/i);
   if (replaceMatch) {
+    const sitewide = sitewidePrompt(text);
     return {
-      message: `Replaced "${replaceMatch[1]}" with "${replaceMatch[2]}".`,
-      operations: [{ op: 'replace', path: firstFile.path, find: replaceMatch[1], replace: replaceMatch[2] }]
+      message: sitewide
+        ? `Replaced "${replaceMatch[1]}" with "${replaceMatch[2]}" across the site.`
+        : `Replaced "${replaceMatch[1]}" with "${replaceMatch[2]}".`,
+      operations: [{ op: sitewide ? 'replaceAll' : 'replace', path: firstFile.path, find: replaceMatch[1], replace: replaceMatch[2] }]
     };
   }
   return { message: 'AI editing needs OPENAI_API_KEY for this request.', operations: [] };
@@ -347,6 +362,7 @@ Return JSON only:
   "message": "short clear summary",
   "operations": [
     { "op": "replace", "path": "index.html", "find": "exact text or markup", "replace": "replacement" },
+    { "op": "replaceAll", "find": "exact repeated sitewide text", "replace": "replacement" },
     { "op": "writeFile", "path": "styles.css", "content": "complete new file content" },
     { "op": "createFile", "path": "work/new-campaign/index.html", "content": "complete file content" },
     { "op": "deleteFile", "path": "old.html" },
@@ -358,6 +374,7 @@ Rules:
 - Make the requested change directly in HTML/CSS/JS.
 - Preserve the imported site's design unless the user asks to change it.
 - Prefer small exact replace operations when safe.
+- Use replaceAll when changing site identity, the main portfolio headline, the browser title, header/nav branding, footer branding, or any common text that should stay consistent across every page.
 - Use writeFile only when a broader rewrite is necessary.
 - If uploaded assets are provided, reference them by their provided relative paths.
 - For new campaign pages, copy the structure and styling conventions from existing pages in context.
@@ -384,7 +401,7 @@ Rules:
     });
     if (!res.ok) return fallback();
     const data = await res.json();
-    return normalizeSiteEditPlan(jsonFromText(data.choices?.[0]?.message?.content || '{}'));
+    return normalizeSiteEditPlan(jsonFromText(data.choices?.[0]?.message?.content || '{}'), prompt);
   } catch {
     return fallback();
   }
