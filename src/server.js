@@ -511,8 +511,12 @@ function compactForMatch(value = '') {
 }
 
 function applyCreditLineBreakEdit(project, prompt = '') {
-  if (!/\b(break|separate|split|line by line|vertically)\b/i.test(prompt) || !/\b(agency|creative director|credits|producer|dop|production house)\b/i.test(prompt)) return '';
-  const pasted = String(prompt).split(/\b(?:break|separate|split)\b/i)[0].trim();
+  if (!/\b(agency|creative director|credits|producer|dop|production house)\b/i.test(prompt)) return '';
+  if (!/\b(break|separate|split|line by line|vertically|format|credits?)\b/i.test(prompt) && !String(prompt).includes(':')) return '';
+  let pasted = String(prompt).trim();
+  const beforeCommand = pasted.split(/\b(?:break|separate|split)\b/i)[0].trim();
+  if (beforeCommand && /\b(agency|creative director|credits|producer|dop|production house)\b/i.test(beforeCommand)) pasted = beforeCommand;
+  pasted = pasted.replace(/^.*?(?=(?:Agency|Credits(?:\s*\([^)]*\))?|Production House|Creative Director|Senior Account Manager|Producer|Director|DOP)\s*:)/is, '').trim();
   const formatted = formatCreditsText(pasted);
   if (!formatted.includes('\n')) return '';
   project.contentItems = project.contentItems || [];
@@ -838,8 +842,7 @@ function projectSummary(project, id) {
     audios: (project.audios || []).length,
     documents: (project.documents || []).length,
     preview: `/generated/${id}/site/work/${project.slug}/index.html`,
-    editor: `/ai-editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`,
-    manualEditor: `/editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`
+    editor: `/ai-editor.html?job=${encodeURIComponent(id)}&page=${encodeURIComponent(project.slug)}`
   };
 }
 
@@ -855,7 +858,6 @@ function publicPortfolio(id, manifest, validation = null) {
     manifest: `/generated/${id}/manifest.json`,
     zip: `/api/download/${id}`,
     editor: `/ai-editor.html?job=${encodeURIComponent(id)}`,
-    manualEditor: `/editor.html?job=${encodeURIComponent(id)}`,
     published: manifest.published || null,
     customDomain: manifest.customDomain || null,
     projects: (manifest.projects || []).map(project => projectSummary(project, id)),
@@ -874,7 +876,6 @@ function publicPortfolioListItem(id, manifest) {
     preview: `/generated/${id}/site/index.html`,
     manage: `/manage.html?job=${encodeURIComponent(id)}`,
     editor: `/ai-editor.html?job=${encodeURIComponent(id)}`,
-    manualEditor: `/editor.html?job=${encodeURIComponent(id)}`,
     zip: `/api/download/${id}`,
     published: manifest.published || null,
     customDomain: manifest.customDomain || null

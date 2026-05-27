@@ -189,7 +189,7 @@ function fallbackOperations(prompt = '', page = {}) {
   if (/\b(headline|title)\b/i.test(text) && /\b(reduce|smaller|decrease|lower|shrink)\b/i.test(text) && /\b(font|size)\b/i.test(text)) {
     operations.push({ op: 'resizeHeadline', scale: 0.78 });
   }
-  if (/\b(break|separate|split|line by line|vertically)\b/i.test(text) && /\b(agency|creative director|credits|producer|dop|production house)\b/i.test(text)) {
+  if (/\b(agency|creative director|credits|producer|dop|production house)\b/i.test(text) && (/\b(break|separate|split|line by line|vertically|format|credits?)\b/i.test(text) || text.includes(':'))) {
     operations.push({ op: 'splitCredits', text });
   }
   if (/\b(premium|portfolio-ready|beautiful|polish|high.end|better design)\b/i.test(text)) {

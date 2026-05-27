@@ -1,3 +1,5 @@
+import { setupPublishControl } from './publish.js';
+
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job') || localStorage.getItem('killerwork:lastJobId') || '';
 let currentSlug = params.get('page') || 'home';
@@ -11,7 +13,7 @@ const promptBox = document.getElementById('aiPrompt');
 const applyButton = document.getElementById('aiApply');
 const statusBox = document.getElementById('aiStatus');
 const pageSelect = document.getElementById('aiPageSelect');
-const editorLink = document.getElementById('classicEditorLink');
+const managePortfolioLink = document.getElementById('aiManagePortfolio');
 const openPreviewLink = document.getElementById('aiOpenPreview');
 const topOpenPreviewLink = document.getElementById('aiPreviewTopOpen');
 const previewTitle = document.getElementById('aiPreviewTitle');
@@ -33,6 +35,12 @@ const closeNewPageButton = document.getElementById('aiCloseNewPage');
 const cancelNewPageButton = document.getElementById('aiCancelNewPage');
 const createPageButton = document.getElementById('aiCreatePage');
 let pendingFiles = [];
+
+const publishControl = setupPublishControl({
+  control: document.getElementById('aiPublishControl'),
+  getJobId: () => jobId,
+  setStatus
+});
 
 function setStatus(text, tone = '') {
   statusBox.textContent = text;
@@ -81,7 +89,7 @@ function addMessage(role, text, pending = false) {
 function refreshPreview() {
   const url = previewUrl();
   preview.src = url;
-  editorLink.href = `/editor.html?job=${encodeURIComponent(jobId)}&page=${encodeURIComponent(currentSlug)}`;
+  if (managePortfolioLink) managePortfolioLink.href = `/manage.html?job=${encodeURIComponent(jobId)}`;
   openPreviewLink.href = previewUrl(currentSlug, false);
   if (topOpenPreviewLink) topOpenPreviewLink.href = previewUrl(currentSlug, false);
   if (previewTitle) previewTitle.textContent = pageSelect.selectedOptions[0]?.textContent || currentPage?.title || 'Portfolio';
@@ -152,6 +160,7 @@ async function loadPages() {
     setStatus(data.error || 'Could not load pages.', 'error');
     return;
   }
+  publishControl.setPublished(data.published, data.customDomain);
   renderPageOptions(data.pages || []);
   if (![...pageSelect.options].some(option => option.value === currentSlug)) currentSlug = 'home';
   pageSelect.value = currentSlug;

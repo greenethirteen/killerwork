@@ -3,7 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KillaWork™ Page Editor</title>
+  <title>KillaWork™ AI Editor</title>
+  <script>
+    const params = new URLSearchParams(location.search);
+    location.replace(`/ai-editor.html${params.toString() ? `?${params.toString()}` : ''}`);
+  </script>
+  <style>body{display:none}</style>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
   <link rel="stylesheet" href="/ui.css" />
 </head>
