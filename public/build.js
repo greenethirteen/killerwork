@@ -1,6 +1,9 @@
 import { setupPublishControl } from './publish.js';
 
 const form = document.getElementById('campaignBuilder');
+const dashboard = document.getElementById('portfolioDashboard');
+const builderFlow = document.getElementById('builderFlow');
+const builderBack = document.getElementById('builderBack');
 const campaignList = document.getElementById('campaignList');
 const addCampaign = document.getElementById('addCampaign');
 const buildCampaigns = document.getElementById('buildCampaigns');
@@ -17,6 +20,9 @@ const editorLink = document.getElementById('editorLink');
 const previewLink = document.getElementById('previewLink');
 const manageLink = document.getElementById('manageLink');
 const downloadLink = document.getElementById('downloadLink');
+const previewTitle = document.getElementById('builderPreviewTitle');
+const previewMeta = document.getElementById('builderPreviewMeta');
+const previewArt = document.getElementById('builderPreviewArt');
 
 let timer;
 let currentJobId = '';
@@ -37,14 +43,42 @@ function renumberCampaigns() {
   });
 }
 
+function openBuilder() {
+  dashboard?.classList.add('hidden');
+  builderFlow?.classList.remove('hidden');
+  if (!campaignList.children.length) addCampaignCard(false);
+  builderFlow?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeBuilder() {
+  builderFlow?.classList.add('hidden');
+  dashboard?.classList.remove('hidden');
+  dashboard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function updateFileSummary(card) {
   const input = card.querySelector('[data-field="files"]');
   const summary = card.querySelector('[data-file-summary]');
   const count = input.files?.length || 0;
   summary.textContent = count ? `${count} file${count === 1 ? '' : 's'} selected` : 'No files selected';
+  const firstImage = [...(input.files || [])].find(file => file.type?.startsWith('image/'));
+  if (firstImage && previewArt) {
+    const url = URL.createObjectURL(firstImage);
+    previewArt.style.backgroundImage = `linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.72)),url("${url}")`;
+  }
+  updatePreviewCopy();
 }
 
-function addCampaignCard() {
+function updatePreviewCopy() {
+  const first = campaignList.querySelector('.campaign-card');
+  if (!first) return;
+  const title = first.querySelector('[data-field="title"]')?.value?.trim() || 'Your campaign';
+  const role = first.querySelector('[data-field="role"]')?.value?.trim() || 'Portfolio page preview';
+  if (previewTitle) previewTitle.textContent = title;
+  if (previewMeta) previewMeta.textContent = role;
+}
+
+function addCampaignCard(scroll = true) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.querySelector('.remove-campaign').addEventListener('click', () => {
     if (campaignList.children.length > 1) {
@@ -55,6 +89,9 @@ function addCampaignCard() {
   const drop = node.querySelector('.asset-drop');
   const input = node.querySelector('[data-field="files"]');
   input.addEventListener('change', () => updateFileSummary(node));
+  node.querySelectorAll('input, textarea').forEach(field => {
+    field.addEventListener('input', updatePreviewCopy);
+  });
   ['dragenter', 'dragover'].forEach(type => drop.addEventListener(type, event => {
     event.preventDefault();
     drop.classList.add('dragging');
@@ -65,16 +102,19 @@ function addCampaignCard() {
   }));
   campaignList.appendChild(node);
   renumberCampaigns();
-  node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  updatePreviewCopy();
+  if (scroll) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function campaignData(card) {
   const read = field => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
   const number = [...campaignList.children].indexOf(card) + 1;
+  const title = read('title') || `Campaign ${number}`;
+  const role = read('role');
   return {
-    title: `Campaign ${number}`,
-    campaign: `Campaign ${number}`,
-    notes: read('notes')
+    title,
+    campaign: title,
+    notes: [role ? `Role: ${role}` : '', read('notes')].filter(Boolean).join('\n\n')
   };
 }
 
@@ -138,6 +178,7 @@ form.addEventListener('submit', async event => {
   actions.classList.add('hidden');
   publishControl.hide();
   panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   logBox.textContent = '';
   buildCampaigns.disabled = true;
   buildCampaigns.textContent = 'Signing in...';
@@ -170,5 +211,8 @@ form.addEventListener('submit', async event => {
   poll(data.id);
 });
 
-addCampaign.addEventListener('click', addCampaignCard);
-addCampaignCard();
+addCampaign.addEventListener('click', () => addCampaignCard());
+builderBack?.addEventListener('click', closeBuilder);
+document.querySelectorAll('[data-open-builder]').forEach(button => {
+  button.addEventListener('click', openBuilder);
+});
