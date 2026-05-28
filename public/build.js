@@ -8,6 +8,7 @@ const campaignList = document.getElementById('campaignList');
 const addCampaign = document.getElementById('addCampaign');
 const buildCampaigns = document.getElementById('buildCampaigns');
 const template = document.getElementById('campaignTemplate');
+const portfolioHeaderInput = document.getElementById('portfolioHeaderInput');
 const panel = document.getElementById('progressPanel');
 const pill = document.getElementById('statusPill');
 const stageTitle = document.getElementById('stageTitle');
@@ -19,10 +20,11 @@ const actions = document.getElementById('actions');
 const editorLink = document.getElementById('editorLink');
 const previewLink = document.getElementById('previewLink');
 const manageLink = document.getElementById('manageLink');
-const downloadLink = document.getElementById('downloadLink');
 const previewTitle = document.getElementById('builderPreviewTitle');
 const previewMeta = document.getElementById('builderPreviewMeta');
 const previewArt = document.getElementById('builderPreviewArt');
+const previewBrand = document.getElementById('builderPreviewBrand');
+const builderFullPreview = document.getElementById('builderFullPreview');
 
 let timer;
 let currentJobId = '';
@@ -71,11 +73,12 @@ function updateFileSummary(card) {
 
 function updatePreviewCopy() {
   const first = campaignList.querySelector('.campaign-card');
-  if (!first) return;
-  const title = first.querySelector('[data-field="title"]')?.value?.trim() || 'Your campaign';
-  const role = first.querySelector('[data-field="role"]')?.value?.trim() || 'Portfolio page preview';
+  const title = first?.querySelector('[data-field="title"]')?.value?.trim() || 'Your campaign';
+  const role = first?.querySelector('[data-field="role"]')?.value?.trim() || 'Portfolio page preview';
+  const brand = portfolioHeaderInput?.value?.trim() || 'Your Name | Title';
   if (previewTitle) previewTitle.textContent = title;
   if (previewMeta) previewMeta.textContent = role;
+  if (previewBrand) previewBrand.textContent = brand;
 }
 
 function addCampaignCard(scroll = true) {
@@ -140,7 +143,8 @@ async function poll(id) {
     editorLink.href = `/ai-editor.html?job=${encodeURIComponent(job.id)}`;
     previewLink.href = job.links.preview;
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
-    downloadLink.href = job.links.zip;
+    builderFullPreview?.classList.remove('hidden');
+    if (builderFullPreview) builderFullPreview.href = job.links.preview;
     publishControl.show();
     publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
@@ -160,6 +164,7 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   const cards = [...campaignList.querySelectorAll('.campaign-card')];
   const campaigns = cards.map(campaignData);
+  const portfolioHeader = portfolioHeaderInput?.value?.trim() || 'Uploaded Portfolio';
   const totalFiles = cards.reduce((sum, card) => sum + (card.querySelector('[data-field="files"]')?.files?.length || 0), 0);
   if (!totalFiles) {
     stageDetail.textContent = 'Upload at least one asset.';
@@ -168,7 +173,7 @@ form.addEventListener('submit', async event => {
   }
 
   const body = new FormData();
-  body.append('title', 'Uploaded Portfolio');
+  body.append('title', portfolioHeader);
   body.append('campaigns', JSON.stringify(campaigns));
   cards.forEach((card, index) => {
     const files = card.querySelector('[data-field="files"]')?.files || [];
@@ -212,6 +217,7 @@ form.addEventListener('submit', async event => {
 });
 
 addCampaign.addEventListener('click', () => addCampaignCard());
+portfolioHeaderInput?.addEventListener('input', updatePreviewCopy);
 builderBack?.addEventListener('click', closeBuilder);
 document.querySelectorAll('[data-open-builder]').forEach(button => {
   button.addEventListener('click', openBuilder);

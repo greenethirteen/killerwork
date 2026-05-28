@@ -82,6 +82,10 @@
 
       <form id="campaignBuilder" class="builder-flow-layout">
         <section class="builder-panel builder-upload-panel">
+          <label class="builder-field portfolio-header-field">
+            <span>Portfolio header</span>
+            <input id="portfolioHeaderInput" name="portfolioHeader" placeholder="Abdullah Farouk | Senior Copywriter" required>
+          </label>
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
             <button id="addCampaign" class="button secondary" type="button">Add another page</button>
@@ -92,9 +96,10 @@
         <aside class="builder-preview-panel" aria-label="AI generated preview">
           <div class="preview-panel-head">
             <div><span class="live-dot"></span><b>Live preview</b><small>AI generated preview based on your files</small></div>
-            <button type="button" data-open-builder>Open full preview</button>
+            <a id="builderFullPreview" class="hidden" target="_blank" rel="noreferrer">Open full preview</a>
           </div>
           <div class="builder-preview-card">
+            <div class="builder-preview-brand" id="builderPreviewBrand">Your Name | Title</div>
             <div class="builder-preview-art" id="builderPreviewArt">
               <strong id="builderPreviewTitle">Your campaign</strong>
               <span id="builderPreviewMeta">Portfolio page preview</span>
@@ -120,10 +125,9 @@
       <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
       <pre id="logBox" class="logs"></pre>
       <div id="actions" class="actions hidden">
-        <a id="editorLink" class="button" target="_blank">AI edit site</a>
-        <a id="previewLink" class="button secondary" target="_blank">Preview site</a>
+        <a id="previewLink" class="button" target="_blank">Preview portfolio</a>
+        <a id="editorLink" class="button secondary" target="_blank">AI edit site</a>
         <a id="manageLink" class="button secondary" target="_blank">Manage projects</a>
-        <a id="downloadLink" class="button hot">Download ZIP</a>
         <div id="publishControl" class="publish-control hidden" data-publish-domain="killa.work">
           <button class="button secondary" type="button" data-publish-toggle>Publish</button>
           <div class="publish-panel hidden" data-publish-panel>
