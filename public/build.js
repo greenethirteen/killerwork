@@ -8,8 +8,6 @@ const campaignList = document.getElementById('campaignList');
 const addCampaign = document.getElementById('addCampaign');
 const buildCampaigns = document.getElementById('buildCampaigns');
 const template = document.getElementById('campaignTemplate');
-const portfolioHeaderInput = document.getElementById('portfolioHeaderInput');
-const portfolioSubheadInput = document.getElementById('portfolioSubheadInput');
 const portfolioName = document.getElementById('portfolioName');
 const portfolioTagline = document.getElementById('portfolioTagline');
 const portfolioGrid = document.getElementById('portfolioGrid');
@@ -27,11 +25,6 @@ const actions = document.getElementById('actions');
 const editorLink = document.getElementById('editorLink');
 const previewLink = document.getElementById('previewLink');
 const manageLink = document.getElementById('manageLink');
-const previewTitle = document.getElementById('builderPreviewTitle');
-const previewMeta = document.getElementById('builderPreviewMeta');
-const previewArt = document.getElementById('builderPreviewArt');
-const previewBrand = document.getElementById('builderPreviewBrand');
-const builderFullPreview = document.getElementById('builderFullPreview');
 
 let timer;
 let currentJobId = '';
@@ -54,12 +47,9 @@ function renumberCampaigns() {
 }
 
 function openBuilder() {
-  portfolioHeaderInput.value = cleanEditableText(portfolioName?.textContent) || 'Your Name';
-  if (portfolioSubheadInput) portfolioSubheadInput.value = cleanEditableText(portfolioTagline?.textContent) || 'Your Job Title or Short Description';
   builderFlow?.classList.remove('hidden');
   if (!campaignList.children.length) addCampaignCard(false);
   document.body.classList.add('builder-modal-open');
-  updatePreviewCopy();
   builderFlow?.querySelector('[data-field="files"]')?.focus();
 }
 
@@ -77,24 +67,6 @@ function updateFileSummary(card) {
   const summary = card.querySelector('[data-file-summary]');
   const count = input.files?.length || 0;
   summary.textContent = count ? `${count} file${count === 1 ? '' : 's'} selected` : 'No files selected';
-  const firstImage = [...(input.files || [])].find(file => file.type?.startsWith('image/'));
-  if (firstImage && previewArt) {
-    const url = URL.createObjectURL(firstImage);
-    previewArt.style.backgroundImage = `linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.72)),url("${url}")`;
-  }
-  updatePreviewCopy();
-}
-
-function updatePreviewCopy() {
-  const first = campaignList.querySelector('.campaign-card');
-  const title = first?.querySelector('[data-field="title"]')?.value?.trim() || 'Your campaign';
-  const brandName = first?.querySelector('[data-field="brand"]')?.value?.trim();
-  const agency = first?.querySelector('[data-field="agency"]')?.value?.trim();
-  const role = [brandName, agency].filter(Boolean).join(' / ') || 'Portfolio page preview';
-  const brand = [portfolioHeaderInput?.value?.trim() || 'Your Name', portfolioSubheadInput?.value?.trim()].filter(Boolean).join(' | ');
-  if (previewTitle) previewTitle.textContent = title;
-  if (previewMeta) previewMeta.textContent = role;
-  if (previewBrand) previewBrand.textContent = brand;
 }
 
 function addCampaignCard(scroll = true) {
@@ -108,9 +80,6 @@ function addCampaignCard(scroll = true) {
   const drop = node.querySelector('.asset-drop');
   const input = node.querySelector('[data-field="files"]');
   input.addEventListener('change', () => updateFileSummary(node));
-  node.querySelectorAll('input, textarea').forEach(field => {
-    field.addEventListener('input', updatePreviewCopy);
-  });
   ['dragenter', 'dragover'].forEach(type => drop.addEventListener(type, event => {
     event.preventDefault();
     drop.classList.add('dragging');
@@ -121,7 +90,6 @@ function addCampaignCard(scroll = true) {
   }));
   campaignList.appendChild(node);
   renumberCampaigns();
-  updatePreviewCopy();
   if (scroll) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -240,8 +208,6 @@ async function poll(id) {
     editorLink.href = `/ai-editor.html?job=${encodeURIComponent(job.id)}`;
     previewLink.href = job.links.preview;
     manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
-    builderFullPreview?.classList.remove('hidden');
-    if (builderFullPreview) builderFullPreview.href = job.links.preview;
     publishControl.show();
     publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
@@ -262,8 +228,8 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   const cards = [...campaignList.querySelectorAll('.campaign-card')];
   const campaigns = cards.map(campaignData);
-  const portfolioHeader = portfolioHeaderInput?.value?.trim() || cleanEditableText(portfolioName?.textContent) || 'Your Name';
-  const portfolioSubhead = portfolioSubheadInput?.value?.trim() || cleanEditableText(portfolioTagline?.textContent);
+  const portfolioHeader = cleanEditableText(portfolioName?.textContent) || 'Your Name';
+  const portfolioSubhead = cleanEditableText(portfolioTagline?.textContent);
   const totalFiles = cards.reduce((sum, card) => sum + (card.querySelector('[data-field="files"]')?.files?.length || 0), 0);
   if (!totalFiles) {
     stageDetail.textContent = 'Upload at least one asset.';
@@ -317,16 +283,6 @@ form.addEventListener('submit', async event => {
 });
 
 addCampaign.addEventListener('click', () => addCampaignCard());
-portfolioHeaderInput?.addEventListener('input', updatePreviewCopy);
-portfolioSubheadInput?.addEventListener('input', updatePreviewCopy);
-portfolioName?.addEventListener('input', () => {
-  if (portfolioHeaderInput) portfolioHeaderInput.value = cleanEditableText(portfolioName.textContent);
-  updatePreviewCopy();
-});
-portfolioTagline?.addEventListener('input', () => {
-  if (portfolioSubheadInput) portfolioSubheadInput.value = cleanEditableText(portfolioTagline.textContent);
-  updatePreviewCopy();
-});
 builderBack?.addEventListener('click', closeBuilder);
 document.querySelectorAll('[data-close-builder]').forEach(element => element.addEventListener('click', closeBuilder));
 document.querySelectorAll('[data-open-builder]').forEach(button => {

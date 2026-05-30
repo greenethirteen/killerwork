@@ -100,53 +100,17 @@
         <button id="builderBack" class="builder-back" type="button" aria-label="Back to portfolio grid">←</button>
         <div>
           <h1 id="builderTitle">Add work to portfolio</h1>
-          <p>Upload ads, PDFs, videos, case studies, and decks. KillaWork™ AI turns them into portfolio pages.</p>
-        </div>
-        <div class="builder-steps" aria-label="Build steps">
-          <span class="active">1 Upload files</span>
-          <span>2 Organise content</span>
-          <span>3 Generate page</span>
         </div>
       </div>
 
       <form id="campaignBuilder" class="builder-flow-layout">
         <section class="builder-panel builder-upload-panel">
-          <label class="builder-field portfolio-header-field">
-            <span>Your name</span>
-            <input id="portfolioHeaderInput" name="portfolioHeader" placeholder="Your Name" required>
-          </label>
-          <label class="builder-field portfolio-header-field">
-            <span>Your job title or short description</span>
-            <input id="portfolioSubheadInput" name="portfolioSubhead" placeholder="Your Job Title or Short Description">
-          </label>
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
             <button id="addCampaign" class="button secondary" type="button">Add another page</button>
             <button id="buildCampaigns" class="build-submit" type="submit">Generate portfolio page</button>
           </div>
         </section>
-
-        <aside class="builder-preview-panel" aria-label="AI generated preview">
-          <div class="preview-panel-head">
-            <div><span class="live-dot"></span><b>Live preview</b><small>AI generated preview based on your files</small></div>
-            <a id="builderFullPreview" class="hidden" target="_blank" rel="noreferrer">Open full preview</a>
-          </div>
-          <div class="builder-preview-card">
-            <div class="builder-preview-brand" id="builderPreviewBrand">Your Name | Title</div>
-            <div class="builder-preview-art" id="builderPreviewArt">
-              <strong id="builderPreviewTitle">Your campaign</strong>
-              <span id="builderPreviewMeta">Portfolio page preview</span>
-            </div>
-            <ol class="preview-section-list">
-              <li><b>01 Hero</b><span>Full-bleed campaign image with headline.</span></li>
-              <li><b>02 Overview</b><span>Campaign background, idea, and objectives.</span></li>
-              <li><b>03 Key visuals</b><span>Gallery of campaign assets and executions.</span></li>
-              <li><b>04 Case study video</b><span>Embedded video player if uploaded.</span></li>
-              <li><b>05 Results & impact</b><span>Results, stats, and awards from your notes.</span></li>
-            </ol>
-          </div>
-          <p class="preview-note">Final layout and content can be edited in the AI editor after generation.</p>
-        </aside>
       </form>
     </section>
 
