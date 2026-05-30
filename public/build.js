@@ -15,6 +15,7 @@ const portfolioTagline = document.getElementById('portfolioTagline');
 const portfolioGrid = document.getElementById('portfolioGrid');
 const previewPortfolioButton = document.getElementById('previewPortfolioButton');
 const publishLiveSiteButton = document.getElementById('publishLiveSiteButton');
+const buildAnotherPortfolioButton = document.getElementById('buildAnotherPortfolioButton');
 const panel = document.getElementById('progressPanel');
 const pill = document.getElementById('statusPill');
 const stageTitle = document.getElementById('stageTitle');
@@ -342,11 +343,11 @@ publishLiveSiteButton?.addEventListener('click', () => {
     openBuilder();
     return;
   }
-  panel.classList.remove('hidden');
-  actions.classList.remove('hidden');
   publishControl.show();
   document.querySelector('[data-publish-toggle]')?.click();
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+buildAnotherPortfolioButton?.addEventListener('click', () => {
+  window.location.assign(`/build.html?new=${Date.now()}`);
 });
 
 loadLatestPortfolio();
