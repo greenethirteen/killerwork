@@ -9,6 +9,12 @@ const addCampaign = document.getElementById('addCampaign');
 const buildCampaigns = document.getElementById('buildCampaigns');
 const template = document.getElementById('campaignTemplate');
 const portfolioHeaderInput = document.getElementById('portfolioHeaderInput');
+const portfolioSubheadInput = document.getElementById('portfolioSubheadInput');
+const portfolioName = document.getElementById('portfolioName');
+const portfolioTagline = document.getElementById('portfolioTagline');
+const portfolioGrid = document.getElementById('portfolioGrid');
+const previewPortfolioButton = document.getElementById('previewPortfolioButton');
+const publishLiveSiteButton = document.getElementById('publishLiveSiteButton');
 const panel = document.getElementById('progressPanel');
 const pill = document.getElementById('statusPill');
 const stageTitle = document.getElementById('stageTitle');
@@ -28,6 +34,7 @@ const builderFullPreview = document.getElementById('builderFullPreview');
 
 let timer;
 let currentJobId = '';
+let latestPortfolio = null;
 
 const publishControl = setupPublishControl({
   control: document.getElementById('publishControl'),
@@ -46,16 +53,22 @@ function renumberCampaigns() {
 }
 
 function openBuilder() {
-  dashboard?.classList.add('hidden');
+  portfolioHeaderInput.value = cleanEditableText(portfolioName?.textContent) || 'Your Name';
+  if (portfolioSubheadInput) portfolioSubheadInput.value = cleanEditableText(portfolioTagline?.textContent) || 'Your Job Title or Short Description';
   builderFlow?.classList.remove('hidden');
   if (!campaignList.children.length) addCampaignCard(false);
-  builderFlow?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.body.classList.add('builder-modal-open');
+  updatePreviewCopy();
+  builderFlow?.querySelector('[data-field="files"]')?.focus();
 }
 
 function closeBuilder() {
   builderFlow?.classList.add('hidden');
-  dashboard?.classList.remove('hidden');
-  dashboard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.body.classList.remove('builder-modal-open');
+}
+
+function cleanEditableText(value = '') {
+  return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
 function updateFileSummary(card) {
@@ -74,8 +87,10 @@ function updateFileSummary(card) {
 function updatePreviewCopy() {
   const first = campaignList.querySelector('.campaign-card');
   const title = first?.querySelector('[data-field="title"]')?.value?.trim() || 'Your campaign';
-  const role = first?.querySelector('[data-field="role"]')?.value?.trim() || 'Portfolio page preview';
-  const brand = portfolioHeaderInput?.value?.trim() || 'Your Name | Title';
+  const brandName = first?.querySelector('[data-field="brand"]')?.value?.trim();
+  const agency = first?.querySelector('[data-field="agency"]')?.value?.trim();
+  const role = [brandName, agency].filter(Boolean).join(' / ') || 'Portfolio page preview';
+  const brand = [portfolioHeaderInput?.value?.trim() || 'Your Name', portfolioSubheadInput?.value?.trim()].filter(Boolean).join(' | ');
   if (previewTitle) previewTitle.textContent = title;
   if (previewMeta) previewMeta.textContent = role;
   if (previewBrand) previewBrand.textContent = brand;
@@ -113,12 +128,93 @@ function campaignData(card) {
   const read = field => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
   const number = [...campaignList.children].indexOf(card) + 1;
   const title = read('title') || `Campaign ${number}`;
-  const role = read('role');
   return {
     title,
     campaign: title,
-    notes: [role ? `Role: ${role}` : '', read('notes')].filter(Boolean).join('\n\n')
+    brand: read('brand'),
+    agency: read('agency'),
+    notes: read('notes')
   };
+}
+
+function projectTile(project, jobId) {
+  const tile = document.createElement('article');
+  tile.className = 'portfolio-tile built-project-tile';
+  const previewHref = project.preview || `/generated/${jobId}/site/work/${project.slug}/index.html`;
+  tile.dataset.href = previewHref;
+  const thumb = project.thumbnail || project.thumb || project.image || '';
+  if (thumb) tile.style.setProperty('--project-thumb', `url("${thumb}")`);
+  tile.innerHTML = `
+    <div class="tile-project-actions">
+      <a href="${previewHref}" target="_blank" rel="noreferrer" aria-label="Preview ${project.title || 'project'}">Preview</a>
+      <a href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${project.title || 'project'}">Edit</a>
+      <button type="button" data-delete-project="${project.slug}" aria-label="Delete ${project.title || 'project'}">Delete</button>
+    </div>
+    <strong>${project.title || 'Untitled project'}</strong>
+  `;
+  tile.addEventListener('click', event => {
+    if (event.target.closest('a,button')) return;
+    window.open(previewHref, '_blank', 'noopener');
+  });
+  tile.querySelector('[data-delete-project]')?.addEventListener('click', () => deleteProject(jobId, project.slug));
+  return tile;
+}
+
+function plusTile(index = 0) {
+  const tile = document.createElement('article');
+  const classes = ['tile-nike', 'tile-cold', 'tile-flora', 'tile-social', 'tile-pitch', 'tile-car'];
+  tile.className = `portfolio-tile ${classes[index % classes.length]}`;
+  tile.innerHTML = '<button type="button" data-open-builder aria-label="Add project">+</button>';
+  tile.querySelector('button').addEventListener('click', openBuilder);
+  return tile;
+}
+
+function renderPortfolioPreview(portfolio) {
+  if (!portfolioGrid) return;
+  portfolioGrid.innerHTML = '';
+  const projects = portfolio?.projects || [];
+  projects.forEach(project => portfolioGrid.appendChild(projectTile(project, portfolio.id)));
+  for (let i = projects.length; i < Math.max(6, projects.length + 1); i += 1) {
+    portfolioGrid.appendChild(plusTile(i));
+  }
+}
+
+async function loadLatestPortfolio() {
+  let headers;
+  try {
+    headers = await window.KillerWorkAuth.authHeaders();
+  } catch {
+    renderPortfolioPreview(null);
+    return;
+  }
+  const res = await fetch('/api/portfolios', { headers }).catch(() => null);
+  if (!res?.ok) {
+    renderPortfolioPreview(null);
+    return;
+  }
+  const data = await res.json();
+  latestPortfolio = data.portfolios?.[0] || null;
+  const lastId = localStorage.getItem('killerwork:lastJobId');
+  if (lastId) latestPortfolio = data.portfolios?.find(item => item.id === lastId) || latestPortfolio;
+  currentJobId = latestPortfolio?.id || currentJobId;
+  if (latestPortfolio?.preview && previewPortfolioButton) {
+    previewPortfolioButton.href = latestPortfolio.preview;
+    previewPortfolioButton.removeAttribute('aria-disabled');
+  }
+  renderPortfolioPreview(latestPortfolio);
+}
+
+async function deleteProject(jobId, slug) {
+  if (!jobId || !slug) return;
+  const headers = await window.KillerWorkAuth.authHeaders();
+  const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}/projects/${encodeURIComponent(slug)}`, { method: 'DELETE', headers });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    stageDetail.textContent = data.error || 'Could not delete project.';
+    panel.classList.remove('hidden');
+    return;
+  }
+  await loadLatestPortfolio();
 }
 
 async function poll(id) {
@@ -149,6 +245,7 @@ async function poll(id) {
     publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Build another portfolio';
+    loadLatestPortfolio();
   }
 
   if (job.status === 'error') {
@@ -164,7 +261,8 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   const cards = [...campaignList.querySelectorAll('.campaign-card')];
   const campaigns = cards.map(campaignData);
-  const portfolioHeader = portfolioHeaderInput?.value?.trim() || 'Uploaded Portfolio';
+  const portfolioHeader = portfolioHeaderInput?.value?.trim() || cleanEditableText(portfolioName?.textContent) || 'Your Name';
+  const portfolioSubhead = portfolioSubheadInput?.value?.trim() || cleanEditableText(portfolioTagline?.textContent);
   const totalFiles = cards.reduce((sum, card) => sum + (card.querySelector('[data-field="files"]')?.files?.length || 0), 0);
   if (!totalFiles) {
     stageDetail.textContent = 'Upload at least one asset.';
@@ -174,6 +272,7 @@ form.addEventListener('submit', async event => {
 
   const body = new FormData();
   body.append('title', portfolioHeader);
+  body.append('subtitle', portfolioSubhead);
   body.append('campaigns', JSON.stringify(campaigns));
   cards.forEach((card, index) => {
     const files = card.querySelector('[data-field="files"]')?.files || [];
@@ -218,7 +317,36 @@ form.addEventListener('submit', async event => {
 
 addCampaign.addEventListener('click', () => addCampaignCard());
 portfolioHeaderInput?.addEventListener('input', updatePreviewCopy);
+portfolioSubheadInput?.addEventListener('input', updatePreviewCopy);
+portfolioName?.addEventListener('input', () => {
+  if (portfolioHeaderInput) portfolioHeaderInput.value = cleanEditableText(portfolioName.textContent);
+  updatePreviewCopy();
+});
+portfolioTagline?.addEventListener('input', () => {
+  if (portfolioSubheadInput) portfolioSubheadInput.value = cleanEditableText(portfolioTagline.textContent);
+  updatePreviewCopy();
+});
 builderBack?.addEventListener('click', closeBuilder);
+document.querySelectorAll('[data-close-builder]').forEach(element => element.addEventListener('click', closeBuilder));
 document.querySelectorAll('[data-open-builder]').forEach(button => {
   button.addEventListener('click', openBuilder);
 });
+previewPortfolioButton?.addEventListener('click', event => {
+  if (!latestPortfolio?.preview) {
+    event.preventDefault();
+    openBuilder();
+  }
+});
+publishLiveSiteButton?.addEventListener('click', () => {
+  if (!currentJobId) {
+    openBuilder();
+    return;
+  }
+  panel.classList.remove('hidden');
+  actions.classList.remove('hidden');
+  publishControl.show();
+  document.querySelector('[data-publish-toggle]')?.click();
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+loadLatestPortfolio();

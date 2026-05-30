@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Check,
   ExternalLink,
+  FileText,
   FolderPlus,
   Home,
   Loader2,
@@ -130,6 +131,26 @@ function App() {
   function refreshPreview(path = selectedPage) {
     setPreviewRefreshing(true);
     setPreviewSrc(previewUrl(jobId, path || 'index.html'));
+  }
+
+  function syncPageFromPreview(frame) {
+    try {
+      const pathname = frame.contentWindow?.location?.pathname || '';
+      const marker = `/generated/${jobId}/site/`;
+      const index = pathname.indexOf(marker);
+      if (index < 0) return;
+      const path = decodeURIComponent(pathname.slice(index + marker.length)) || 'index.html';
+      const normalized = path.endsWith('/') ? `${path}index.html` : path;
+      const match = pageOptions.find(page => page.path === normalized);
+      if (!match || match.path === selectedPage) return;
+      setSelectedPage(match.path);
+      setSelectedFile(match.path);
+      void openFile(match.path, pageOptions);
+      const url = new URL(window.location.href);
+      url.searchParams.set('job', jobId);
+      url.searchParams.set('path', match.path);
+      window.history.replaceState(null, '', url);
+    } catch {}
   }
 
   async function saveFile() {
@@ -300,6 +321,21 @@ function App() {
           ))}
         </section>
 
+        <section className="file-editor">
+          <header>
+            <span><FileText size={14} /> Text editor</span>
+            <strong>{selectedFile}</strong>
+          </header>
+          <textarea
+            value={fileContent}
+            onChange={event => setFileContent(event.target.value)}
+            spellCheck="false"
+          />
+          <button type="button" onClick={saveFile} disabled={!!busy || !/\.(html?|css|js|mjs|json|txt|md|svg|xml|webmanifest)$/i.test(selectedFile)}>
+            Save text changes
+          </button>
+        </section>
+
         <form className="prompt-form" onSubmit={runAiEdit}>
           <textarea
             value={prompt}
@@ -338,7 +374,8 @@ function App() {
           className={`preview${previewRefreshing ? ' is-refreshing' : ''}`}
           src={previewSrc || previewUrl(jobId, selectedPage)}
           title="Live portfolio preview"
-          onLoad={() => {
+          onLoad={(event) => {
+            syncPageFromPreview(event.currentTarget);
             if (previewRefreshing) setTimeout(() => setPreviewRefreshing(false), 420);
           }}
         />

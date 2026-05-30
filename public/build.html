@@ -13,11 +13,7 @@
       <a class="work-builder-logo" href="/">
         <img src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
       </a>
-      <div class="work-builder-tabs" aria-label="Builder sections">
-        <a class="active" href="/build.html">Dashboard</a>
-        <a href="/manage.html">Projects</a>
-        <a href="/">Import</a>
-      </div>
+      <div></div>
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <span data-user-badge class="user-badge hidden"></span>
@@ -29,48 +25,39 @@
     <section id="portfolioDashboard" class="portfolio-dashboard">
       <div class="portfolio-dashboard-head">
         <div>
-          <h1>Your Portfolio</h1>
-          <p>Build beautiful portfolio pages from your work files.</p>
+          <h1 id="portfolioName" contenteditable="true" spellcheck="false">Your Name</h1>
+          <p id="portfolioTagline" contenteditable="true">Your Job Title or Short Description</p>
         </div>
-        <button class="build-work-cta" type="button" data-open-builder>
-          <span>Build from work files</span>
-          <b>→</b>
-        </button>
+        <div class="portfolio-dashboard-actions">
+          <a id="previewPortfolioButton" class="build-work-cta" target="_blank" rel="noreferrer" href="#" aria-disabled="true">
+            <span>Preview Portfolio</span>
+            <b>→</b>
+          </a>
+          <button id="publishLiveSiteButton" class="build-work-cta secondary" type="button">
+            <span>Publish Live Site</span>
+          </button>
+          <button class="build-work-cta secondary" type="button" data-open-builder>
+            <span>Build Another Portfolio</span>
+          </button>
+        </div>
       </div>
 
-      <div class="portfolio-grid" aria-label="Portfolio campaign grid">
-        <article class="portfolio-tile tile-nike">
-          <button type="button" data-open-builder aria-label="Add Nike campaign">+</button>
-          <div><strong>Nike — Own Every Mile</strong><span>Integrated Campaign</span></div>
-        </article>
-        <article class="portfolio-tile tile-cold">
-          <button type="button" data-open-builder aria-label="Add video case study">+</button>
-          <div><strong>Northline — Cold Truth</strong><span>Video Case Study</span></div>
-        </article>
-        <article class="portfolio-tile tile-flora">
-          <button type="button" data-open-builder aria-label="Add brand campaign">+</button>
-          <div><strong>Flora — Rooted in Purity</strong><span>Brand Campaign</span></div>
-        </article>
-        <article class="portfolio-tile tile-social">
-          <button type="button" data-open-builder aria-label="Add social campaign">+</button>
-          <div><strong>Spark Studio — Social Series</strong><span>Social Campaign</span></div>
-        </article>
-        <article class="portfolio-tile tile-pitch">
-          <button type="button" data-open-builder aria-label="Add presentation">+</button>
-          <div><strong>Tastelab — Pitch Presentation</strong><span>Presentation</span></div>
-        </article>
-        <article class="portfolio-tile tile-car">
-          <button type="button" data-open-builder aria-label="Add launch campaign">+</button>
-          <div><strong>Vortex — Launch Campaign</strong><span>Integrated Campaign</span></div>
-        </article>
+      <div id="portfolioGrid" class="portfolio-grid" aria-label="Portfolio campaign grid">
+        <article class="portfolio-tile tile-nike"><button type="button" data-open-builder aria-label="Add project">+</button></article>
+        <article class="portfolio-tile tile-cold"><button type="button" data-open-builder aria-label="Add project">+</button></article>
+        <article class="portfolio-tile tile-flora"><button type="button" data-open-builder aria-label="Add project">+</button></article>
+        <article class="portfolio-tile tile-social"><button type="button" data-open-builder aria-label="Add project">+</button></article>
+        <article class="portfolio-tile tile-pitch"><button type="button" data-open-builder aria-label="Add project">+</button></article>
+        <article class="portfolio-tile tile-car"><button type="button" data-open-builder aria-label="Add project">+</button></article>
       </div>
     </section>
 
-    <section id="builderFlow" class="builder-flow hidden">
+    <section id="builderFlow" class="builder-flow hidden" role="dialog" aria-modal="true" aria-labelledby="builderTitle">
+      <div class="builder-modal-backdrop" data-close-builder></div>
       <div class="builder-flow-top">
         <button id="builderBack" class="builder-back" type="button" aria-label="Back to portfolio grid">←</button>
         <div>
-          <h1>Build from work files</h1>
+          <h1 id="builderTitle">Add work to portfolio</h1>
           <p>Upload ads, PDFs, videos, case studies, and decks. KillaWork™ AI turns them into portfolio pages.</p>
         </div>
         <div class="builder-steps" aria-label="Build steps">
@@ -83,8 +70,12 @@
       <form id="campaignBuilder" class="builder-flow-layout">
         <section class="builder-panel builder-upload-panel">
           <label class="builder-field portfolio-header-field">
-            <span>Portfolio header</span>
-            <input id="portfolioHeaderInput" name="portfolioHeader" placeholder="Abdullah Farouk | Senior Copywriter" required>
+            <span>Your name</span>
+            <input id="portfolioHeaderInput" name="portfolioHeader" placeholder="Your Name" required>
+          </label>
+          <label class="builder-field portfolio-header-field">
+            <span>Your job title or short description</span>
+            <input id="portfolioSubheadInput" name="portfolioSubhead" placeholder="Your Job Title or Short Description">
           </label>
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
@@ -183,17 +174,21 @@
       </label>
       <div class="builder-form-grid">
         <label class="builder-field">
-          <span>Campaign name</span>
-          <input data-field="title" placeholder="Nike — Endurance: Built in Victory">
+          <span>Brand</span>
+          <input data-field="brand" placeholder="Headfast">
         </label>
         <label class="builder-field">
-          <span>Your role</span>
-          <input data-field="role" placeholder="Creative Direction, Art Direction">
+          <span>Campaign name</span>
+          <input data-field="title" placeholder="Rub It Away">
+        </label>
+        <label class="builder-field">
+          <span>Ad agency</span>
+          <input data-field="agency" placeholder="Ogilvy">
         </label>
       </div>
       <label class="builder-field">
-        <span>Campaign prompt</span>
-        <textarea data-field="notes" required placeholder="Tell KillaWork™ what this campaign is. Include the client, idea, awards, credits, and how you want the page to feel."></textarea>
+        <span>Description or notes</span>
+        <textarea data-field="notes" placeholder="Optional. Add only the text you want on the page."></textarea>
       </label>
     </article>
   </template>

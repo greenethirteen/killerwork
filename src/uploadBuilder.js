@@ -259,12 +259,11 @@ function assetCaption(asset, group) {
     asset.analysis.campaign,
     asset.analysis.client,
     asset.analysis.agency,
-    asset.analysis.medium,
-    asset.analysis.description
+    asset.analysis.medium
   ]).filter(line => line.toLowerCase() !== cleanText(group.title).toLowerCase()).slice(0, 8);
 }
 
-function buildManifestFromGroups(groups, assets, { title }) {
+function buildManifestFromGroups(groups, assets, { title, userTextOnly = false } = {}) {
   const projects = groups.projects.map((group, projectIndex) => {
     const slugBase = group.title || `Project ${projectIndex + 1}`;
     const images = [];
@@ -295,7 +294,7 @@ function buildManifestFromGroups(groups, assets, { title }) {
         documents.push({ src, localFile: asset.fileName, title: asset.analysis.title || group.title, original: asset.originalName, order });
         contentItems.push({ type: 'document', order: order++, documentIndex, original: asset.originalName });
       }
-      const lines = assetCaption(asset, group);
+      const lines = userTextOnly ? [] : assetCaption(asset, group);
       if (lines.length) contentItems.push({ type: 'text', order: order++, tag: 'p', text: lines.join('\n') });
     }
 
@@ -332,13 +331,12 @@ function buildManifestFromGroups(groups, assets, { title }) {
 function normalizeCampaignInput(campaign = {}, index = 0) {
   const campaignTitle = cleanText(campaign.campaign || campaign.title);
   const brand = cleanText(campaign.brand || campaign.client);
-  const pageTitle = cleanText(campaign.title) || [campaignTitle, brand].filter(Boolean).join(' | ') || `Campaign ${index + 1}`;
+  const agency = cleanText(campaign.agency);
+  const pageTitle = campaignTitle || [brand, agency].filter(Boolean).join(' | ') || `Campaign ${index + 1}`;
   const lines = uniqueLines([
-    campaignTitle,
     brand,
-    cleanText(campaign.agency),
-    cleanText(campaign.role),
-    cleanText(campaign.awards),
+    campaignTitle,
+    agency,
     cleanText(campaign.notes)
   ]);
   return {
@@ -448,7 +446,7 @@ export async function runUploadBuild({ files, outDir, title = '', aiCleanup = fa
   return { manifest: finalManifest, siteDir, zipPath, validation };
 }
 
-export async function runCampaignBuild({ files, campaigns = [], outDir, title = '', aiCleanup = true, onProgress } = {}) {
+export async function runCampaignBuild({ files, campaigns = [], outDir, title = '', subtitle = '', aiCleanup = true, onProgress } = {}) {
   const progress = (stage, detail = '') => onProgress?.({ stage, detail, at: new Date().toISOString() });
   if (!files?.length) throw new Error('Upload at least one image, video, audio file, or PDF.');
   if (!Array.isArray(campaigns) || !campaigns.length) throw new Error('Add at least one campaign.');
@@ -463,10 +461,12 @@ export async function runCampaignBuild({ files, campaigns = [], outDir, title = 
   if (!groups.projects.length) throw new Error('Add at least one asset to a campaign.');
 
   progress('Building campaign pages', `${groups.projects.length} campaign page(s)`);
-  const rawManifest = buildManifestFromGroups(groups, assets, { title });
+  const rawManifest = buildManifestFromGroups(groups, assets, { title, userTextOnly: true });
   rawManifest.sourceUrl = 'campaign-builder';
   rawManifest.siteTitle = cleanText(title) || 'Uploaded Portfolio';
   rawManifest.ownerName = cleanText(title) || 'Uploaded Portfolio';
+  rawManifest.homeTitle = cleanText(title) || 'Your Name';
+  rawManifest.homeIntro = cleanText(subtitle);
   rawManifest.buildMode = 'campaign-builder';
   await fs.writeJson(path.join(outDir, 'manifest.raw.json'), rawManifest, { spaces: 2 });
   progress('Raw manifest saved', 'manifest.raw.json');

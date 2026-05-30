@@ -2434,6 +2434,7 @@ function renderAboutPage(manifest) {
 
 export async function generateSite(manifest, outDir, progress) {
   const siteDir = path.join(outDir, 'site');
+  const jobId = path.basename(outDir);
   const stagingAssetsDir = path.join(outDir, 'assets-imported');
   await fs.ensureDir(stagingAssetsDir);
   const cssCache = new Map();
@@ -2515,7 +2516,7 @@ export async function generateSite(manifest, outDir, progress) {
     ].filter(Boolean).join(';');
     const layoutClass = p.aiLayout ? ` ai-layout-${String(p.aiLayout).replace(/[^a-z-]/g, '')}` : '';
     const mainStyle = p.pageStyle?.contentWidth ? ` style="max-width:${Math.max(760, Math.round(p.pageStyle.contentWidth))}px"` : '';
-    const generatedHeader = `<header class="site-header"><a class="brand" href="../../index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a></nav></header>`;
+    const generatedHeader = `<header class="site-header killawork-generated-header"><a class="brand" href="../../index.html">KillaWork™</a><nav><a href="../../index.html">Work</a><a href="../../about.html">About</a><a class="ai-edit-link" href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${p.slug}/index.html`)}">Edit with AI</a></nav></header>`;
     const sourceHeader = renderSourceHeader(p);
     const subtitleHtml = p.subtitle ? `<p class="project-subhead">${htmlEscape(p.subtitle)}</p>` : '';
     const titleStyle = p.titleFontSize ? ` style="font-size:${Math.max(28, Math.min(120, Number(p.titleFontSize) || 82))}px"` : '';

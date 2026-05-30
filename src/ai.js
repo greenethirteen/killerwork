@@ -380,6 +380,9 @@ Rules:
 - For new campaign pages, copy the structure and styling conventions from existing pages in context.
 - Keep links local to the generated site when possible.
 - Do not invent factual claims, awards, clients, or credits.
+- If the user asks to delete text, remove editable copy while preserving the page structure, media, navigation, links, scripts, and CSS.
+- Never return a blank HTML file, empty body, or operation that removes the whole page unless the user explicitly asks to delete the file.
+- For broad design or layout requests, edit CSS and the current page structure like a senior front-end engineer. Do not answer with a token placeholder or a tiny text insertion.
 - Do not return prose outside JSON.`;
 
   try {

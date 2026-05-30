@@ -39,7 +39,15 @@ app.use(compression());
 app.get('*', serveCustomDomainIfMapped);
 app.get(['/published/:subdomain', '/published/:subdomain/*'], servePublishedSite);
 app.get('*', serveKillaWorkHost);
-app.use('/', express.static(path.join(root, 'public')));
+app.use('/', express.static(path.join(root, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (/\.(?:js|css|png|jpe?g|webp|avif|svg)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/\.html$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
 app.get('/generated/:id/*', generatedMissingHandler);
 
@@ -371,6 +379,7 @@ app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), as
 
 app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, res) => {
   const title = String(req.body?.title || '').trim();
+  const subtitle = String(req.body?.subtitle || '').trim();
   let campaigns = [];
   try {
     campaigns = JSON.parse(String(req.body?.campaigns || '[]'));
@@ -394,7 +403,7 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
   };
 
   try {
-    const result = await runCampaignBuild({ files, campaigns, outDir, title, aiCleanup: true, onProgress: (evt) => {
+    const result = await runCampaignBuild({ files, campaigns, outDir, title, subtitle, aiCleanup: true, onProgress: (evt) => {
       updatePercent(evt.stage);
       job.progress.push(evt);
       if (job.progress.length > 300) job.progress.shift();
@@ -1014,9 +1023,12 @@ async function createProjectFromUploads(id, manifest, { title, prompt, files = [
 }
 
 function projectSummary(project, id) {
+  const thumb = project.thumbnail?.thumbSrc || project.thumbnail?.src || project.images?.[0]?.thumbSrc || project.images?.[0]?.src || '';
+  const thumbnail = /^https?:\/\//i.test(thumb) ? thumb : (thumb ? `/generated/${id}/site/${thumb}` : '');
   return {
     title: project.title,
     slug: project.slug,
+    thumbnail,
     images: (project.images || []).length,
     videos: (project.videos || []).length,
     audios: (project.audios || []).length,
@@ -1250,6 +1262,19 @@ async function contextFilesForAi(id, requestedPaths = [], pagePath = '') {
 
 async function applySiteEditOperations(id, operations = []) {
   const changed = [];
+  const assertNonDestructiveWrite = (relative, content) => {
+    if (!/\.html?$/i.test(relative)) return;
+    const html = String(content || '');
+    const visible = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!/<body[\s>]/i.test(html) || visible.length < 8) {
+      throw new Error(`Refused to write a blank or structurally empty HTML page to ${relative}.`);
+    }
+  };
   for (const operation of operations) {
     const op = String(operation.op || '').trim();
     if (op === 'replaceAll') {
@@ -1260,6 +1285,7 @@ async function applySiteEditOperations(id, operations = []) {
         const current = await readTextSiteFile(id, file.path).catch(() => null);
         if (!current?.content?.includes(operation.find)) continue;
         const next = current.content.split(operation.find).join(operation.replace || '');
+        assertNonDestructiveWrite(current.path, next);
         await writeTextSiteFile(id, current.path, next);
         changed.push(current.path);
       }
@@ -1271,11 +1297,13 @@ async function applySiteEditOperations(id, operations = []) {
       if (!operation.find) throw new Error(`Missing find text for ${operation.path}.`);
       if (!current.content.includes(operation.find)) throw new Error(`Could not find requested text in ${operation.path}.`);
       const next = current.content.split(operation.find).join(operation.replace || '');
+      assertNonDestructiveWrite(current.path, next);
       await writeTextSiteFile(id, current.path, next);
       changed.push(current.path);
       continue;
     }
     if (op === 'writeFile' || op === 'createFile') {
+      assertNonDestructiveWrite(operation.path, operation.content || '');
       const rel = await writeTextSiteFile(id, operation.path, operation.content || '');
       changed.push(rel);
       continue;
