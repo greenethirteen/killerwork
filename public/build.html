@@ -9,15 +9,20 @@
 </head>
 <body class="build-page">
   <main class="builder-shell work-builder-shell">
-    <nav class="work-builder-nav" aria-label="KillaWork">
-      <a class="work-builder-logo" href="/">
-        <img src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
+    <nav class="topbar landing-topbar" aria-label="KillaWork">
+      <link rel="preload" href="/logos/killa-work-logo-640.avif" as="image" type="image/avif" fetchpriority="high" />
+      <a class="logo" href="/">
+        <picture>
+          <source type="image/avif" srcset="/logos/killa-work-logo-320.avif 320w, /logos/killa-work-logo-640.avif 640w" sizes="(max-width:600px) 320px, 640px">
+          <source type="image/webp" srcset="/logos/killa-work-logo-320.webp 320w, /logos/killa-work-logo-640.webp 640w" sizes="(max-width:600px) 320px, 640px">
+          <img class="logo-image" src="/logos/killa-work-logo-640.webp" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="async" fetchpriority="high" />
+        </picture>
+        <span class="logo-text">KillaWork™</span>
       </a>
-      <div></div>
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <span data-user-badge class="user-badge hidden"></span>
-        <a data-auth-link class="auth-button" href="#">Sign in</a>
+        <a data-auth-link class="top-signin" href="#">Sign in</a>
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
