@@ -1243,21 +1243,99 @@ async function moveAiEditorUploads(id, files = []) {
   return moved;
 }
 
-async function contextFilesForAi(id, requestedPaths = [], pagePath = '') {
+function localSiteReference(ref = '', fromPath = 'index.html') {
+  const raw = String(ref || '').trim();
+  if (!raw || raw.startsWith('#') || raw.startsWith('data:')) return '';
+  if (/^(?:[a-z]+:)?\/\//i.test(raw) || /^(?:mailto|tel):/i.test(raw)) return '';
+  const clean = raw.split('#')[0].split('?')[0];
+  if (!clean || clean.endsWith('/')) return '';
+  const base = path.posix.dirname(String(fromPath || 'index.html'));
+  const normalized = path.posix.normalize(clean.startsWith('/') ? clean.replace(/^\/+/, '') : path.posix.join(base, clean));
+  if (!normalized || normalized.startsWith('..') || normalized.includes('\0')) return '';
+  return normalized;
+}
+
+function linkedEditableRefs(file = {}) {
+  const content = String(file.content || '');
+  const refs = new Set();
+  for (const match of content.matchAll(/(?:src|href|poster)=["']([^"']+)["']/gi)) {
+    const ref = localSiteReference(match[1], file.path);
+    if (ref && isTextSiteFile(ref)) refs.add(ref);
+  }
+  for (const match of content.matchAll(/@import\s+(?:url\()?["']?([^"')\s]+)["']?\)?/gi)) {
+    const ref = localSiteReference(match[1], file.path);
+    if (ref && isTextSiteFile(ref)) refs.add(ref);
+  }
+  return [...refs];
+}
+
+function operationLabel(operation = {}) {
+  const op = String(operation.op || '').trim();
+  const file = operation.path ? ` ${operation.path}` : '';
+  if (op === 'replaceAll') return 'updated repeated sitewide text';
+  if (op === 'replace') return `updated${file || ' a file'}`;
+  if (op === 'writeFile') return `rewrote${file || ' a file'}`;
+  if (op === 'createFile') return `created${file || ' a file'}`;
+  if (op === 'deleteFile') return `deleted${file || ' a file'}`;
+  if (op === 'renameFile') return `renamed${file || ' a file'}`;
+  return op || 'edited a file';
+}
+
+function summarizeAiEditResult(plan = {}, changedFiles = [], validation = null, uploadedAssets = []) {
+  const operations = Array.isArray(plan.operations) ? plan.operations : [];
+  const operationSummary = operations.map(operationLabel).filter(Boolean).slice(0, 8);
+  const validationErrors = Array.isArray(validation?.errors) ? validation.errors : [];
+  const changed = new Set((changedFiles || []).map(file => String(file || '')));
+  const changedValidationErrors = validationErrors.filter(item => changed.has(String(item.file || '')));
+  const details = [];
+  if (uploadedAssets.length) details.push(`used ${uploadedAssets.length} uploaded asset${uploadedAssets.length === 1 ? '' : 's'}`);
+  if (changedFiles.length) details.push(`changed ${changedFiles.length} file${changedFiles.length === 1 ? '' : 's'}`);
+  if (operationSummary.length) details.push(operationSummary.join('; '));
+  details.push(validationErrors.length ? `validation found ${validationErrors.length} issue${validationErrors.length === 1 ? '' : 's'}` : 'validation passed');
+  return {
+    message: plan.message || 'Applied the requested file edits.',
+    details,
+    operationSummary,
+    validationSummary: {
+      ok: !!validation?.ok,
+      errorCount: validationErrors.length,
+      changedFileErrorCount: changedValidationErrors.length,
+      errors: validationErrors.slice(0, 8)
+    }
+  };
+}
+
+async function contextFilesForAi(id, requestedPaths = [], pagePath = '', fileTree = []) {
   const files = [];
   const seen = new Set();
+  const knownFiles = fileTree.length ? fileTree : await listSiteFiles(id);
+  const byPath = new Map(knownFiles.map(file => [file.path, file]));
   const add = async rel => {
-    if (!rel || seen.has(rel)) return;
+    rel = String(rel || '').replace(/^\/+/, '');
+    if (!rel || seen.has(rel)) return null;
+    const meta = byPath.get(rel);
+    if (meta && (!meta.editable || meta.size > 900000)) return null;
     seen.add(rel);
     try {
       const file = await readTextSiteFile(id, rel);
       files.push(file);
+      return file;
     } catch {}
+    return null;
   };
-  await add(pagePath || 'index.html');
+  const pageFile = await add(pagePath || 'index.html');
   for (const rel of requestedPaths || []) await add(String(rel || ''));
-  for (const rel of ['styles.css', 'portfolio.js', 'index.html']) await add(rel);
-  return files.slice(0, 12);
+  if (pageFile) {
+    for (const rel of linkedEditableRefs(pageFile)) await add(rel);
+  }
+  const cssAndJs = knownFiles
+    .filter(file => file.editable && /(^|\/)(?:styles|portfolio|main|app|site|ui)\.(?:css|js|mjs)$/i.test(file.path))
+    .map(file => file.path);
+  for (const rel of ['styles.css', 'portfolio.css', 'portfolio.js', 'index.html', ...cssAndJs]) await add(rel);
+  const currentIsWork = /^work\//i.test(pagePath);
+  const templatePage = knownFiles.find(file => file.page && /^work\//i.test(file.path) && (!currentIsWork || file.path !== pagePath));
+  if (templatePage) await add(templatePage.path);
+  return files.slice(0, 18);
 }
 
 async function applySiteEditOperations(id, operations = []) {
@@ -1396,7 +1474,7 @@ app.post('/api/code-editor/:id/ai-edit', requireFirebaseAuth, upload.array('file
     const pagePath = String(req.body?.pagePath || 'index.html').replace(/^\/+/, '');
     const contextPaths = parseJsonField(req.body?.contextPaths, []);
     const fileTree = await listSiteFiles(id);
-    const contextFiles = await contextFilesForAi(id, contextPaths, pagePath);
+    const contextFiles = await contextFilesForAi(id, contextPaths, pagePath, fileTree);
     await createEditorSnapshot(id);
     const uploadedAssets = await moveAiEditorUploads(id, files);
     const plan = await planSiteFileEditsWithAI({
@@ -1408,6 +1486,7 @@ app.post('/api/code-editor/:id/ai-edit', requireFirebaseAuth, upload.array('file
     });
     const changedFiles = await applySiteEditOperations(id, plan.operations || []);
     const validation = await validateSite(siteDir(id));
+    const summary = summarizeAiEditResult(plan, changedFiles, validation, uploadedAssets);
     await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
     const manifest = await readManifest(id);
     if (manifest) {
@@ -1416,7 +1495,10 @@ app.post('/api/code-editor/:id/ai-edit', requireFirebaseAuth, upload.array('file
     }
     res.json({
       ok: true,
-      message: plan.message || 'Applied the requested file edits.',
+      message: summary.message,
+      details: summary.details,
+      operationSummary: summary.operationSummary,
+      validationSummary: summary.validationSummary,
       changedFiles,
       uploadedAssets,
       operations: plan.operations || [],

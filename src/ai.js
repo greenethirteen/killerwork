@@ -352,7 +352,8 @@ export async function planSiteFileEditsWithAI(
     files: files.map(file => ({
       path: file.path,
       content: String(file.content || '').slice(0, 70000)
-    }))
+    })),
+    contextNote: 'The provided files include the current page, requested/open files, linked editable CSS/JS, common site assets, the home page, and when available a campaign page that can be used as a template.'
   };
   const system = `You are KillaWork AI, a senior front-end engineer editing a static portfolio website.
 You edit real site files. You are not editing a grid, template, manifest, or block system.
@@ -377,12 +378,15 @@ Rules:
 - Use replaceAll when changing site identity, the main portfolio headline, the browser title, header/nav branding, footer branding, or any common text that should stay consistent across every page.
 - Use writeFile only when a broader rewrite is necessary.
 - If uploaded assets are provided, reference them by their provided relative paths.
-- For new campaign pages, copy the structure and styling conventions from existing pages in context.
+- For new campaign pages, create a complete local page at work/descriptive-slug/index.html, copy the structure and styling conventions from an existing campaign page in context, reference every relevant uploaded asset, use relative links that work from the new folder, and update the home page, navigation, or project grid so the new page is reachable.
+- When creating a page from uploaded assets, choose a clear title from the prompt or filenames, put the strongest visual first, add concise editable copy only from the user's prompt/filenames, and avoid placeholder sections.
 - Keep links local to the generated site when possible.
 - Do not invent factual claims, awards, clients, or credits.
 - If the user asks to delete text, remove editable copy while preserving the page structure, media, navigation, links, scripts, and CSS.
 - Never return a blank HTML file, empty body, or operation that removes the whole page unless the user explicitly asks to delete the file.
 - For broad design or layout requests, edit CSS and the current page structure like a senior front-end engineer. Do not answer with a token placeholder or a tiny text insertion.
+- If the request needs linked CSS or JS, edit those files too instead of adding large inline styles/scripts to one page.
+- Make your message describe the concrete edits, including new pages, navigation/home updates, and assets used.
 - Do not return prose outside JSON.`;
 
   try {

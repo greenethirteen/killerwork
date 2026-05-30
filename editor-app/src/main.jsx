@@ -54,6 +54,25 @@ function fileLabel(path) {
   return path.replace(/\/index\.html?$/i, '').split('/').pop().replace(/[-_]+/g, ' ');
 }
 
+function aiResultMessage(data = {}) {
+  const lines = [data.message || 'Done.'];
+  if (Array.isArray(data.details) && data.details.length) {
+    lines.push('', ...data.details.map(detail => `- ${detail}`));
+  } else if (data.changedFiles?.length) {
+    lines.push('', `Changed: ${data.changedFiles.join(', ')}`);
+  }
+  const validation = data.validationSummary;
+  if (validation && !data.details?.some?.(detail => String(detail).includes('validation'))) {
+    lines.push(validation.ok
+      ? 'Validation: passed.'
+      : `Validation: ${validation.errorCount || 0} issue${validation.errorCount === 1 ? '' : 's'} found.`);
+  }
+  if (validation?.errors?.length) {
+    lines.push(...validation.errors.slice(0, 3).map(item => `  ${item.file || 'site'}: ${item.error}${item.ref ? ` (${item.ref})` : ''}`));
+  }
+  return lines.join('\n');
+}
+
 function App() {
   const [jobId] = React.useState(initialJobId);
   const [site, setSite] = React.useState(null);
@@ -190,7 +209,7 @@ function App() {
       const body = new FormData();
       body.append('prompt', userText);
       body.append('pagePath', selectedPage || 'index.html');
-      body.append('contextPaths', JSON.stringify([selectedFile, selectedPage, 'styles.css'].filter(Boolean)));
+      body.append('contextPaths', JSON.stringify([selectedFile, selectedPage, 'styles.css', 'portfolio.css', 'portfolio.js'].filter(Boolean)));
       attachments.forEach(file => body.append('files', file));
       const data = await api(`/api/code-editor/${encodeURIComponent(jobId)}/ai-edit`, { method: 'POST', body });
       setFiles(data.files || files);
@@ -198,10 +217,13 @@ function App() {
       setHistory(data.history || history);
       setAttachments([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      addMessage('ai', `${data.message || 'Done.'}${data.changedFiles?.length ? `\n\nChanged: ${data.changedFiles.join(', ')}` : ''}`);
-      await openFile(data.changedFiles?.find(path => path === selectedFile) || selectedFile, data.pages || pages);
-      refreshPreview(selectedPage);
-      setStatus('Edit applied.');
+      addMessage('ai', aiResultMessage(data));
+      const createdPage = data.operations?.find(operation => operation?.op === 'createFile' && /\.html?$/i.test(operation.path || ''))?.path;
+      const changedPage = createdPage || data.changedFiles?.find(path => /\.html?$/i.test(path));
+      const nextFile = data.changedFiles?.find(path => path === selectedFile) || changedPage || selectedFile;
+      await openFile(nextFile, data.pages || pages);
+      refreshPreview(changedPage || selectedPage);
+      setStatus(data.validationSummary?.ok === false ? 'Edit applied. Validation found issues.' : 'Edit applied and validated.');
     } catch (err) {
       addMessage('ai', err.message || 'AI edit failed.');
       setStatus(err.message || 'AI edit failed.');
