@@ -27,12 +27,35 @@ function portfolioTextKey(value = '') {
   return cleanPortfolioLine(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripCampaignFieldFragments(value = '', project = {}, title = '') {
+  const input = project.builderInput || {};
+  let text = String(value || '').replace(/\r/g, '\n');
+  text = text.replace(/\b(?:brand|client|campaign(?:\s+name)?|agency|ad\s+agency|role)\s*:\s*/gi, '');
+  const fieldValues = [title, input.campaign, input.brand, input.agency, input.role]
+    .map(cleanPortfolioLine)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  for (const fieldValue of fieldValues) {
+    text = text.replace(new RegExp(`(^|[^a-z0-9])${escapeRegExp(fieldValue)}(?=$|[^a-z0-9])`, 'gi'), '$1');
+  }
+  return text
+    .split(/\n+/)
+    .map(line => cleanPortfolioLine(line).replace(/^[\s,.;:|/+-]+|[\s,;:|/+-]+$/g, ''))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 function cleanCampaignDescription(value = '', project = {}, title = '') {
   const input = project.builderInput || {};
+  if (!stripCampaignFieldFragments(input.notes, project, title)) return '';
   const reserved = [title, input.campaign, input.brand, input.agency, input.role]
     .map(portfolioTextKey)
     .filter(Boolean);
-  return String(value || '')
+  return stripCampaignFieldFragments(value, project, title)
     .replace(/\r/g, '\n')
     .split(/\n+/)
     .map(cleanPortfolioLine)
@@ -51,7 +74,8 @@ function fallbackCampaignBuilderText(project = {}) {
   const input = project.builderInput || {};
   const title = cleanPortfolioLine(input.campaign || project.title);
   const metadata = uniquePortfolioLines(project.cleaned?.metadata?.length ? project.cleaned.metadata : [input.brand, input.agency, input.role], title);
-  return { title: title || project.title || 'Untitled campaign', metadata, description: cleanCampaignDescription(project.description || input.notes, project, title) };
+  const description = cleanCampaignDescription(project.builderNarrative || input.notes, project, title);
+  return { title: title || project.title || 'Untitled campaign', metadata, description };
 }
 
 function normalizeCampaignBuilderText(result = {}, project = {}) {
@@ -67,7 +91,7 @@ export async function cleanupCampaignBuilderManifestWithAI(manifest, { progress,
   for (const project of manifest.projects || []) {
     const fallback = fallbackCampaignBuilderText(project);
     let cleaned = fallback;
-    if (enabled && process.env.OPENAI_API_KEY) {
+    if (enabled && process.env.OPENAI_API_KEY && fallback.description) {
       progress?.('AI checking portfolio text', project.title || 'campaign');
       const system = `You clean structured text for an advertising portfolio campaign page.
 Return JSON only:
@@ -115,6 +139,7 @@ Rules:
       ...project,
       title: cleaned.title,
       description: cleanCampaignDescription(cleaned.description, project, cleaned.title),
+      builderNarrative: cleanCampaignDescription(cleaned.description, project, cleaned.title),
       copyBlocks: metadata.map(text => ({ tag: 'p', text })),
       contentItems: (project.contentItems || []).filter(item => item.type !== 'text'),
       cleaned: {
