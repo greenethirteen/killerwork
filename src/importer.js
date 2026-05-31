@@ -2298,6 +2298,60 @@ function rewriteHomeLinks(html, projects = [], sourceUrl = '') {
   return out;
 }
 
+function appendManagedImportedCards(html, projects = []) {
+  const added = (projects || []).filter(project => project?.addedToImportedSite && project.slug);
+  if (!added.length) return html;
+  const $ = cheerio.load(String(html || ''), null, false);
+  const linkedImages = $('a[href], [data-url]').filter((_, node) => $(node).find('img').length > 0);
+  const campaignCards = linkedImages.filter((_, node) => {
+    const value = $(node).attr('href') || $(node).attr('data-url') || '';
+    return /^work\//i.test(value);
+  });
+  const template = (campaignCards.length ? campaignCards : linkedImages).first();
+  const container = template.length ? template.parent() : $('main,section,div').first();
+  if (!container.length) return html;
+
+  for (const project of added) {
+    if ($(`[data-killerwork-added-project="${project.slug}"]`).length) continue;
+    const title = cleanTitle(project.title || 'New campaign');
+    const thumb = project.thumbnail?.thumbSrc || project.thumbnail?.src || project.images?.[0]?.thumbSrc || project.images?.[0]?.src || '';
+    let card;
+    if (template.length) {
+      card = template.clone();
+      const oldText = cleanTitle(template.text());
+      card.find('[id]').removeAttr('id');
+      if (card.is('[href]')) card.attr('href', `work/${project.slug}/`);
+      if (card.is('[data-url]')) card.attr('data-url', `work/${project.slug}/`);
+      card.find('[href]').attr('href', `work/${project.slug}/`);
+      card.find('[data-url]').attr('data-url', `work/${project.slug}/`);
+      card.find('img').each((_, image) => {
+        const node = $(image);
+        if (thumb) {
+          node.attr('src', thumb);
+          node.attr('data-src', thumb);
+          node.attr('data-image', thumb);
+        }
+        node.attr('alt', title);
+        node.removeAttr('srcset sizes');
+      });
+      if (oldText) {
+        card.find('*').addBack().contents().each((_, content) => {
+          if (content.type !== 'text') return;
+          const text = cleanTitle(content.data || '');
+          if (text && text === oldText) content.data = String(content.data || '').replace(text, title);
+        });
+      }
+    } else {
+      card = $(`<a class="killerwork-added-work-card" href="work/${project.slug}/"></a>`);
+      if (thumb) card.append(`<img src="${htmlEscape(thumb)}" alt="${htmlEscape(title)}">`);
+      card.append(`<span>${htmlEscape(title)}</span>`);
+    }
+    card.attr('data-killerwork-added-project', project.slug);
+    container.append(card);
+  }
+  return $.root().html();
+}
+
 function rewriteProjectCloneLinks(html, projects = [], sourceUrl = '') {
   let out = String(html || '');
   const byPath = new Map();
@@ -2425,7 +2479,7 @@ function renderHomePage(manifest, cards) {
       sourceHome.textColor ? `--muted:${sourceHome.textColor}` : ''
     ].filter(Boolean).join(';');
     const wrapperStyle = sourceHome.style ? ` style="${htmlEscape(sourceHome.style)}"` : '';
-    const html = rewriteCrossOriginSvgSprites(rewriteHomeLinks(sourceHome.html, manifest.projects, manifest.sourceUrl));
+    const html = rewriteCrossOriginSvgSprites(appendManagedImportedCards(rewriteHomeLinks(sourceHome.html, manifest.projects, manifest.sourceUrl), manifest.projects));
     const htmlClass = sourceHome.sourceHtmlClass ? ` class="${htmlEscape(sourceHome.sourceHtmlClass)}"` : '';
     const htmlStyle = sourceHome.sourceHtmlStyle ? ` style="${htmlEscape(sourceHome.sourceHtmlStyle)}"` : '';
     const htmlId = sourceHome.sourceHtmlId ? ` id="${htmlEscape(sourceHome.sourceHtmlId)}"` : '';

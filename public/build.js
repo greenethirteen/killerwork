@@ -327,7 +327,7 @@ async function loadLatestPortfolio(preferredId = '') {
     return;
   }
   const data = await res.json();
-  buildPortfolios = (data.portfolios || []).filter(item => item.buildMode === 'campaign-builder' || item.sourceUrl === 'campaign-builder');
+  buildPortfolios = (data.portfolios || []).filter(item => item.visualManager);
   renderPortfolioSelector();
   let selected = buildPortfolios[0] || null;
   const lastId = localStorage.getItem('killerwork:lastJobId');
@@ -404,7 +404,7 @@ form.addEventListener('submit', async event => {
     ].filter(Boolean).join('\n');
     body.append('title', campaign.title);
     body.append('prompt', prompt);
-    body.append('buildMode', 'campaign-builder');
+    body.append('buildMode', latestPortfolio?.sourceUrl === 'campaign-builder' ? 'campaign-builder' : 'imported-site');
     body.append('brand', campaign.brand);
     body.append('agency', campaign.agency);
     body.append('role', campaign.role);

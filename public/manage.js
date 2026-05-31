@@ -152,7 +152,7 @@ function renderPortfolioList(portfolios) {
     row.className = 'manager-project';
     const projectLabel = `${item.projectCount} project${item.projectCount === 1 ? '' : 's'}`;
     const source = item.sourceUrl ? ` from ${escapeHtml(item.sourceUrl)}` : '';
-    const buildDashboard = item.buildMode === 'campaign-builder' || item.sourceUrl === 'campaign-builder'
+    const buildDashboard = item.visualManager
       ? `<a class="button secondary compact-button" href="/build.html?portfolio=${encodeURIComponent(item.id)}">Manage</a>`
       : '';
     row.innerHTML = `

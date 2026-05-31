@@ -1207,6 +1207,10 @@ async function createProjectFromUploads(id, manifest, { title, prompt, files = [
   return project;
 }
 
+function visualManagerEnabled(manifest = {}) {
+  return manifest.sourceUrl === 'campaign-builder' || !!manifest.sourceHome?.html;
+}
+
 function projectSummary(project, id) {
   const thumb = project.thumbnail?.thumbSrc || project.thumbnail?.src || project.images?.[0]?.thumbSrc || project.images?.[0]?.src || '';
   const thumbnail = /^https?:\/\//i.test(thumb) ? thumb : (thumb ? `/generated/${id}/site/${thumb}` : '');
@@ -1231,6 +1235,7 @@ function publicPortfolio(id, manifest, validation = null) {
     homeIntro: manifest.homeIntro || '',
     sourceUrl: manifest.sourceUrl || '',
     buildMode: manifest.buildMode || '',
+    visualManager: visualManagerEnabled(manifest),
     generatedAt: manifest.generatedAt || '',
     preview: `/generated/${id}/site/index.html`,
     review: `/generated/${id}/site/import-review.html`,
@@ -1251,6 +1256,7 @@ function publicPortfolioListItem(id, manifest) {
     ownerName: manifest.ownerName || '',
     sourceUrl: manifest.sourceUrl || '',
     buildMode: manifest.buildMode || '',
+    visualManager: visualManagerEnabled(manifest),
     generatedAt: manifest.generatedAt || '',
     projectCount: (manifest.projects || []).length,
     preview: `/generated/${id}/site/index.html`,
@@ -1796,7 +1802,8 @@ app.post('/api/editor/:id/pages', requireFirebaseAuth, upload.array('files', 60)
   }
   const title = cleanInlineText(req.body?.title || '', 160);
   const prompt = String(req.body?.prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
-  const builderInput = req.body?.buildMode === 'campaign-builder' ? {
+  const requestedBuildMode = String(req.body?.buildMode || '');
+  const builderInput = ['campaign-builder', 'imported-site'].includes(requestedBuildMode) ? {
     brand: cleanInlineText(req.body?.brand || '', 160),
     campaign: title,
     agency: cleanInlineText(req.body?.agency || '', 160),
@@ -1808,13 +1815,23 @@ app.post('/api/editor/:id/pages', requireFirebaseAuth, upload.array('files', 60)
   }
   try {
     const project = await createProjectFromUploads(id, manifest, { title, prompt, files, builderInput });
+    const importedHomepage = requestedBuildMode === 'imported-site' && !!manifest.sourceHome?.html;
+    if (importedHomepage) {
+      const reference = (manifest.projects || []).find(item => item.pageStyle || item.sourceCss);
+      project.addedToImportedSite = true;
+      project.pageStyle = {
+        ...(reference?.pageStyle || {}),
+        ...(project.pageStyle || {})
+      };
+      project.sourceCss = reference?.sourceCss || manifest.sourceHome.sourceCss || '';
+    }
     manifest.projects = manifest.projects || [];
     manifest.projects.push(project);
-    manifest.homeOverride = true;
+    manifest.homeOverride = importedHomepage ? false : true;
     const buildPrompt = prompt
       ? `Make this new campaign page portfolio-ready. Preserve all campaign facts from the campaign info.\n\nCampaign info:\n${prompt}`
       : 'Make this new campaign page portfolio-ready.';
-    if (builderInput) {
+    if (requestedBuildMode === 'campaign-builder') {
       const cleanedManifest = await cleanupCampaignBuilderManifestWithAI(manifest, {
         progress: (stage, detail) => console.log(`[${stage}] ${detail}`)
       });
