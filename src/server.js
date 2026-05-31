@@ -48,6 +48,7 @@ app.use('/', express.static(path.join(root, 'public'), {
     }
   }
 }));
+app.get('/generated/:id/site/work/:slug/index.html', serveGeneratedCampaignPage);
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
 app.get('/generated/:id/*', generatedMissingHandler);
 
@@ -178,17 +179,48 @@ async function serveSiteFile(res, id, requestedPath = '') {
   const stat = await fs.stat(target).catch(() => null);
   if (stat?.isDirectory()) {
     const indexFile = path.join(target, 'index.html');
-    if (await fs.pathExists(indexFile)) return res.sendFile(indexFile);
+    if (await fs.pathExists(indexFile)) {
+      if (isCampaignPagePath(path.relative(siteRoot, indexFile))) return sendPortfolioHtmlWithRuntime(res, indexFile);
+      return res.sendFile(indexFile);
+    }
   }
-  if (stat?.isFile()) return res.sendFile(target);
+  if (stat?.isFile()) {
+    if (isCampaignPagePath(path.relative(siteRoot, target))) return sendPortfolioHtmlWithRuntime(res, target);
+    return res.sendFile(target);
+  }
   const fallback = path.join(siteRoot, 'index.html');
   if (await fs.pathExists(fallback)) return res.sendFile(fallback);
   return res.status(404).send('Published site not found');
 }
 
+function isCampaignPagePath(relativePath = '') {
+  return /^work[/\\][^/\\]+[/\\]index\.html$/i.test(String(relativePath || ''));
+}
+
+async function sendPortfolioHtmlWithRuntime(res, filePath) {
+  let html = await fs.readFile(filePath, 'utf8');
+  if (!html.includes('/portfolio-loader.js')) {
+    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-image-loader"></script></body>');
+  }
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.type('html').send(html);
+}
+
+async function serveGeneratedCampaignPage(req, res, next) {
+  try {
+    const siteRoot = siteDir(req.params.id);
+    const target = path.normalize(path.join(siteRoot, 'work', req.params.slug, 'index.html'));
+    if (!target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
+    if (!(await fs.pathExists(target))) return next();
+    return sendPortfolioHtmlWithRuntime(res, target);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function serveCustomDomainIfMapped(req, res, next) {
   try {
-    if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css') return next();
+    if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css' || req.path === '/portfolio-loader.js') return next();
     const host = String(req.hostname || '').toLowerCase();
     // Skip if it's localhost or the main domain
     if (host === 'localhost' || host === '127.0.0.1' || host === publicHost().toLowerCase()) return next();
@@ -221,7 +253,7 @@ async function servePublishedSite(req, res, next) {
 
 async function serveKillaWorkHost(req, res, next) {
   try {
-    if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css') return next();
+    if (req.path.startsWith('/api/') || req.path === '/auth.js' || req.path === '/ui.css' || req.path === '/portfolio-loader.js') return next();
     const host = String(req.hostname || '').toLowerCase();
     const base = publicHost().toLowerCase();
     if (!host.endsWith(`.${base}`)) return next();
