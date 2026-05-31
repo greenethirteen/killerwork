@@ -239,7 +239,10 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
     html = addBodyClass(html, 'behance-site');
     html = html.replace(/<a\b[^>]*href=["'][^"']*import-review\.html["'][^>]*>\s*Review\s*<\/a>/gi, '');
   }
-  if (behanceProject) html = addBodyClass(html, 'behance-project');
+  if (behanceProject) {
+    html = addBodyClass(html, 'behance-project');
+    html = html.replace(/<a\b[^>]*class=["'][^"']*\bback-link\b[^"']*["'][^>]*>\s*←\s*Work\s*<\/a>/gi, '');
+  }
   if (html.includes('/portfolio-loader.js')) {
     html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-header');
   } else {

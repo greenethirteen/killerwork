@@ -2564,11 +2564,12 @@ export async function generateSite(manifest, outDir, progress) {
     const campaignTitleHtml = manifest.sourcePlatform === 'behance' && parsedTitle.brand
       ? `<h1 class="campaign-title-split"${titleStyle}><span>${htmlEscape(parsedTitle.brand)}</span><small>${htmlEscape(parsedTitle.campaign)}</small></h1>`
       : `<h1${titleStyle}>${htmlEscape(p.title)}</h1>`;
+    const backLink = manifest.sourcePlatform === 'behance' ? '' : '<a class="back-link" href="../../index.html">← Work</a>';
     const headerHtml = isSourceReplica
       ? sourceHeader
       : manifest.sourceUrl === 'campaign-builder'
         ? ''
-        : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a>${campaignTitleHtml}${subtitleHtml}</header>`;
+        : `<header class="project-header">${backLink}${campaignTitleHtml}${subtitleHtml}</header>`;
     const campaignHeader = manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest, '../../') : '';
     const defaultHeader = manifest.sourcePlatform === 'behance' ? renderStandardSiteHeader(manifest, '../../') : '';
     await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260531-behance-header"></script></body></html>`);
