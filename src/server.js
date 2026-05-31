@@ -48,6 +48,7 @@ app.use('/', express.static(path.join(root, 'public'), {
     }
   }
 }));
+app.get(['/generated/:id/site', '/generated/:id/site/', '/generated/:id/site/index.html'], serveGeneratedHomePage);
 app.get('/generated/:id/site/work/:slug/index.html', serveGeneratedCampaignPage);
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
 app.get('/generated/:id/*', generatedMissingHandler);
@@ -173,6 +174,7 @@ async function publishedIndex() {
 
 async function serveSiteFile(res, id, requestedPath = '') {
   const siteRoot = path.join(jobDir(id), 'site');
+  const manifest = await readManifest(id);
   const cleanPath = String(requestedPath || '').replace(/^\/+/, '') || 'index.html';
   const target = path.normalize(path.join(siteRoot, cleanPath));
   if (target !== siteRoot && !target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
@@ -180,16 +182,21 @@ async function serveSiteFile(res, id, requestedPath = '') {
   if (stat?.isDirectory()) {
     const indexFile = path.join(target, 'index.html');
     if (await fs.pathExists(indexFile)) {
-      if (isCampaignPagePath(path.relative(siteRoot, indexFile))) return sendPortfolioHtmlWithRuntime(res, indexFile);
+      const relativePath = path.relative(siteRoot, indexFile);
+      if (needsPortfolioRuntime(manifest, relativePath)) return sendPortfolioHtmlWithRuntime(res, indexFile, portfolioRuntimeOptions(manifest, relativePath));
       return res.sendFile(indexFile);
     }
   }
   if (stat?.isFile()) {
-    if (isCampaignPagePath(path.relative(siteRoot, target))) return sendPortfolioHtmlWithRuntime(res, target);
+    const relativePath = path.relative(siteRoot, target);
+    if (needsPortfolioRuntime(manifest, relativePath)) return sendPortfolioHtmlWithRuntime(res, target, portfolioRuntimeOptions(manifest, relativePath));
     return res.sendFile(target);
   }
   const fallback = path.join(siteRoot, 'index.html');
-  if (await fs.pathExists(fallback)) return res.sendFile(fallback);
+  if (await fs.pathExists(fallback)) {
+    if (needsPortfolioRuntime(manifest, 'index.html')) return sendPortfolioHtmlWithRuntime(res, fallback, portfolioRuntimeOptions(manifest, 'index.html'));
+    return res.sendFile(fallback);
+  }
   return res.status(404).send('Published site not found');
 }
 
@@ -197,13 +204,61 @@ function isCampaignPagePath(relativePath = '') {
   return /^work[/\\][^/\\]+[/\\]index\.html$/i.test(String(relativePath || ''));
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath) {
+function isHomePagePath(relativePath = '') {
+  return /^index\.html$/i.test(String(relativePath || ''));
+}
+
+function portfolioRuntimeOptions(manifest, relativePath = '') {
+  const isBehance = manifest?.sourcePlatform === 'behance';
+  return {
+    behanceHome: isBehance && isHomePagePath(relativePath),
+    behanceProject: isBehance && isCampaignPagePath(relativePath)
+  };
+}
+
+function needsPortfolioRuntime(manifest, relativePath = '') {
+  return isCampaignPagePath(relativePath) || (manifest?.sourcePlatform === 'behance' && isHomePagePath(relativePath));
+}
+
+function addBodyClass(html, className) {
+  return html.replace(/<body([^>]*)>/i, (body, attributes) => {
+    if (/\bclass\s*=\s*["']/i.test(attributes)) {
+      return `<body${attributes.replace(/\bclass\s*=\s*(["'])(.*?)\1/i, (value, quote, classes) => {
+        const classNames = String(classes).split(/\s+/).filter(Boolean);
+        if (!classNames.includes(className)) classNames.push(className);
+        return `class=${quote}${classNames.join(' ')}${quote}`;
+      })}>`;
+    }
+    return `<body${attributes} class="${className}">`;
+  });
+}
+
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
-  if (!html.includes('/portfolio-loader.js')) {
-    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-image-loader"></script></body>');
+  if (behanceHome) {
+    html = addBodyClass(html, 'behance-site');
+    html = html.replace(/<a\b[^>]*href=["'][^"']*import-review\.html["'][^>]*>\s*Review\s*<\/a>/gi, '');
+  }
+  if (behanceProject) html = addBodyClass(html, 'behance-project');
+  if (html.includes('/portfolio-loader.js')) {
+    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-header');
+  } else {
+    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-behance-header"></script></body>');
   }
   res.setHeader('Cache-Control', 'no-cache');
   return res.type('html').send(html);
+}
+
+async function serveGeneratedHomePage(req, res, next) {
+  try {
+    const manifest = await readManifest(req.params.id);
+    if (manifest?.sourcePlatform !== 'behance') return next();
+    const target = path.join(siteDir(req.params.id), 'index.html');
+    if (!(await fs.pathExists(target))) return next();
+    return sendPortfolioHtmlWithRuntime(res, target, { behanceHome: true });
+  } catch (err) {
+    next(err);
+  }
 }
 
 async function serveGeneratedCampaignPage(req, res, next) {
@@ -212,7 +267,8 @@ async function serveGeneratedCampaignPage(req, res, next) {
     const target = path.normalize(path.join(siteRoot, 'work', req.params.slug, 'index.html'));
     if (!target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
     if (!(await fs.pathExists(target))) return next();
-    return sendPortfolioHtmlWithRuntime(res, target);
+    const manifest = await readManifest(req.params.id);
+    return sendPortfolioHtmlWithRuntime(res, target, { behanceProject: manifest?.sourcePlatform === 'behance' });
   } catch (err) {
     next(err);
   }
