@@ -32,9 +32,21 @@
           <p id="portfolioTagline" contenteditable="true">Your Job Title or Short Description</p>
         </div>
         <div class="portfolio-dashboard-actions">
+          <label class="build-site-picker">
+            <span>Portfolio</span>
+            <select id="portfolioSiteSelect" aria-label="Select build from work portfolio">
+              <option value="">New portfolio</option>
+            </select>
+          </label>
           <a id="previewPortfolioButton" class="build-work-cta" target="_blank" rel="noreferrer" href="#" aria-disabled="true">
-            <span>Preview Portfolio</span>
+            <span>Preview Live Site</span>
             <b>→</b>
+          </a>
+          <a id="editPortfolioButton" class="build-work-cta secondary" target="_blank" rel="noreferrer" href="#" aria-disabled="true">
+            <span>Edit Site</span>
+          </a>
+          <a id="managePortfolioButton" class="build-work-cta secondary" target="_blank" rel="noreferrer" href="#" aria-disabled="true">
+            <span>Manage Site</span>
           </a>
           <div class="portfolio-publish-wrap">
             <button id="publishLiveSiteButton" class="build-work-cta secondary" type="button">
@@ -107,7 +119,6 @@
         <section class="builder-panel builder-upload-panel">
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
-            <button id="addCampaign" class="button secondary" type="button">Add another page</button>
             <button id="buildCampaigns" class="build-submit" type="submit">Generate portfolio page</button>
           </div>
         </section>
@@ -162,7 +173,7 @@
     </article>
   </template>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260528-grid-builder'));
+    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260531-portfolio-dashboard'));
   </script>
 </body>
 </html>

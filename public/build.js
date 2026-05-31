@@ -5,13 +5,15 @@ const dashboard = document.getElementById('portfolioDashboard');
 const builderFlow = document.getElementById('builderFlow');
 const builderBack = document.getElementById('builderBack');
 const campaignList = document.getElementById('campaignList');
-const addCampaign = document.getElementById('addCampaign');
 const buildCampaigns = document.getElementById('buildCampaigns');
 const template = document.getElementById('campaignTemplate');
 const portfolioName = document.getElementById('portfolioName');
 const portfolioTagline = document.getElementById('portfolioTagline');
 const portfolioGrid = document.getElementById('portfolioGrid');
+const portfolioSiteSelect = document.getElementById('portfolioSiteSelect');
 const previewPortfolioButton = document.getElementById('previewPortfolioButton');
+const editPortfolioButton = document.getElementById('editPortfolioButton');
+const managePortfolioButton = document.getElementById('managePortfolioButton');
 const publishLiveSiteButton = document.getElementById('publishLiveSiteButton');
 const buildAnotherPortfolioButton = document.getElementById('buildAnotherPortfolioButton');
 const panel = document.getElementById('progressPanel');
@@ -29,6 +31,7 @@ const manageLink = document.getElementById('manageLink');
 let timer;
 let currentJobId = '';
 let latestPortfolio = null;
+let buildPortfolios = [];
 
 const publishControl = setupPublishControl({
   control: document.getElementById('publishControl'),
@@ -48,7 +51,7 @@ function renumberCampaigns() {
 
 function openBuilder() {
   builderFlow?.classList.remove('hidden');
-  if (!campaignList.children.length) addCampaignCard(false);
+  resetCampaignForm();
   document.body.classList.add('builder-modal-open');
   builderFlow?.querySelector('[data-field="files"]')?.focus();
 }
@@ -93,6 +96,13 @@ function addCampaignCard(scroll = true) {
   if (scroll) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function resetCampaignForm() {
+  campaignList.innerHTML = '';
+  addCampaignCard(false);
+  buildCampaigns.disabled = false;
+  buildCampaigns.textContent = currentJobId ? 'Add page to portfolio' : 'Generate portfolio page';
+}
+
 function campaignData(card) {
   const read = field => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
   const number = [...campaignList.children].indexOf(card) + 1;
@@ -117,7 +127,7 @@ function projectTile(project, jobId) {
     <div class="tile-project-actions">
       <a href="${previewHref}" target="_blank" rel="noreferrer" aria-label="Preview ${project.title || 'project'}">Preview</a>
       <a href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${project.title || 'project'}">Edit</a>
-      <button type="button" data-delete-project="${project.slug}" aria-label="Delete ${project.title || 'project'}">Delete</button>
+      <button type="button" data-delete-project="${project.slug}" aria-label="Delete ${project.title || 'project'}">Delete page</button>
     </div>
     <strong>${project.title || 'Untitled project'}</strong>
   `;
@@ -148,11 +158,62 @@ function renderPortfolioPreview(portfolio) {
   }
 }
 
-async function loadLatestPortfolio() {
+function setPortfolioAction(link, href = '') {
+  if (!link) return;
+  link.href = href || '#';
+  if (href) link.removeAttribute('aria-disabled');
+  else link.setAttribute('aria-disabled', 'true');
+}
+
+function updatePortfolioControls(portfolio) {
+  currentJobId = portfolio?.id || '';
+  latestPortfolio = portfolio || null;
+  if (portfolioName) portfolioName.textContent = portfolio?.ownerName || portfolio?.siteTitle || 'Your Name';
+  if (portfolioTagline) portfolioTagline.textContent = portfolio?.homeIntro || 'Your Job Title or Short Description';
+  setPortfolioAction(previewPortfolioButton, portfolio?.preview);
+  setPortfolioAction(editPortfolioButton, portfolio?.editor);
+  setPortfolioAction(managePortfolioButton, portfolio?.id ? `/manage.html?job=${encodeURIComponent(portfolio.id)}` : '');
+  if (portfolioSiteSelect) portfolioSiteSelect.value = portfolio?.id || '';
+  if (portfolio) {
+    publishControl.setPublished(portfolio.published, portfolio.customDomain);
+  } else {
+    publishControl.hide();
+  }
+}
+
+async function loadPortfolio(id) {
+  if (!id) {
+    updatePortfolioControls(null);
+    renderPortfolioPreview(null);
+    return null;
+  }
+  const headers = await window.KillerWorkAuth.authHeaders();
+  const res = await fetch(`/api/manage/${encodeURIComponent(id)}`, { headers });
+  const portfolio = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(portfolio.error || 'Could not load portfolio.');
+  updatePortfolioControls(portfolio);
+  renderPortfolioPreview(portfolio);
+  localStorage.setItem('killerwork:lastJobId', portfolio.id);
+  return portfolio;
+}
+
+function renderPortfolioSelector() {
+  if (!portfolioSiteSelect) return;
+  portfolioSiteSelect.innerHTML = '<option value="">New portfolio</option>';
+  for (const portfolio of buildPortfolios) {
+    const option = document.createElement('option');
+    option.value = portfolio.id;
+    option.textContent = `${portfolio.siteTitle || portfolio.ownerName || 'Untitled portfolio'} (${portfolio.projectCount || 0} page${portfolio.projectCount === 1 ? '' : 's'})`;
+    portfolioSiteSelect.appendChild(option);
+  }
+}
+
+async function loadLatestPortfolio(preferredId = '') {
   let headers;
   try {
     headers = await window.KillerWorkAuth.authHeaders();
   } catch {
+    updatePortfolioControls(null);
     renderPortfolioPreview(null);
     return;
   }
@@ -162,15 +223,14 @@ async function loadLatestPortfolio() {
     return;
   }
   const data = await res.json();
-  latestPortfolio = data.portfolios?.[0] || null;
+  buildPortfolios = (data.portfolios || []).filter(item => item.buildMode === 'campaign-builder' || item.sourceUrl === 'campaign-builder');
+  renderPortfolioSelector();
+  let selected = buildPortfolios[0] || null;
   const lastId = localStorage.getItem('killerwork:lastJobId');
-  if (lastId) latestPortfolio = data.portfolios?.find(item => item.id === lastId) || latestPortfolio;
-  currentJobId = latestPortfolio?.id || currentJobId;
-  if (latestPortfolio?.preview && previewPortfolioButton) {
-    previewPortfolioButton.href = latestPortfolio.preview;
-    previewPortfolioButton.removeAttribute('aria-disabled');
-  }
-  renderPortfolioPreview(latestPortfolio);
+  const selectedId = preferredId || new URLSearchParams(location.search).get('portfolio') || lastId;
+  if (selectedId) selected = buildPortfolios.find(item => item.id === selectedId) || selected;
+  if (new URLSearchParams(location.search).has('new') && !preferredId) selected = null;
+  await loadPortfolio(selected?.id || '');
 }
 
 async function deleteProject(jobId, slug) {
@@ -183,7 +243,8 @@ async function deleteProject(jobId, slug) {
     panel.classList.remove('hidden');
     return;
   }
-  await loadLatestPortfolio();
+  await loadPortfolio(jobId);
+  await loadLatestPortfolio(jobId);
 }
 
 async function poll(id) {
@@ -211,8 +272,9 @@ async function poll(id) {
     publishControl.show();
     publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
-    buildCampaigns.textContent = 'Build another portfolio';
-    loadLatestPortfolio();
+    buildCampaigns.textContent = 'Add page to portfolio';
+    closeBuilder();
+    loadLatestPortfolio(job.id);
   }
 
   if (job.status === 'error') {
@@ -238,6 +300,51 @@ form.addEventListener('submit', async event => {
   }
 
   const body = new FormData();
+  if (currentJobId) {
+    const campaign = campaigns[0];
+    const prompt = [
+      campaign.brand ? `Brand: ${campaign.brand}` : '',
+      campaign.agency ? `Agency: ${campaign.agency}` : '',
+      campaign.notes || ''
+    ].filter(Boolean).join('\n');
+    body.append('title', campaign.title);
+    body.append('prompt', prompt);
+    const files = cards[0].querySelector('[data-field="files"]')?.files || [];
+    [...files].forEach(file => body.append('files', file));
+    panel.classList.remove('hidden');
+    pill.textContent = 'running';
+    stageTitle.textContent = 'Adding portfolio page';
+    stageDetail.textContent = `${campaign.title}, ${totalFiles} asset(s)`;
+    progressBar.style.width = '35%';
+    percentText.textContent = '35%';
+    buildCampaigns.disabled = true;
+    buildCampaigns.textContent = 'Building...';
+    try {
+      const token = await window.KillerWorkAuth.requireToken();
+      const res = await fetch(`/api/editor/${encodeURIComponent(currentJobId)}/pages`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not add portfolio page.');
+      progressBar.style.width = '100%';
+      percentText.textContent = '100%';
+      pill.textContent = 'Complete';
+      stageTitle.textContent = 'Portfolio page added';
+      stageDetail.textContent = `${data.page?.title || campaign.title} is now in your portfolio.`;
+      closeBuilder();
+      await loadPortfolio(currentJobId);
+      await loadLatestPortfolio(currentJobId);
+    } catch (err) {
+      pill.textContent = 'Error';
+      stageDetail.textContent = err.message || 'Could not add portfolio page.';
+    } finally {
+      buildCampaigns.disabled = false;
+      buildCampaigns.textContent = 'Add page to portfolio';
+    }
+    return;
+  }
   body.append('title', portfolioHeader);
   body.append('subtitle', portfolioSubhead);
   body.append('campaigns', JSON.stringify(campaigns));
@@ -282,7 +389,6 @@ form.addEventListener('submit', async event => {
   poll(data.id);
 });
 
-addCampaign.addEventListener('click', () => addCampaignCard());
 builderBack?.addEventListener('click', closeBuilder);
 document.querySelectorAll('[data-close-builder]').forEach(element => element.addEventListener('click', closeBuilder));
 document.querySelectorAll('[data-open-builder]').forEach(button => {
@@ -290,6 +396,18 @@ document.querySelectorAll('[data-open-builder]').forEach(button => {
 });
 previewPortfolioButton?.addEventListener('click', event => {
   if (!latestPortfolio?.preview) {
+    event.preventDefault();
+    openBuilder();
+  }
+});
+editPortfolioButton?.addEventListener('click', event => {
+  if (!latestPortfolio?.editor) {
+    event.preventDefault();
+    openBuilder();
+  }
+});
+managePortfolioButton?.addEventListener('click', event => {
+  if (!currentJobId) {
     event.preventDefault();
     openBuilder();
   }
@@ -303,7 +421,18 @@ publishLiveSiteButton?.addEventListener('click', () => {
   document.querySelector('[data-publish-toggle]')?.click();
 });
 buildAnotherPortfolioButton?.addEventListener('click', () => {
-  window.location.assign(`/build.html?new=${Date.now()}`);
+  history.replaceState(null, '', `/build.html?new=${Date.now()}`);
+  updatePortfolioControls(null);
+  renderPortfolioPreview(null);
+});
+portfolioSiteSelect?.addEventListener('change', () => {
+  const id = portfolioSiteSelect.value;
+  if (id) history.replaceState(null, '', `/build.html?portfolio=${encodeURIComponent(id)}`);
+  else history.replaceState(null, '', `/build.html?new=${Date.now()}`);
+  loadPortfolio(id).catch(err => {
+    stageDetail.textContent = err.message || 'Could not load portfolio.';
+    panel.classList.remove('hidden');
+  });
 });
 
 loadLatestPortfolio();
