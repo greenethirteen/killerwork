@@ -17,6 +17,7 @@ const GOOGLE_ADS_ID = 'AW-18188860218';
 let authInstance = null;
 let authReadyResolve;
 let authReadyDone = false;
+let authStateSettled = false;
 const authReady = new Promise(resolve => { authReadyResolve = resolve; });
 
 function initGoogleAdsTag() {
@@ -50,6 +51,10 @@ function resolveAuthReady() {
   if (authReadyDone) return;
   authReadyDone = true;
   authReadyResolve();
+}
+
+function showAuthUi() {
+  document.documentElement.classList.remove('auth-pending');
 }
 
 function googleProvider() {
@@ -124,6 +129,7 @@ function setSignedIn(user) {
 }
 
 async function initFirebaseAuth() {
+  document.documentElement.classList.add('auth-pending');
   const res = await fetch('/api/firebase-config');
   const data = await res.json();
   if (!data.configured) {
@@ -160,6 +166,8 @@ async function initFirebaseAuth() {
   });
 
   onAuthStateChanged(auth, async user => {
+    authStateSettled = true;
+    showAuthUi();
     resolveAuthReady();
     if (!user) {
       setSignedOut();
@@ -174,4 +182,9 @@ async function initFirebaseAuth() {
 initFirebaseAuth().catch(() => {
   setSignedOut('Firebase sign-in could not start.');
   authReadyResolve();
+  showAuthUi();
 });
+
+setTimeout(() => {
+  if (!authStateSettled) showAuthUi();
+}, 1200);

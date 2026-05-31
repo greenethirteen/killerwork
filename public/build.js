@@ -152,7 +152,7 @@ function resetCampaignForm() {
   campaignList.innerHTML = '';
   addCampaignCard(false);
   buildCampaigns.disabled = false;
-  buildCampaigns.textContent = currentJobId ? 'Add page to portfolio' : 'Generate portfolio page';
+  buildCampaigns.textContent = currentJobId ? 'Create Page' : 'Generate portfolio page';
 }
 
 function campaignData(card) {
@@ -177,19 +177,59 @@ function projectTile(project, jobId) {
   const thumb = project.thumbnail || project.thumb || project.image || '';
   tile.innerHTML = `
     ${thumb ? `<img class="built-project-thumb" src="${thumb}" alt="">` : '<span class="built-project-thumb-placeholder"></span>'}
+    <span class="built-project-thumb-loader" aria-hidden="true"></span>
     <div class="tile-project-actions">
-      <a href="${previewHref}" target="_blank" rel="noreferrer" aria-label="Preview ${project.title || 'project'}">Preview</a>
-      <a href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${project.title || 'project'}">Edit</a>
-      <button type="button" data-delete-project="${project.slug}" aria-label="Delete ${project.title || 'project'}">Delete page</button>
+      <a class="tile-action-btn" href="${previewHref}" target="_blank" rel="noreferrer" aria-label="Preview ${project.title || 'project'}">Preview</a>
+      <a class="tile-action-btn" href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${project.title || 'project'}">Edit</a>
+      <button class="tile-action-btn" type="button" data-delete-project="${project.slug}" aria-label="Delete ${project.title || 'project'}">Delete page</button>
     </div>
-    <strong>${project.title || 'Untitled project'}</strong>
+    <strong contenteditable="true" spellcheck="false" data-edit-title="${project.slug}" data-last-title="${project.title || 'Untitled project'}">${project.title || 'Untitled project'}</strong>
   `;
   tile.addEventListener('click', event => {
     if (event.target.closest('a,button')) return;
     window.open(previewHref, '_blank', 'noopener');
   });
   tile.querySelector('[data-delete-project]')?.addEventListener('click', () => deleteProject(jobId, project.slug));
+  const image = tile.querySelector('.built-project-thumb');
+  const loader = tile.querySelector('.built-project-thumb-loader');
+  if (image && loader) {
+    const hideLoader = () => loader.classList.add('hidden');
+    if (image.complete) hideLoader();
+    else {
+      image.addEventListener('load', hideLoader, { once: true });
+      image.addEventListener('error', hideLoader, { once: true });
+    }
+  } else if (loader) {
+    loader.classList.add('hidden');
+  }
+  const editableTitle = tile.querySelector('[data-edit-title]');
+  editableTitle?.addEventListener('blur', () => saveProjectTitle(jobId, project.slug, editableTitle));
+  editableTitle?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      editableTitle.blur();
+    }
+  });
   return tile;
+}
+
+async function saveProjectTitle(jobId, slug, node) {
+  if (!jobId || !slug || !node) return;
+  const nextTitle = cleanEditableText(node.textContent || '') || 'Untitled project';
+  if (nextTitle === (node.dataset.lastTitle || '')) return;
+  const headers = { 'Content-Type': 'application/json', ...(await window.KillerWorkAuth.authHeaders()) };
+  const res = await fetch(`/api/editor/${encodeURIComponent(jobId)}/pages/${encodeURIComponent(slug)}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ title: nextTitle })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    window.alert(data.error || 'Could not rename project.');
+    return;
+  }
+  node.textContent = nextTitle;
+  node.dataset.lastTitle = nextTitle;
 }
 
 function plusTile(index = 0) {
@@ -315,7 +355,7 @@ async function poll(id) {
     publishControl.show();
     publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
-    buildCampaigns.textContent = 'Add page to portfolio';
+    buildCampaigns.textContent = 'Create Page';
     await finishProgress('Portfolio page ready', 'Your new project is now in the portfolio preview.');
     closeBuilder();
     hideProgress();
@@ -381,7 +421,7 @@ form.addEventListener('submit', async event => {
       showProgressError(err.message || 'Could not add portfolio page.');
     } finally {
       buildCampaigns.disabled = false;
-      buildCampaigns.textContent = 'Add page to portfolio';
+      buildCampaigns.textContent = 'Create Page';
     }
     return;
   }

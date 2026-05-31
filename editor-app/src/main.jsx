@@ -93,8 +93,13 @@ function App() {
   const [history, setHistory] = React.useState({ undoCount: 0, redoCount: 0 });
   const [publishOpen, setPublishOpen] = React.useState(false);
   const [subdomain, setSubdomain] = React.useState('');
+  const [textEditMode, setTextEditMode] = React.useState(false);
+  const [textTarget, setTextTarget] = React.useState(null);
+  const [textSize, setTextSize] = React.useState(16);
+  const [textFont, setTextFont] = React.useState('Inter');
   const fileInputRef = React.useRef(null);
   const chatRef = React.useRef(null);
+  const previewRef = React.useRef(null);
 
   const pageOptions = pages.length ? pages : [{ path: 'index.html', title: 'Home', preview: publicPreviewUrl(jobId) }];
 
@@ -279,6 +284,79 @@ function App() {
     window.history.replaceState(null, '', url);
   }
 
+  function editableTextNodes(doc) {
+    return [...doc.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,li,a,figcaption,small,strong,em,b,i')];
+  }
+
+  function applyTextEditingState(enabled) {
+    const doc = previewRef.current?.contentDocument;
+    if (!doc) return;
+    let styleTag = doc.getElementById('kw-inline-edit-style');
+    if (!styleTag) {
+      styleTag = doc.createElement('style');
+      styleTag.id = 'kw-inline-edit-style';
+      styleTag.textContent = '.kw-inline-editable{outline:1px dashed rgba(123,223,242,.45);outline-offset:2px;cursor:text} .kw-inline-editable:focus{outline:2px solid rgba(255,209,102,.65)}';
+      doc.head.appendChild(styleTag);
+    }
+    editableTextNodes(doc).forEach(node => {
+      if (enabled) {
+        node.setAttribute('contenteditable', 'plaintext-only');
+        node.classList.add('kw-inline-editable');
+      } else {
+        node.removeAttribute('contenteditable');
+        node.classList.remove('kw-inline-editable');
+      }
+    });
+  }
+
+  React.useEffect(() => {
+    applyTextEditingState(textEditMode);
+    if (!textEditMode) setTextTarget(null);
+  }, [textEditMode, previewSrc]);
+
+  React.useEffect(() => {
+    if (!textTarget) return;
+    const computed = window.getComputedStyle(textTarget);
+    const size = parseInt(computed.fontSize, 10);
+    if (Number.isFinite(size)) setTextSize(size);
+    setTextFont((computed.fontFamily || 'Inter').split(',')[0].replace(/["']/g, '').trim() || 'Inter');
+  }, [textTarget]);
+
+  function handlePreviewClick(event) {
+    if (!textEditMode) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.matches('.kw-inline-editable')) return;
+    setTextTarget(target);
+  }
+
+  function applyTextStyle(style, value) {
+    if (!textTarget) return;
+    textTarget.style[style] = value;
+  }
+
+  async function saveInlineTextEdits() {
+    const doc = previewRef.current?.contentDocument;
+    if (!doc) return;
+    const html = `<!doctype html>\n${doc.documentElement.outerHTML}`;
+    setFileContent(html);
+    setBusy('Saving inline text edits...');
+    try {
+      const data = await api(`/api/code-editor/${encodeURIComponent(jobId)}/file`, {
+        method: 'PUT',
+        body: JSON.stringify({ path: selectedPage || 'index.html', content: html })
+      });
+      setHistory(data.history || history);
+      setStatus('Inline text edits saved.');
+      addMessage('ai', `Saved inline text edits to ${selectedPage}.`);
+    } catch (err) {
+      setStatus(err.message || 'Could not save inline text edits.');
+    } finally {
+      setBusy('');
+      refreshPreview(selectedPage);
+    }
+  }
+
   if (!jobId) {
     return (
       <main className="empty-state">
@@ -319,8 +397,17 @@ function App() {
           <button type="button" onClick={() => snapshotAction('redo')} disabled={!history.redoCount || !!busy} title="Redo"><Redo2 size={18} /></button>
           <button type="button" onClick={saveFile} disabled={!!busy} title="Save file"><Save size={18} /></button>
           <button type="button" onClick={() => setPublishOpen(value => !value)} title="Publish"><Rocket size={18} /></button>
+          <button type="button" onClick={() => setTextEditMode(value => !value)} title="Inline text editing">{textEditMode ? <Check size={18} /> : 'T'}</button>
           <a href={publicPreviewUrl(jobId, selectedPage)} target="_blank" rel="noreferrer" title="Open preview"><ExternalLink size={18} /></a>
         </div>
+
+        {textEditMode && (
+          <section className="inline-edit-help">
+            <label>Inline text editing</label>
+            <p>Click text in preview, style it, then save edits.</p>
+            <button type="button" onClick={saveInlineTextEdits} disabled={!!busy}>Save inline text edits</button>
+          </section>
+        )}
 
         {publishOpen && (
           <section className="publish-box">
@@ -392,11 +479,34 @@ function App() {
             <span>Refreshing the live preview</span>
           </div>
         )}
+        {textEditMode && textTarget && (
+          <div className="inline-text-toolbar">
+            <select value={textFont} onChange={event => { setTextFont(event.target.value); applyTextStyle('fontFamily', event.target.value); }}>
+              <option value="Inter">Inter</option>
+              <option value="Arial">Arial</option>
+              <option value="Helvetica Neue">Helvetica Neue</option>
+              <option value="Georgia">Georgia</option>
+            </select>
+            <input type="number" min="10" max="160" value={textSize} onChange={event => {
+              const size = Math.max(10, Math.min(160, Number(event.target.value) || 16));
+              setTextSize(size);
+              applyTextStyle('fontSize', `${size}px`);
+            }} />
+            <button type="button" onClick={() => applyTextStyle('fontWeight', '700')}>B</button>
+            <button type="button" onClick={() => applyTextStyle('fontStyle', 'italic')}>I</button>
+            <button type="button" onClick={() => applyTextStyle('textTransform', 'uppercase')}>TT</button>
+          </div>
+        )}
         <iframe
+          ref={previewRef}
           className={`preview${previewRefreshing ? ' is-refreshing' : ''}`}
           src={previewSrc || previewUrl(jobId, selectedPage)}
           title="Live portfolio preview"
           onLoad={(event) => {
+            applyTextEditingState(textEditMode);
+            try {
+              event.currentTarget.contentDocument?.addEventListener('click', handlePreviewClick);
+            } catch {}
             syncPageFromPreview(event.currentTarget);
             if (previewRefreshing) setTimeout(() => setPreviewRefreshing(false), 420);
           }}
