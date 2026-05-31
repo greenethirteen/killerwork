@@ -13,9 +13,7 @@ const portfolioGrid = document.getElementById('portfolioGrid');
 const portfolioSiteSelect = document.getElementById('portfolioSiteSelect');
 const previewPortfolioButton = document.getElementById('previewPortfolioButton');
 const editPortfolioButton = document.getElementById('editPortfolioButton');
-const managePortfolioButton = document.getElementById('managePortfolioButton');
 const publishLiveSiteButton = document.getElementById('publishLiveSiteButton');
-const buildAnotherPortfolioButton = document.getElementById('buildAnotherPortfolioButton');
 const panel = document.getElementById('progressPanel');
 const pill = document.getElementById('statusPill');
 const stageTitle = document.getElementById('stageTitle');
@@ -223,7 +221,6 @@ function updatePortfolioControls(portfolio) {
   if (portfolioTagline) portfolioTagline.textContent = portfolio?.homeIntro || 'Your Job Title or Short Description';
   setPortfolioAction(previewPortfolioButton, portfolio?.preview);
   setPortfolioAction(editPortfolioButton, portfolio?.editor);
-  setPortfolioAction(managePortfolioButton, portfolio?.id ? `/manage.html?job=${encodeURIComponent(portfolio.id)}` : '');
   if (portfolioSiteSelect) portfolioSiteSelect.value = portfolio?.id || '';
   if (portfolio) {
     publishControl.setPublished(portfolio.published, portfolio.customDomain);
@@ -426,22 +423,10 @@ document.querySelectorAll('[data-open-builder]').forEach(button => {
   button.addEventListener('click', openBuilder);
 });
 previewPortfolioButton?.addEventListener('click', event => {
-  if (!latestPortfolio?.preview) {
-    event.preventDefault();
-    openBuilder();
-  }
+  if (!latestPortfolio?.preview) event.preventDefault();
 });
 editPortfolioButton?.addEventListener('click', event => {
-  if (!latestPortfolio?.editor) {
-    event.preventDefault();
-    openBuilder();
-  }
-});
-managePortfolioButton?.addEventListener('click', event => {
-  if (!currentJobId) {
-    event.preventDefault();
-    openBuilder();
-  }
+  if (!latestPortfolio?.editor) event.preventDefault();
 });
 publishLiveSiteButton?.addEventListener('click', () => {
   if (!currentJobId) {
@@ -450,11 +435,6 @@ publishLiveSiteButton?.addEventListener('click', () => {
   }
   publishControl.show();
   document.querySelector('[data-publish-toggle]')?.click();
-});
-buildAnotherPortfolioButton?.addEventListener('click', () => {
-  history.replaceState(null, '', `/build.html?new=${Date.now()}`);
-  updatePortfolioControls(null);
-  renderPortfolioPreview(null);
 });
 portfolioSiteSelect?.addEventListener('change', () => {
   const id = portfolioSiteSelect.value;
