@@ -1,10 +1,15 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
   Check,
   ExternalLink,
   FolderPlus,
   Home,
+  Italic,
   Loader2,
   Paperclip,
   Redo2,
@@ -92,13 +97,18 @@ function App() {
   const [history, setHistory] = React.useState({ undoCount: 0, redoCount: 0 });
   const [publishOpen, setPublishOpen] = React.useState(false);
   const [subdomain, setSubdomain] = React.useState('');
-  const [textEditMode, setTextEditMode] = React.useState(false);
+  const [textEditMode, setTextEditMode] = React.useState(true);
   const [textTarget, setTextTarget] = React.useState(null);
   const [textSize, setTextSize] = React.useState(16);
   const [textFont, setTextFont] = React.useState('Inter');
+  const [textAlign, setTextAlign] = React.useState('left');
+  const [textBold, setTextBold] = React.useState(false);
+  const [textItalic, setTextItalic] = React.useState(false);
+  const [toolbarPosition, setToolbarPosition] = React.useState({ left: 16, top: 70 });
   const fileInputRef = React.useRef(null);
   const chatRef = React.useRef(null);
   const previewRef = React.useRef(null);
+  const toolbarRef = React.useRef(null);
   const textEditModeRef = React.useRef(false);
 
   const pageOptions = pages.length ? pages : [{ path: 'index.html', title: 'Home', preview: publicPreviewUrl(jobId) }];
@@ -285,7 +295,11 @@ function App() {
   }
 
   function editableTextNodes(doc) {
-    return [...doc.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,li,a,figcaption,small,strong,em,b,i')];
+    const selector = 'h1,h2,h3,h4,h5,h6,p,span,li,a,figcaption,small,strong,em,b,i,div,td,th,blockquote';
+    return [...doc.querySelectorAll(selector)].filter(node => {
+      if (!node.textContent.trim()) return false;
+      return ![...node.children].some(child => child.matches(selector) && child.textContent.trim());
+    });
   }
 
   function applyTextEditingState(enabled) {
@@ -295,7 +309,7 @@ function App() {
     if (!styleTag) {
       styleTag = doc.createElement('style');
       styleTag.id = 'kw-inline-edit-style';
-      styleTag.textContent = '.kw-inline-editable{outline:1px dashed rgba(123,223,242,.45);outline-offset:2px;cursor:text} .kw-inline-editable:focus{outline:2px solid rgba(255,209,102,.65)}';
+      styleTag.textContent = '.kw-inline-editable{outline:1px dashed rgba(123,223,242,.45);outline-offset:2px;cursor:text} .kw-inline-editable:focus,.kw-inline-text-selected{outline:2px solid rgba(255,209,102,.82);outline-offset:3px}';
       doc.head.appendChild(styleTag);
     }
     editableTextNodes(doc).forEach(node => {
@@ -305,6 +319,7 @@ function App() {
       } else {
         node.removeAttribute('contenteditable');
         node.classList.remove('kw-inline-editable');
+        node.classList.remove('kw-inline-text-selected');
       }
     });
   }
@@ -321,7 +336,32 @@ function App() {
     const size = parseInt(computed.fontSize, 10);
     if (Number.isFinite(size)) setTextSize(size);
     setTextFont((computed.fontFamily || 'Inter').split(',')[0].replace(/["']/g, '').trim() || 'Inter');
+    setTextAlign(computed.textAlign || 'left');
+    setTextBold(Number.parseInt(computed.fontWeight, 10) >= 600);
+    setTextItalic(computed.fontStyle === 'italic');
+    requestAnimationFrame(() => positionToolbar(textTarget));
   }, [textTarget]);
+
+  function positionToolbar(target) {
+    const frame = previewRef.current;
+    const workspace = frame?.parentElement;
+    if (!frame || !workspace || !target) return;
+    const frameRect = frame.getBoundingClientRect();
+    const workspaceRect = workspace.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const toolbarWidth = toolbarRef.current?.offsetWidth || 470;
+    const toolbarHeight = toolbarRef.current?.offsetHeight || 56;
+    const left = Math.max(12, Math.min(
+      frameRect.left - workspaceRect.left + targetRect.left,
+      workspaceRect.width - toolbarWidth - 12
+    ));
+    const belowTarget = frameRect.top - workspaceRect.top + targetRect.bottom + 10;
+    const aboveTarget = frameRect.top - workspaceRect.top + targetRect.top - toolbarHeight - 10;
+    const top = belowTarget + toolbarHeight > workspaceRect.height - 12
+      ? Math.max(70, aboveTarget)
+      : Math.max(70, belowTarget);
+    setToolbarPosition({ left, top });
+  }
 
   function handlePreviewClick(event) {
     if (!textEditModeRef.current) return;
@@ -329,12 +369,32 @@ function App() {
     if (!target || target.nodeType !== 1 || !target.matches('.kw-inline-editable')) return;
     event.preventDefault();
     event.stopPropagation();
+    textTarget?.classList.remove('kw-inline-text-selected');
+    target.classList.add('kw-inline-text-selected');
     setTextTarget(target);
+    positionToolbar(target);
   }
 
   function applyTextStyle(style, value) {
     if (!textTarget) return;
     textTarget.style[style] = value;
+  }
+
+  function toggleBold() {
+    const next = !textBold;
+    setTextBold(next);
+    applyTextStyle('fontWeight', next ? '700' : '400');
+  }
+
+  function toggleItalic() {
+    const next = !textItalic;
+    setTextItalic(next);
+    applyTextStyle('fontStyle', next ? 'italic' : 'normal');
+  }
+
+  function applyTextAlignment(alignment) {
+    setTextAlign(alignment);
+    applyTextStyle('textAlign', alignment);
   }
 
   async function saveInlineTextEdits() {
@@ -344,6 +404,7 @@ function App() {
     cleanRoot.querySelector('#kw-inline-edit-style')?.remove();
     cleanRoot.querySelectorAll('.kw-inline-editable').forEach(node => {
       node.classList.remove('kw-inline-editable');
+      node.classList.remove('kw-inline-text-selected');
       node.removeAttribute('contenteditable');
       if (!node.className) node.removeAttribute('class');
     });
@@ -406,15 +467,15 @@ function App() {
           <button type="button" onClick={() => snapshotAction('redo')} disabled={!history.redoCount || !!busy} title="Redo"><Redo2 size={18} /></button>
           <button type="button" onClick={saveFile} disabled={!!busy} title="Save file"><Save size={18} /></button>
           <button type="button" onClick={() => setPublishOpen(value => !value)} title="Publish"><Rocket size={18} /></button>
-          <button type="button" onClick={() => setTextEditMode(value => !value)} title="Inline text editing">{textEditMode ? <Check size={18} /> : 'T'}</button>
+          <button type="button" onClick={() => setTextEditMode(value => !value)} title="Edit text fields">{textEditMode ? <Check size={18} /> : 'T'}</button>
           <a href={publicPreviewUrl(jobId, selectedPage)} target="_blank" rel="noreferrer" title="Open preview"><ExternalLink size={18} /></a>
         </div>
 
         {textEditMode && (
           <section className="inline-edit-help">
-            <label>Inline text editing</label>
-            <p>Click text in preview, style it, then save edits.</p>
-            <button type="button" onClick={saveInlineTextEdits} disabled={!!busy}>Save inline text edits</button>
+            <label>Text editing</label>
+            <p>Click any text field in the preview, style it, then save changes.</p>
+            <button type="button" onClick={saveInlineTextEdits} disabled={!!busy}>Save text changes</button>
           </section>
         )}
 
@@ -474,7 +535,7 @@ function App() {
           </div>
         )}
         {textEditMode && textTarget && (
-          <div className="inline-text-toolbar">
+          <div ref={toolbarRef} className="inline-text-toolbar" style={toolbarPosition}>
             <select value={textFont} onChange={event => { setTextFont(event.target.value); applyTextStyle('fontFamily', event.target.value); }}>
               <option value="Inter">Inter</option>
               <option value="Arial">Arial</option>
@@ -486,9 +547,12 @@ function App() {
               setTextSize(size);
               applyTextStyle('fontSize', `${size}px`);
             }} />
-            <button type="button" onClick={() => applyTextStyle('fontWeight', '700')}>B</button>
-            <button type="button" onClick={() => applyTextStyle('fontStyle', 'italic')}>I</button>
-            <button type="button" onClick={() => applyTextStyle('textTransform', 'uppercase')}>TT</button>
+            <button className={textBold ? 'active' : ''} type="button" onClick={toggleBold} title="Bold"><Bold size={16} /></button>
+            <button className={textItalic ? 'active' : ''} type="button" onClick={toggleItalic} title="Italic"><Italic size={16} /></button>
+            <span className="toolbar-divider" />
+            <button className={textAlign === 'left' ? 'active' : ''} type="button" onClick={() => applyTextAlignment('left')} title="Align left"><AlignLeft size={16} /></button>
+            <button className={textAlign === 'center' ? 'active' : ''} type="button" onClick={() => applyTextAlignment('center')} title="Align center"><AlignCenter size={16} /></button>
+            <button className={textAlign === 'right' ? 'active' : ''} type="button" onClick={() => applyTextAlignment('right')} title="Align right"><AlignRight size={16} /></button>
           </div>
         )}
         <iframe
