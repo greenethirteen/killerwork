@@ -2401,6 +2401,7 @@ function parseBrandCampaignFromTitle(project = {}) {
 
 function renderHomePage(manifest, cards) {
   const sourceHome = manifest.sourceHome || {};
+  const ownerTitle = manifest.ownerName || manifest.homeTitle || 'Portfolio';
   if (sourceHome.html && !manifest.homeOverride) {
     const pageVars = [
       sourceHome.backgroundColor ? `--bg:${sourceHome.backgroundColor}` : '',
@@ -2415,7 +2416,7 @@ function renderHomePage(manifest, cards) {
     const bodyClass = ['source-home', sourceHome.sourceBodyClass].filter(Boolean).join(' ');
     const bodyStyle = mergeStyle(pageVars, sourceHome.sourceBodyStyle);
     const bodyId = sourceHome.sourceBodyId ? ` id="${htmlEscape(sourceHome.sourceBodyId)}"` : '';
-    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(sourceHome.sourceSvgDefs)}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(ownerTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(sourceHome.sourceSvgDefs)}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
   }
   const homeClass = manifest.sourcePlatform === 'behance' ? 'home behance-home' : 'home';
   const title = manifest.homeTitle || manifest.ownerName;
@@ -2426,7 +2427,7 @@ function renderHomePage(manifest, cards) {
   const hero = manifest.sourcePlatform === 'behance' ? '' : `<h1>${htmlEscape(title)}</h1>`;
   const bodyClass = manifest.sourcePlatform === 'behance' ? ' class="behance-site"' : '';
   const includeReview = manifest.sourcePlatform !== 'behance';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body${bodyClass}>${renderStandardSiteHeader(manifest, '', includeReview)}<main class="${homeClass}">${hero}${intro}<section class="work-grid">${cards}</section></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(ownerTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body${bodyClass}>${renderStandardSiteHeader(manifest, '', includeReview)}<main class="${homeClass}">${hero}${intro}<section class="work-grid">${cards}</section></main></body></html>`;
 }
 
 function renderAboutPage(manifest) {

@@ -212,12 +212,21 @@ function portfolioRuntimeOptions(manifest, relativePath = '') {
   const isBehance = manifest?.sourcePlatform === 'behance';
   return {
     behanceHome: isBehance && isHomePagePath(relativePath),
-    behanceProject: isBehance && isCampaignPagePath(relativePath)
+    behanceProject: isBehance && isCampaignPagePath(relativePath),
+    pageTitle: isHomePagePath(relativePath) ? portfolioOwnerTitle(manifest) : ''
   };
 }
 
 function needsPortfolioRuntime(manifest, relativePath = '') {
-  return isCampaignPagePath(relativePath) || (manifest?.sourcePlatform === 'behance' && isHomePagePath(relativePath));
+  return isCampaignPagePath(relativePath) || isHomePagePath(relativePath);
+}
+
+function portfolioOwnerTitle(manifest) {
+  return String(manifest?.ownerName || manifest?.homeTitle || manifest?.siteTitle || 'Portfolio').trim();
+}
+
+function escapeHtmlText(value = '') {
+  return String(value).replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[char]);
 }
 
 function addBodyClass(html, className) {
@@ -233,8 +242,9 @@ function addBodyClass(html, className) {
   });
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false } = {}) {
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '' } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
+  if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
   if (behanceHome) {
     html = addBodyClass(html, 'behance-site');
     html = html.replace(/<a\b[^>]*href=["'][^"']*import-review\.html["'][^>]*>\s*Review\s*<\/a>/gi, '');
@@ -255,10 +265,10 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
 async function serveGeneratedHomePage(req, res, next) {
   try {
     const manifest = await readManifest(req.params.id);
-    if (manifest?.sourcePlatform !== 'behance') return next();
+    if (!manifest) return next();
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
-    return sendPortfolioHtmlWithRuntime(res, target, { behanceHome: true });
+    return sendPortfolioHtmlWithRuntime(res, target, portfolioRuntimeOptions(manifest, 'index.html'));
   } catch (err) {
     next(err);
   }
