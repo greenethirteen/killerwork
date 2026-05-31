@@ -117,6 +117,16 @@ function cleanEditableText(value = '') {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char]);
+}
+
 function updateFileSummary(card) {
   const input = card.querySelector('[data-field="files"]');
   const summary = card.querySelector('[data-file-summary]');
@@ -172,21 +182,22 @@ function campaignData(card) {
 function projectTile(project, jobId) {
   const tile = document.createElement('article');
   tile.className = 'portfolio-tile built-project-tile';
-  const previewHref = project.preview || `/generated/${jobId}/site/work/${project.slug}/index.html`;
+  const projectTitle = project.title || 'Untitled project';
+  const previewHref = project.preview || `/generated/${encodeURIComponent(jobId)}/site/work/${encodeURIComponent(project.slug || '')}/index.html`;
   tile.dataset.href = previewHref;
   const thumb = project.thumbnail || project.thumb || project.image || '';
   tile.innerHTML = `
-    ${thumb ? `<img class="built-project-thumb" src="${thumb}" alt="">` : '<span class="built-project-thumb-placeholder"></span>'}
+    ${thumb ? `<img class="built-project-thumb" src="${escapeHtml(thumb)}" alt="">` : '<span class="built-project-thumb-placeholder"></span>'}
     <span class="built-project-thumb-loader" aria-hidden="true"></span>
     <div class="tile-project-actions">
-      <a class="tile-action-btn" href="${previewHref}" target="_blank" rel="noreferrer" aria-label="Preview ${project.title || 'project'}">Preview</a>
-      <a class="tile-action-btn" href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${project.title || 'project'}">Edit</a>
-      <button class="tile-action-btn" type="button" data-delete-project="${project.slug}" aria-label="Delete ${project.title || 'project'}">Delete page</button>
+      <a class="tile-action-btn" href="${escapeHtml(previewHref)}" target="_blank" rel="noreferrer" aria-label="Preview ${escapeHtml(projectTitle)}">Preview</a>
+      <a class="tile-action-btn" href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${escapeHtml(projectTitle)}">Edit</a>
+      <button class="tile-action-btn" type="button" data-delete-project="${escapeHtml(project.slug)}" aria-label="Delete ${escapeHtml(projectTitle)}">Delete page</button>
     </div>
-    <strong contenteditable="true" spellcheck="false" data-edit-title="${project.slug}" data-last-title="${project.title || 'Untitled project'}">${project.title || 'Untitled project'}</strong>
+    <strong contenteditable="true" spellcheck="false" data-edit-title="${escapeHtml(project.slug)}" data-last-title="${escapeHtml(projectTitle)}">${escapeHtml(projectTitle)}</strong>
   `;
   tile.addEventListener('click', event => {
-    if (event.target.closest('a,button')) return;
+    if (event.target.closest('a,button,[contenteditable]')) return;
     window.open(previewHref, '_blank', 'noopener');
   });
   tile.querySelector('[data-delete-project]')?.addEventListener('click', () => deleteProject(jobId, project.slug));
@@ -203,6 +214,7 @@ function projectTile(project, jobId) {
     loader.classList.add('hidden');
   }
   const editableTitle = tile.querySelector('[data-edit-title]');
+  editableTitle?.addEventListener('click', event => event.stopPropagation());
   editableTitle?.addEventListener('blur', () => saveProjectTitle(jobId, project.slug, editableTitle));
   editableTitle?.addEventListener('keydown', event => {
     if (event.key === 'Enter') {

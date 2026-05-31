@@ -129,12 +129,12 @@ function setSignedIn(user) {
 }
 
 async function initFirebaseAuth() {
-  document.documentElement.classList.add('auth-pending');
   const res = await fetch('/api/firebase-config');
   const data = await res.json();
   if (!data.configured) {
     setSignedOut('Firebase Web App config is missing.');
-    authReadyResolve();
+    resolveAuthReady();
+    showAuthUi();
     return;
   }
 
@@ -181,10 +181,10 @@ async function initFirebaseAuth() {
 
 initFirebaseAuth().catch(() => {
   setSignedOut('Firebase sign-in could not start.');
-  authReadyResolve();
+  resolveAuthReady();
   showAuthUi();
 });
 
 setTimeout(() => {
   if (!authStateSettled) showAuthUi();
-}, 1200);
+}, 8000);

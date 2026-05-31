@@ -100,6 +100,7 @@ function App() {
   const fileInputRef = React.useRef(null);
   const chatRef = React.useRef(null);
   const previewRef = React.useRef(null);
+  const textEditModeRef = React.useRef(false);
 
   const pageOptions = pages.length ? pages : [{ path: 'index.html', title: 'Home', preview: publicPreviewUrl(jobId) }];
 
@@ -310,6 +311,7 @@ function App() {
   }
 
   React.useEffect(() => {
+    textEditModeRef.current = textEditMode;
     applyTextEditingState(textEditMode);
     if (!textEditMode) setTextTarget(null);
   }, [textEditMode, previewSrc]);
@@ -323,10 +325,11 @@ function App() {
   }, [textTarget]);
 
   function handlePreviewClick(event) {
-    if (!textEditMode) return;
+    if (!textEditModeRef.current) return;
     const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    if (!target.matches('.kw-inline-editable')) return;
+    if (!target || target.nodeType !== 1 || !target.matches('.kw-inline-editable')) return;
+    event.preventDefault();
+    event.stopPropagation();
     setTextTarget(target);
   }
 
@@ -338,7 +341,14 @@ function App() {
   async function saveInlineTextEdits() {
     const doc = previewRef.current?.contentDocument;
     if (!doc) return;
-    const html = `<!doctype html>\n${doc.documentElement.outerHTML}`;
+    const cleanRoot = doc.documentElement.cloneNode(true);
+    cleanRoot.querySelector('#kw-inline-edit-style')?.remove();
+    cleanRoot.querySelectorAll('.kw-inline-editable').forEach(node => {
+      node.classList.remove('kw-inline-editable');
+      node.removeAttribute('contenteditable');
+      if (!node.className) node.removeAttribute('class');
+    });
+    const html = `<!doctype html>\n${cleanRoot.outerHTML}`;
     setFileContent(html);
     setBusy('Saving inline text edits...');
     try {

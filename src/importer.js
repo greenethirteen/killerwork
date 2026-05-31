@@ -2379,6 +2379,9 @@ function renderStandardSiteHeader(manifest, prefix = '', includeReview = false) 
 
 function parseBrandCampaignFromTitle(project = {}) {
   const title = cleanTitle(project.title || '');
+  const aiBrand = cleanTitle(project?.cleaned?.brand || '');
+  const aiCampaign = cleanTitle(project?.cleaned?.campaign || '');
+  if (aiBrand && aiCampaign) return { brand: aiBrand, campaign: aiCampaign };
   const metadata = Array.isArray(project?.cleaned?.metadata) ? project.cleaned.metadata.map(item => String(item || '').trim()) : [];
   const joined = metadata.join(' | ');
   const brandMatch = joined.match(/\bbrand\s*[:\-]\s*([^|]+?)(?=\s+\b(?:campaign|agency|role)\b\s*[:\-]|$)/i);
@@ -2565,7 +2568,7 @@ export async function generateSite(manifest, outDir, progress) {
         ? ''
         : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a>${campaignTitleHtml}${subtitleHtml}</header>`;
     const campaignHeader = manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest, '../../') : '';
-    const defaultHeader = manifest.sourceUrl === 'campaign-builder' ? '' : renderStandardSiteHeader(manifest, '../../');
+    const defaultHeader = manifest.sourcePlatform === 'behance' ? renderStandardSiteHeader(manifest, '../../') : '';
     await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 

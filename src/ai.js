@@ -593,6 +593,8 @@ function normalizeCleaned(cleaned, project) {
   return {
     pageType,
     cleanTitle: String(cleaned.cleanTitle || project.title || '').trim(),
+    brand: isPlaceholder(cleaned.brand) ? '' : String(cleaned.brand || '').trim(),
+    campaign: isPlaceholder(cleaned.campaign) ? '' : String(cleaned.campaign || '').trim(),
     intro: isPlaceholder(cleaned.intro) ? '' : String(cleaned.intro || '').trim(),
     metadata,
     sections: safeSections.sort((a,b) => a.order - b.order),
@@ -709,6 +711,8 @@ STRICT RULES:
 - Do not move text above media. The exporter preserves source order.
 - If confidence is low, keep the item but add a warning.
 - Metadata such as campaign, brand, agency, award, publication, date should be clean separate lines.
+- Extract the advertising brand and campaign name into separate "brand" and "campaign" fields when the source text supports that distinction.
+- For a title like "Kinokuniya - Lean on a book", return "brand": "Kinokuniya" and "campaign": "Lean on a book".
 - If raw metadata is collapsed together, split it into separate values. For example, "CampaignClientAgency" should become ["Campaign", "Client", "Agency"], not one long string.
 - If a value is not clearly present, omit it. Never return placeholder words like Brand, Campaign, Agency, Award, or "optional one-line intro".
 
@@ -716,6 +720,8 @@ Return this schema:
 {
   "pageType": "case_study" | "video_case_study" | "editorial_pr" | "gallery",
   "cleanTitle": "",
+  "brand": "",
+  "campaign": "",
   "intro": "",
   "metadata": ["only exact values present in source text"],
   "sections": [],

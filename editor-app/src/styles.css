@@ -89,7 +89,7 @@ textarea { resize: none; }
 
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
 }
 .action-grid button, .action-grid a { min-height: 44px; }
