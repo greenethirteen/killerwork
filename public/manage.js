@@ -151,6 +151,9 @@ function renderPortfolioList(portfolios) {
     row.className = 'manager-project';
     const projectLabel = `${item.projectCount} project${item.projectCount === 1 ? '' : 's'}`;
     const source = item.sourceUrl ? ` from ${escapeHtml(item.sourceUrl)}` : '';
+    const buildDashboard = item.buildMode === 'campaign-builder' || item.sourceUrl === 'campaign-builder'
+      ? `<a class="button secondary compact-button" href="/build.html?portfolio=${encodeURIComponent(item.id)}">Manage</a>`
+      : '';
     row.innerHTML = `
       <div>
         <h2>${escapeHtml(item.siteTitle)}</h2>
@@ -158,6 +161,7 @@ function renderPortfolioList(portfolios) {
       </div>
       <div class="manager-project-actions">
         <a class="button secondary compact-button" href="${item.editor}">AI Edit</a>
+        ${buildDashboard}
         <a class="button ghost compact-button" href="${item.preview}" target="_blank">Preview</a>
         <button class="danger-button compact-button" type="button" data-delete-portfolio="${escapeHtml(item.id)}">Delete</button>
         <a class="button hot compact-button" href="${item.zip}">Download Zip</a>
