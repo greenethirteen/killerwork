@@ -31,6 +31,10 @@ function setProgress(percent = 0) {
   const normalized = Math.max(0, Math.min(100, Math.round(percent)));
   progressBar.style.width = `${normalized}%`;
   percentText.textContent = `${normalized}%`;
+  const activeStep = normalized >= 100 ? 3 : normalized >= 62 ? 2 : normalized >= 24 ? 1 : 0;
+  panel.querySelectorAll('.builder-generation-steps span').forEach((step, index) => {
+    step.classList.toggle('active', index <= activeStep);
+  });
 }
 
 function showProgress({ status = 'Building', title = 'Building your portfolio page', detail = 'Getting your files ready.', percent = 2 } = {}) {

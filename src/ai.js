@@ -23,18 +23,42 @@ function uniquePortfolioLines(lines = [], title = '') {
     .slice(0, 12);
 }
 
+function portfolioTextKey(value = '') {
+  return cleanPortfolioLine(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function cleanCampaignDescription(value = '', project = {}, title = '') {
+  const input = project.builderInput || {};
+  const reserved = [title, input.campaign, input.brand, input.agency, input.role]
+    .map(portfolioTextKey)
+    .filter(Boolean);
+  return String(value || '')
+    .replace(/\r/g, '\n')
+    .split(/\n+/)
+    .map(cleanPortfolioLine)
+    .filter(line => {
+      const key = portfolioTextKey(line);
+      if (!key || reserved.includes(key)) return false;
+      const withoutLabels = portfolioTextKey(line.replace(/\b(brand|client|agency|ad agency|role)\s*:/gi, ' '));
+      return !reserved.includes(withoutLabels);
+    })
+    .filter((line, index, lines) => lines.findIndex(other => portfolioTextKey(other) === portfolioTextKey(line)) === index)
+    .join('\n\n')
+    .slice(0, 1200);
+}
+
 function fallbackCampaignBuilderText(project = {}) {
   const input = project.builderInput || {};
   const title = cleanPortfolioLine(input.campaign || project.title);
-  const metadata = uniquePortfolioLines([input.brand, input.agency, input.role], title);
-  return { title: title || project.title || 'Untitled campaign', metadata, description: cleanPortfolioLine(input.notes) };
+  const metadata = uniquePortfolioLines(project.cleaned?.metadata?.length ? project.cleaned.metadata : [input.brand, input.agency, input.role], title);
+  return { title: title || project.title || 'Untitled campaign', metadata, description: cleanCampaignDescription(project.description || input.notes, project, title) };
 }
 
 function normalizeCampaignBuilderText(result = {}, project = {}) {
   const fallback = fallbackCampaignBuilderText(project);
   const title = cleanPortfolioLine(result.title || fallback.title).slice(0, 180);
   const metadata = uniquePortfolioLines(Array.isArray(result.metadata) ? result.metadata : fallback.metadata, title);
-  const description = cleanPortfolioLine(result.description || fallback.description).slice(0, 1200);
+  const description = cleanCampaignDescription(result.description || fallback.description, project, title);
   return { title, metadata, description };
 }
 
@@ -52,11 +76,13 @@ Return JSON only:
 Rules:
 - Keep the campaign title concise.
 - Keep brand, agency, and role as separate short metadata lines only when present.
-- Keep the user's description as readable body copy.
+- Rewrite the user's optional notes into concise, polished portfolio body copy. Improve clarity and grammar without changing the meaning.
+- Description is narrative copy only. Never place the title, brand, agency, role, field labels, or metadata in the description.
+- If the notes contain only title, brand, agency, or role data, return an empty description.
 - Remove exact duplicates and repeated fragments.
 - Never concatenate fields into one line.
 - Never repeat the title inside metadata or description.
-- Preserve quotes and factual claims exactly as supplied. Do not invent awards, clients, agencies, roles, or claims.`;
+- Preserve the meaning of quotes and factual claims. Do not invent awards, clients, agencies, roles, or claims.`;
       try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -88,13 +114,13 @@ Rules:
     projects.push({
       ...project,
       title: cleaned.title,
-      description: cleaned.description,
+      description: cleanCampaignDescription(cleaned.description, project, cleaned.title),
       copyBlocks: metadata.map(text => ({ tag: 'p', text })),
       contentItems: (project.contentItems || []).filter(item => item.type !== 'text'),
       cleaned: {
         ...(project.cleaned || {}),
         metadata,
-        intro: cleaned.description
+        intro: cleanCampaignDescription(cleaned.description, project, cleaned.title)
       }
     });
   }
