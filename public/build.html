@@ -115,6 +115,24 @@
         </div>
       </div>
 
+      <section id="progressPanel" class="builder-generation-progress hidden" aria-live="polite">
+        <div class="builder-generation-progress-head">
+          <div>
+            <span class="status-pill" id="statusPill">Preparing</span>
+            <h2 id="stageTitle">Building your portfolio page</h2>
+            <p id="stageDetail">Getting your files ready.</p>
+          </div>
+          <strong class="builder-generation-percent" id="percentText">0%</strong>
+        </div>
+        <div class="builder-generation-track"><div id="progressBar" class="builder-generation-bar"></div></div>
+        <div class="builder-generation-steps" aria-hidden="true">
+          <span>Upload</span>
+          <span>AI review</span>
+          <span>Build</span>
+          <span>Finish</span>
+        </div>
+      </section>
+
       <form id="campaignBuilder" class="builder-flow-layout">
         <section class="builder-panel builder-upload-panel">
           <div id="campaignList" class="campaign-list"></div>
@@ -123,20 +141,6 @@
           </div>
         </section>
       </form>
-    </section>
-
-    <section id="progressPanel" class="glass progress-panel hidden">
-      <div class="panel-top">
-        <div><span class="status-pill" id="statusPill">Waiting</span><h2 id="stageTitle">Ready to build</h2><p id="stageDetail">Add a campaign to begin.</p></div>
-        <div class="percent" id="percentText">0%</div>
-      </div>
-      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
-      <pre id="logBox" class="logs"></pre>
-      <div id="actions" class="actions hidden">
-        <a id="previewLink" class="button" target="_blank">Preview portfolio</a>
-        <a id="editorLink" class="button secondary" target="_blank">AI edit site</a>
-        <a id="manageLink" class="button secondary" target="_blank">Manage projects</a>
-      </div>
     </section>
   </main>
 
@@ -177,7 +181,7 @@
     </article>
   </template>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260531-text-quality'));
+    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260531-popup-progress'));
   </script>
 </body>
 </html>

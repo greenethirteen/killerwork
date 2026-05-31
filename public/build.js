@@ -22,16 +22,65 @@ const stageTitle = document.getElementById('stageTitle');
 const stageDetail = document.getElementById('stageDetail');
 const progressBar = document.getElementById('progressBar');
 const percentText = document.getElementById('percentText');
-const logBox = document.getElementById('logBox');
-const actions = document.getElementById('actions');
-const editorLink = document.getElementById('editorLink');
-const previewLink = document.getElementById('previewLink');
-const manageLink = document.getElementById('manageLink');
 
 let timer;
+let optimisticProgressTimer;
 let currentJobId = '';
 let latestPortfolio = null;
 let buildPortfolios = [];
+
+function setProgress(percent = 0) {
+  const normalized = Math.max(0, Math.min(100, Math.round(percent)));
+  progressBar.style.width = `${normalized}%`;
+  percentText.textContent = `${normalized}%`;
+}
+
+function showProgress({ status = 'Building', title = 'Building your portfolio page', detail = 'Getting your files ready.', percent = 2 } = {}) {
+  panel.classList.remove('hidden');
+  form.classList.add('hidden');
+  builderFlow?.classList.add('is-building');
+  pill.textContent = status;
+  stageTitle.textContent = title;
+  stageDetail.textContent = detail;
+  setProgress(percent);
+}
+
+function hideProgress() {
+  clearInterval(optimisticProgressTimer);
+  panel.classList.add('hidden');
+  form.classList.remove('hidden');
+  builderFlow?.classList.remove('is-building');
+  setProgress(0);
+}
+
+function startOptimisticProgress(initial = 12, maximum = 88) {
+  clearInterval(optimisticProgressTimer);
+  let percent = initial;
+  setProgress(percent);
+  optimisticProgressTimer = setInterval(() => {
+    percent = Math.min(maximum, percent + Math.max(1, Math.ceil((maximum - percent) / 7)));
+    setProgress(percent);
+  }, 700);
+}
+
+async function finishProgress(title, detail) {
+  clearInterval(optimisticProgressTimer);
+  pill.textContent = 'Complete';
+  stageTitle.textContent = title;
+  stageDetail.textContent = detail;
+  setProgress(100);
+  await new Promise(resolve => setTimeout(resolve, 550));
+}
+
+function showProgressError(message) {
+  clearInterval(optimisticProgressTimer);
+  panel.classList.remove('hidden');
+  form.classList.remove('hidden');
+  builderFlow?.classList.remove('is-building');
+  pill.textContent = 'Error';
+  stageTitle.textContent = 'Could not build page';
+  stageDetail.textContent = message;
+}
 
 const publishControl = setupPublishControl({
   control: document.getElementById('publishControl'),
@@ -51,6 +100,7 @@ function renumberCampaigns() {
 
 function openBuilder() {
   builderFlow?.classList.remove('hidden');
+  hideProgress();
   resetCampaignForm();
   document.body.classList.add('builder-modal-open');
   builderFlow?.querySelector('[data-field="files"]')?.focus();
@@ -123,8 +173,8 @@ function projectTile(project, jobId) {
   const previewHref = project.preview || `/generated/${jobId}/site/work/${project.slug}/index.html`;
   tile.dataset.href = previewHref;
   const thumb = project.thumbnail || project.thumb || project.image || '';
-  if (thumb) tile.style.setProperty('--project-thumb', `url("${thumb}")`);
   tile.innerHTML = `
+    ${thumb ? `<img class="built-project-thumb" src="${thumb}" alt="">` : '<span class="built-project-thumb-placeholder"></span>'}
     <div class="tile-project-actions">
       <a href="${previewHref}" target="_blank" rel="noreferrer" aria-label="Preview ${project.title || 'project'}">Preview</a>
       <a href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${project.title || 'project'}">Edit</a>
@@ -240,8 +290,7 @@ async function deleteProject(jobId, slug) {
   const res = await fetch(`/api/manage/${encodeURIComponent(jobId)}/projects/${encodeURIComponent(slug)}`, { method: 'DELETE', headers });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    stageDetail.textContent = data.error || 'Could not delete project.';
-    panel.classList.remove('hidden');
+    window.alert(data.error || 'Could not delete project.');
     return;
   }
   await loadPortfolio(jobId);
@@ -256,32 +305,25 @@ async function poll(id) {
   pill.textContent = job.status;
   stageTitle.textContent = last?.stage || 'Build running';
   stageDetail.textContent = last?.detail || 'Building portfolio';
-  progressBar.style.width = `${job.percent || 0}%`;
-  percentText.textContent = `${job.percent || 0}%`;
-  logBox.textContent = (job.progress || []).map(e => `[${new Date(e.at).toLocaleTimeString()}] ${e.stage}${e.detail ? ' - ' + e.detail : ''}`).join('\n');
-  logBox.scrollTop = logBox.scrollHeight;
+  setProgress(job.percent || 0);
 
   if (job.status === 'done') {
     clearInterval(timer);
-    pill.textContent = 'Complete';
-    actions.classList.remove('hidden');
     currentJobId = job.id;
     localStorage.setItem('killerwork:lastJobId', job.id);
-    editorLink.href = `/ai-editor.html?job=${encodeURIComponent(job.id)}`;
-    previewLink.href = job.links.preview;
-    manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
     publishControl.show();
     publishControl.setPublished(job.published, job.customDomain);
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Add page to portfolio';
+    await finishProgress('Portfolio page ready', 'Your new project is now in the portfolio preview.');
     closeBuilder();
-    loadLatestPortfolio(job.id);
+    hideProgress();
+    await loadLatestPortfolio(job.id);
   }
 
   if (job.status === 'error') {
     clearInterval(timer);
-    pill.textContent = 'Error';
-    stageDetail.textContent = job.error || 'Build failed';
+    showProgressError(job.error || 'Build failed');
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Try again';
   }
@@ -295,8 +337,7 @@ form.addEventListener('submit', async event => {
   const portfolioSubhead = cleanEditableText(portfolioTagline?.textContent);
   const totalFiles = cards.reduce((sum, card) => sum + (card.querySelector('[data-field="files"]')?.files?.length || 0), 0);
   if (!totalFiles) {
-    stageDetail.textContent = 'Upload at least one asset.';
-    panel.classList.remove('hidden');
+    showProgressError('Upload at least one asset.');
     return;
   }
 
@@ -317,12 +358,8 @@ form.addEventListener('submit', async event => {
     body.append('notes', campaign.notes);
     const files = cards[0].querySelector('[data-field="files"]')?.files || [];
     [...files].forEach(file => body.append('files', file));
-    panel.classList.remove('hidden');
-    pill.textContent = 'running';
-    stageTitle.textContent = 'Adding portfolio page';
-    stageDetail.textContent = `${campaign.title}, ${totalFiles} asset(s)`;
-    progressBar.style.width = '35%';
-    percentText.textContent = '35%';
+    showProgress({ title: 'Adding portfolio page', detail: `${campaign.title}, ${totalFiles} asset(s)`, percent: 12 });
+    startOptimisticProgress(12);
     buildCampaigns.disabled = true;
     buildCampaigns.textContent = 'Building...';
     try {
@@ -334,17 +371,13 @@ form.addEventListener('submit', async event => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not add portfolio page.');
-      progressBar.style.width = '100%';
-      percentText.textContent = '100%';
-      pill.textContent = 'Complete';
-      stageTitle.textContent = 'Portfolio page added';
-      stageDetail.textContent = `${data.page?.title || campaign.title} is now in your portfolio.`;
+      await finishProgress('Portfolio page added', `${data.page?.title || campaign.title} is now in your portfolio.`);
       closeBuilder();
+      hideProgress();
       await loadPortfolio(currentJobId);
       await loadLatestPortfolio(currentJobId);
     } catch (err) {
-      pill.textContent = 'Error';
-      stageDetail.textContent = err.message || 'Could not add portfolio page.';
+      showProgressError(err.message || 'Could not add portfolio page.');
     } finally {
       buildCampaigns.disabled = false;
       buildCampaigns.textContent = 'Add page to portfolio';
@@ -359,23 +392,15 @@ form.addEventListener('submit', async event => {
     [...files].forEach(file => body.append(`campaignFiles-${index}`, file));
   });
 
-  actions.classList.add('hidden');
   publishControl.hide();
-  panel.classList.remove('hidden');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  logBox.textContent = '';
+  showProgress({ title: 'Starting campaign build', detail: `${campaigns.length} campaign page(s), ${totalFiles} asset(s)`, percent: 2 });
   buildCampaigns.disabled = true;
   buildCampaigns.textContent = 'Signing in...';
-  pill.textContent = 'running';
-  stageTitle.textContent = 'Starting campaign build';
-  stageDetail.textContent = `${campaigns.length} campaign page(s), ${totalFiles} asset(s)`;
-  progressBar.style.width = '2%';
-  percentText.textContent = '2%';
   let token = '';
   try {
     token = await window.KillerWorkAuth.requireToken();
   } catch (err) {
-    stageDetail.textContent = err.message || 'Sign in required.';
+    showProgressError(err.message || 'Sign in required.');
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Build portfolio';
     return;
@@ -385,7 +410,7 @@ form.addEventListener('submit', async event => {
   const res = await fetch('/api/campaign-build', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    stageDetail.textContent = data.error || 'Could not start build';
+    showProgressError(data.error || 'Could not start build');
     buildCampaigns.disabled = false;
     buildCampaigns.textContent = 'Try again';
     return;
@@ -436,8 +461,7 @@ portfolioSiteSelect?.addEventListener('change', () => {
   if (id) history.replaceState(null, '', `/build.html?portfolio=${encodeURIComponent(id)}`);
   else history.replaceState(null, '', `/build.html?new=${Date.now()}`);
   loadPortfolio(id).catch(err => {
-    stageDetail.textContent = err.message || 'Could not load portfolio.';
-    panel.classList.remove('hidden');
+    window.alert(err.message || 'Could not load portfolio.');
   });
 });
 
