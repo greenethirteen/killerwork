@@ -2365,6 +2365,22 @@ function mergeStyle(...parts) {
     .join(';');
 }
 
+function highContrastTextColor(backgroundColor = '', fallback = '') {
+  const value = String(backgroundColor || '').trim();
+  let channels = null;
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+  if (hex) {
+    const normalized = hex.length === 3 ? hex.split('').map(char => `${char}${char}`).join('') : hex;
+    channels = [0, 2, 4].map(offset => Number.parseInt(normalized.slice(offset, offset + 2), 16));
+  } else {
+    const rgb = value.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/i);
+    if (rgb) channels = rgb.slice(1, 4).map(Number);
+  }
+  if (!channels) return fallback;
+  const luminance = (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000;
+  return luminance >= 160 ? '#111111' : '#ffffff';
+}
+
 function renderCampaignBuilderHeader(manifest, prefix = '') {
   const title = manifest.homeTitle || manifest.ownerName || 'Portfolio';
   const intro = manifest.homeIntro ? `<span>${htmlEscape(manifest.homeIntro)}</span>` : '';
@@ -2551,10 +2567,13 @@ export async function generateSite(manifest, outDir, progress) {
     const needsHls = p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls');
     const needsGallery = (p.contentItems || []).some(item => item.type === 'gallery');
     const rightsNote = `<footer class="source-note">&copy; ${htmlEscape(manifest.ownerName || p.title || 'Portfolio')}. All rights reserved.</footer>`;
+    const textColor = manifest.sourcePlatform === 'behance'
+      ? highContrastTextColor(p.pageStyle?.backgroundColor, p.pageStyle?.textColor)
+      : p.pageStyle?.textColor;
     const pageVars = [
       p.pageStyle?.backgroundColor ? `--bg:${p.pageStyle.backgroundColor}` : '',
-      p.pageStyle?.textColor ? `--fg:${p.pageStyle.textColor}` : '',
-      p.pageStyle?.textColor ? `--muted:${p.pageStyle.textColor}` : ''
+      textColor ? `--fg:${textColor}` : '',
+      textColor ? `--muted:${textColor}` : ''
     ].filter(Boolean).join(';');
     const layoutClass = p.aiLayout ? ` ai-layout-${String(p.aiLayout).replace(/[^a-z-]/g, '')}` : '';
     const mainStyle = p.pageStyle?.contentWidth ? ` style="max-width:${Math.max(760, Math.round(p.pageStyle.contentWidth))}px"` : '';
@@ -2573,7 +2592,7 @@ export async function generateSite(manifest, outDir, progress) {
         : `<header class="project-header">${backLink}${campaignTitleHtml}${subtitleHtml}</header>`;
     const campaignHeader = manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest, '../../') : '';
     const defaultHeader = manifest.sourcePlatform === 'behance' ? renderStandardSiteHeader(manifest, '../../') : '';
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260531-behance-header"></script></body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260531-behance-contrast"></script></body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');

@@ -254,9 +254,9 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
     html = html.replace(/<a\b[^>]*class=["'][^"']*\bback-link\b[^"']*["'][^>]*>\s*←\s*Work\s*<\/a>/gi, '');
   }
   if (html.includes('/portfolio-loader.js')) {
-    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-header');
+    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-contrast');
   } else {
-    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-behance-header"></script></body>');
+    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-behance-contrast"></script></body>');
   }
   res.setHeader('Cache-Control', 'no-cache');
   return res.type('html').send(html);
