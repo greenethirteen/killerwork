@@ -7,7 +7,7 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
-import { planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
+import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { hash, safeSlug } from './utils.js';
 
@@ -940,7 +940,7 @@ async function moveUploadedPortfolioAsset(id, file) {
   };
 }
 
-async function createProjectFromUploads(id, manifest, { title, prompt, files = [] } = {}) {
+async function createProjectFromUploads(id, manifest, { title, prompt, files = [], builderInput = null } = {}) {
   const projectTitle = cleanInlineText(title || titleFromPrompt(prompt), 160) || 'New campaign';
   const project = {
     title: projectTitle,
@@ -955,6 +955,7 @@ async function createProjectFromUploads(id, manifest, { title, prompt, files = [
     contentItems: [],
     aiLayout: 'editorial',
     pageStyle: { contentWidth: 1040 },
+    builderInput,
     importedAt: new Date().toISOString()
   };
   const contentItems = [];
@@ -1005,9 +1006,14 @@ async function createProjectFromUploads(id, manifest, { title, prompt, files = [
       contentItems.push({ type: 'document', order, documentIndex, original: moved.original });
     }
   }
-  const description = String(prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
+  const description = String(builderInput?.notes || prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
+  project.description = description;
+  project.copyBlocks = [builderInput?.brand, builderInput?.agency, builderInput?.role]
+    .map(value => cleanInlineText(value || ''))
+    .filter(Boolean)
+    .map(text => ({ tag: 'p', text }));
   if (description) {
-    contentItems.push({
+    if (!builderInput) contentItems.push({
       type: 'text',
       order: contentItems.length + 1,
       tag: 'p',
@@ -1579,33 +1585,48 @@ app.post('/api/editor/:id/pages', requireFirebaseAuth, upload.array('files', 60)
   }
   const title = cleanInlineText(req.body?.title || '', 160);
   const prompt = String(req.body?.prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000);
+  const builderInput = req.body?.buildMode === 'campaign-builder' ? {
+    brand: cleanInlineText(req.body?.brand || '', 160),
+    campaign: title,
+    agency: cleanInlineText(req.body?.agency || '', 160),
+    role: cleanInlineText(req.body?.role || '', 160),
+    notes: String(req.body?.notes || prompt || '').replace(/\r/g, '\n').trim().slice(0, 4000)
+  } : null;
   if (!title && !prompt && !files.length) {
     return res.status(400).json({ error: 'Add a campaign title, prompt, or files.' });
   }
   try {
-    const project = await createProjectFromUploads(id, manifest, { title, prompt, files });
+    const project = await createProjectFromUploads(id, manifest, { title, prompt, files, builderInput });
     manifest.projects = manifest.projects || [];
     manifest.projects.push(project);
     manifest.homeOverride = true;
     const buildPrompt = prompt
       ? `Make this new campaign page portfolio-ready. Preserve all campaign facts from the campaign info.\n\nCampaign info:\n${prompt}`
       : 'Make this new campaign page portfolio-ready.';
-    const plan = await planPageOperationsWithAI({
-      prompt: buildPrompt,
-      page: { kind: 'project', ...publicProject(project) },
-      manifest
-    });
-    if (prompt && Array.isArray(plan.operations)) {
-      const promptKey = compactForMatch(prompt);
-      plan.operations = plan.operations.filter(op => op?.op !== 'insertText' || !promptKey.includes(compactForMatch(op.text || '').slice(0, 120)));
+    if (builderInput) {
+      const cleanedManifest = await cleanupCampaignBuilderManifestWithAI(manifest, {
+        progress: (stage, detail) => console.log(`[${stage}] ${detail}`)
+      });
+      Object.assign(manifest, cleanedManifest);
+    } else {
+      const plan = await planPageOperationsWithAI({
+        prompt: buildPrompt,
+        page: { kind: 'project', ...publicProject(project) },
+        manifest
+      });
+      if (prompt && Array.isArray(plan.operations)) {
+        const promptKey = compactForMatch(prompt);
+        plan.operations = plan.operations.filter(op => op?.op !== 'insertText' || !promptKey.includes(compactForMatch(op.text || '').slice(0, 120)));
+      }
+      applyPageOperations(project, plan, buildPrompt);
     }
-    applyPageOperations(project, plan, buildPrompt);
     const validation = await saveManifestAndRebuild(id, manifest);
+    const savedProject = (manifest.projects || []).find(item => item.slug === project.slug) || project;
     res.json({
       ok: true,
-      message: `Created ${project.title}.`,
+      message: `Created ${savedProject.title}.`,
       validation,
-      page: publicProject(project),
+      page: publicProject(savedProject),
       pages: [
         { slug: 'home', title: 'Home page', kind: 'home', preview: `/generated/${id}/site/index.html` },
         ...(manifest.projects || []).map(p => ({
@@ -1615,7 +1636,7 @@ app.post('/api/editor/:id/pages', requireFirebaseAuth, upload.array('files', 60)
           preview: `/generated/${id}/site/work/${p.slug}/index.html`
         }))
       ],
-      preview: `/generated/${id}/site/work/${project.slug}/index.html`
+      preview: `/generated/${id}/site/work/${savedProject.slug}/index.html`
     });
   } catch (err) {
     await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));

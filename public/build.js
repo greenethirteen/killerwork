@@ -112,6 +112,7 @@ function campaignData(card) {
     campaign: title,
     brand: read('brand'),
     agency: read('agency'),
+    role: read('role'),
     notes: read('notes')
   };
 }
@@ -309,6 +310,11 @@ form.addEventListener('submit', async event => {
     ].filter(Boolean).join('\n');
     body.append('title', campaign.title);
     body.append('prompt', prompt);
+    body.append('buildMode', 'campaign-builder');
+    body.append('brand', campaign.brand);
+    body.append('agency', campaign.agency);
+    body.append('role', campaign.role);
+    body.append('notes', campaign.notes);
     const files = cards[0].querySelector('[data-field="files"]')?.files || [];
     [...files].forEach(file => body.append('files', file));
     panel.classList.remove('hidden');

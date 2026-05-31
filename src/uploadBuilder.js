@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import mime from 'mime-types';
-import { cleanupManifestWithAI } from './ai.js';
+import { cleanupCampaignBuilderManifestWithAI, cleanupManifestWithAI } from './ai.js';
 import { generateSite, validateSite, zipDir } from './importer.js';
 import { hash, safeSlug } from './utils.js';
 
@@ -309,6 +309,8 @@ function buildManifestFromGroups(groups, assets, { title, userTextOnly = false }
       url: '#uploaded',
       thumbnail: images[0] ? { src: images[0].src, original: images[0].original } : null,
       copyBlocks: groupLines.length ? [{ tag: 'p', text: groupLines.join('\n') }] : [],
+      description: group.description || '',
+      builderInput: group.builderInput || null,
       contentItems,
       images,
       videos,
@@ -335,16 +337,21 @@ function normalizeCampaignInput(campaign = {}, index = 0) {
   const pageTitle = campaignTitle || [brand, agency].filter(Boolean).join(' | ') || `Campaign ${index + 1}`;
   const lines = uniqueLines([
     brand,
-    campaignTitle,
-    agency,
-    cleanText(campaign.notes)
+    agency
   ]);
   return {
     index,
     title: pageTitle,
     assetIndexes: [],
     captionLines: lines,
-    description: cleanText(campaign.notes)
+    description: cleanText(campaign.notes),
+    builderInput: {
+      brand,
+      campaign: campaignTitle,
+      agency,
+      role: cleanText(campaign.role),
+      notes: cleanText(campaign.notes)
+    }
   };
 }
 
@@ -461,17 +468,19 @@ export async function runCampaignBuild({ files, campaigns = [], outDir, title = 
   if (!groups.projects.length) throw new Error('Add at least one asset to a campaign.');
 
   progress('Building campaign pages', `${groups.projects.length} campaign page(s)`);
-  const rawManifest = buildManifestFromGroups(groups, assets, { title, userTextOnly: true });
+  let rawManifest = buildManifestFromGroups(groups, assets, { title, userTextOnly: true });
   rawManifest.sourceUrl = 'campaign-builder';
   rawManifest.siteTitle = cleanText(title) || 'Uploaded Portfolio';
   rawManifest.ownerName = cleanText(title) || 'Uploaded Portfolio';
   rawManifest.homeTitle = cleanText(title) || 'Your Name';
   rawManifest.homeIntro = cleanText(subtitle);
   rawManifest.buildMode = 'campaign-builder';
+  rawManifest = await cleanupCampaignBuilderManifestWithAI(rawManifest, { progress });
   await fs.writeJson(path.join(outDir, 'manifest.raw.json'), rawManifest, { spaces: 2 });
   progress('Raw manifest saved', 'manifest.raw.json');
 
-  const finalManifest = await cleanupManifestWithAI(rawManifest, { enabled: aiCleanup, progress });
+  let finalManifest = await cleanupManifestWithAI(rawManifest, { enabled: aiCleanup, progress });
+  finalManifest = await cleanupCampaignBuilderManifestWithAI(finalManifest, { progress, enabled: false });
   await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), finalManifest, { spaces: 2 });
   await fs.writeJson(path.join(outDir, 'manifest.json'), finalManifest, { spaces: 2 });
 

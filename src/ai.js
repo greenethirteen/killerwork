@@ -4,6 +4,103 @@ function envTrue(v) {
   return ['1','true','yes','on'].includes(String(v || '').toLowerCase());
 }
 
+function cleanPortfolioLine(value = '') {
+  return String(value || '').replace(/\r/g, '\n').replace(/\s+/g, ' ').trim();
+}
+
+function uniquePortfolioLines(lines = [], title = '') {
+  const titleKey = cleanPortfolioLine(title).toLowerCase();
+  const seen = new Set();
+  return lines
+    .flatMap(line => String(line || '').replace(/\r/g, '\n').split('\n'))
+    .map(cleanPortfolioLine)
+    .filter(line => {
+      const key = line.toLowerCase();
+      if (!line || key === titleKey || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 12);
+}
+
+function fallbackCampaignBuilderText(project = {}) {
+  const input = project.builderInput || {};
+  const title = cleanPortfolioLine(input.campaign || project.title);
+  const metadata = uniquePortfolioLines([input.brand, input.agency, input.role], title);
+  return { title: title || project.title || 'Untitled campaign', metadata, description: cleanPortfolioLine(input.notes) };
+}
+
+function normalizeCampaignBuilderText(result = {}, project = {}) {
+  const fallback = fallbackCampaignBuilderText(project);
+  const title = cleanPortfolioLine(result.title || fallback.title).slice(0, 180);
+  const metadata = uniquePortfolioLines(Array.isArray(result.metadata) ? result.metadata : fallback.metadata, title);
+  const description = cleanPortfolioLine(result.description || fallback.description).slice(0, 1200);
+  return { title, metadata, description };
+}
+
+export async function cleanupCampaignBuilderManifestWithAI(manifest, { progress, enabled = true, model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}) {
+  const projects = [];
+  for (const project of manifest.projects || []) {
+    const fallback = fallbackCampaignBuilderText(project);
+    let cleaned = fallback;
+    if (enabled && process.env.OPENAI_API_KEY) {
+      progress?.('AI checking portfolio text', project.title || 'campaign');
+      const system = `You clean structured text for an advertising portfolio campaign page.
+Return JSON only:
+{ "title": "", "metadata": [""], "description": "" }
+
+Rules:
+- Keep the campaign title concise.
+- Keep brand, agency, and role as separate short metadata lines only when present.
+- Keep the user's description as readable body copy.
+- Remove exact duplicates and repeated fragments.
+- Never concatenate fields into one line.
+- Never repeat the title inside metadata or description.
+- Preserve quotes and factual claims exactly as supplied. Do not invent awards, clients, agencies, roles, or claims.`;
+      try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.05,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: JSON.stringify({ title: project.title, fields: project.builderInput || {}, fallback }) }
+            ]
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          cleaned = normalizeCampaignBuilderText(jsonFromText(data.choices?.[0]?.message?.content || '{}'), project);
+        } else {
+          progress?.('AI portfolio text warning', `${project.title}: cleanup request failed`);
+        }
+      } catch (e) {
+        progress?.('AI portfolio text warning', `${project.title}: ${e.message}`);
+      }
+    }
+    const metadata = uniquePortfolioLines(cleaned.metadata, cleaned.title);
+    projects.push({
+      ...project,
+      title: cleaned.title,
+      description: cleaned.description,
+      copyBlocks: metadata.map(text => ({ tag: 'p', text })),
+      contentItems: (project.contentItems || []).filter(item => item.type !== 'text'),
+      cleaned: {
+        ...(project.cleaned || {}),
+        metadata,
+        intro: cleaned.description
+      }
+    });
+  }
+  return { ...manifest, projects };
+}
+
 function compactProjectForAI(project) {
   return {
     title: project.title,
