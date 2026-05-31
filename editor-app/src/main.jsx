@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import {
   Check,
   ExternalLink,
-  FileText,
   FolderPlus,
   Home,
   Loader2,
@@ -438,21 +437,6 @@ function App() {
               <p>{message.text}</p>
             </article>
           ))}
-        </section>
-
-        <section className="file-editor">
-          <header>
-            <span><FileText size={14} /> Text editor</span>
-            <strong>{selectedFile}</strong>
-          </header>
-          <textarea
-            value={fileContent}
-            onChange={event => setFileContent(event.target.value)}
-            spellCheck="false"
-          />
-          <button type="button" onClick={saveFile} disabled={!!busy || !/\.(html?|css|js|mjs|json|txt|md|svg|xml|webmanifest)$/i.test(selectedFile)}>
-            Save text changes
-          </button>
         </section>
 
         <form className="prompt-form" onSubmit={runAiEdit}>
