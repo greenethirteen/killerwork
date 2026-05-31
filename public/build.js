@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js';
+import { setupPublishControl } from './publish.js?v=20260531-billing';
 
 const form = document.getElementById('campaignBuilder');
 const dashboard = document.getElementById('portfolioDashboard');

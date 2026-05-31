@@ -1,4 +1,5 @@
-import { setupPublishControl } from './publish.js';
+import { setupPublishControl } from './publish.js?v=20260531-billing';
+import { bindProtectedZipLink } from './billing.js?v=20260531-billing';
 
 const form = document.getElementById('importForm');
 const uploadForm = document.getElementById('uploadForm');
@@ -35,6 +36,10 @@ const publishControl = setupPublishControl({
     detail.textContent = text;
     if (tone) pill.textContent = tone === 'ok' ? 'Published' : 'Error';
   }
+});
+bindProtectedZipLink(downloadLink, (text, tone = '') => {
+  detail.textContent = text;
+  if (tone) pill.textContent = tone === 'ok' ? 'Complete' : 'Error';
 });
 
 if (switcher && panels.length) {

@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
+import Stripe from 'stripe';
 import { runImport, generateSite, validateSite, zipDir } from './importer.js';
 import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
@@ -14,6 +15,7 @@ import { hash, safeSlug } from './utils.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8787;
 const jobs = new Map();
 const generatedRoot = process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH
@@ -74,6 +76,9 @@ const firebaseAdmin = firebaseAccount ? admin.initializeApp({
   credential: admin.credential.cert(firebaseAccount),
   projectId: firebaseProjectId
 }) : null;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+const stripeMonthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1Tb1w7CE6bX7hMAXXOoILehR';
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function firebaseWebConfig() {
   const projectId = process.env.FIREBASE_PROJECT_ID || firebaseProjectId;
@@ -108,6 +113,73 @@ async function requireFirebaseAuth(req, res, next) {
     next();
   } catch {
     res.status(401).json({ error: 'Sign in required.' });
+  }
+}
+
+function requestOrigin(req) {
+  return String(process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+}
+
+async function stripeCustomerFor(user, { create = false } = {}) {
+  if (!stripe) return null;
+  const uid = String(user?.uid || '').replace(/'/g, "\\'");
+  const matches = uid
+    ? await stripe.customers.search({ query: `metadata['firebaseUid']:'${uid}'`, limit: 1 })
+    : { data: [] };
+  if (matches.data[0]) return matches.data[0];
+
+  const byEmail = user?.email
+    ? await stripe.customers.list({ email: user.email, limit: 1 })
+    : { data: [] };
+  if (byEmail.data[0]) {
+    const customer = byEmail.data[0];
+    if (user?.uid && customer.metadata?.firebaseUid !== user.uid) {
+      return stripe.customers.update(customer.id, { metadata: { ...customer.metadata, firebaseUid: user.uid } });
+    }
+    return customer;
+  }
+  if (!create) return null;
+  return stripe.customers.create({
+    email: user?.email || undefined,
+    name: user?.name || undefined,
+    metadata: { firebaseUid: user.uid }
+  });
+}
+
+async function subscriptionStateFor(user) {
+  if (!stripe) return { configured: false, active: false, status: 'not_configured' };
+  const customer = await stripeCustomerFor(user);
+  if (!customer) return { configured: true, active: false, status: 'none' };
+  const subscriptions = await stripe.subscriptions.list({ customer: customer.id, status: 'all', limit: 100 });
+  const subscription = subscriptions.data.find(item => (
+    ['active', 'trialing'].includes(item.status)
+    && item.items.data.some(line => line.price?.id === stripeMonthlyPriceId)
+  ));
+  return {
+    configured: true,
+    active: !!subscription,
+    status: subscription?.status || 'none',
+    customerId: customer.id
+  };
+}
+
+async function requireActiveSubscription(req, res, next) {
+  try {
+    const state = await subscriptionStateFor(req.user);
+    if (!state.configured) {
+      return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
+    }
+    if (!state.active) {
+      return res.status(402).json({
+        error: 'Subscribe to the KillaWork $5 monthly plan to publish or download your portfolio.',
+        code: 'subscription_required'
+      });
+    }
+    req.subscription = state;
+    next();
+  } catch (err) {
+    console.error('Stripe subscription check failed', err);
+    res.status(503).json({ error: 'Could not verify your subscription. Please try again.', code: 'billing_unavailable' });
   }
 }
 
@@ -254,9 +326,9 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
     html = html.replace(/<a\b[^>]*class=["'][^"']*\bback-link\b[^"']*["'][^>]*>\s*←\s*Work\s*<\/a>/gi, '');
   }
   if (html.includes('/portfolio-loader.js')) {
-    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-contrast');
+    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-spacing');
   } else {
-    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-behance-contrast"></script></body>');
+    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-behance-spacing"></script></body>');
   }
   res.setHeader('Cache-Control', 'no-cache');
   return res.type('html').send(html);
@@ -537,9 +609,12 @@ app.get('/api/jobs/:id', requireFirebaseAuth, (req, res) => {
   res.json(job);
 });
 
-app.get('/api/download/:id', async (req, res) => {
+app.get('/api/download/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {
+  const manifest = await readManifest(req.params.id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
   const zip = path.join(jobDir(req.params.id), 'site.zip');
-  if (!(await fs.pathExists(zip))) return res.status(404).send('ZIP not ready');
+  if (!(await fs.pathExists(zip))) return res.status(404).json({ error: 'ZIP not ready.' });
   res.download(zip, 'killawork-import.zip');
 });
 
@@ -600,15 +675,18 @@ async function listSiteFiles(id, dir = siteDir(id), prefix = '') {
 
 async function listSitePages(id) {
   const files = await listSiteFiles(id);
+  const manifest = await readManifest(id);
   return files
-    .filter(file => /\.html?$/i.test(file.path))
+    .filter(file => /\.html?$/i.test(file.path) && file.path !== 'import-review.html')
     .map(file => {
       const isHome = file.path === 'index.html';
       const slug = isHome ? 'home' : file.path.replace(/\/index\.html?$/i, '').replace(/^work\//, '');
+      const project = manifest?.projects?.find(item => item.slug === slug);
+      const fallback = slug.split('/').pop().replace(/^behance-\d+-/i, '').replace(/[-_]+/g, ' ');
       return {
         slug,
         path: file.path,
-        title: isHome ? 'Home' : slug.split('/').pop().replace(/[-_]+/g, ' '),
+        title: isHome ? 'Home' : file.path === 'about.html' ? 'About' : project?.title || fallback,
         preview: `/generated/${id}/site/${file.path}`
       };
     });
@@ -1219,6 +1297,38 @@ app.get('/api/portfolios', requireFirebaseAuth, async (req, res) => {
   res.json({ portfolios: await userPortfolioList(req.user) });
 });
 
+app.get('/api/billing/status', requireFirebaseAuth, async (req, res) => {
+  try {
+    res.json(await subscriptionStateFor(req.user));
+  } catch (err) {
+    console.error('Stripe billing status failed', err);
+    res.status(503).json({ error: 'Could not check your subscription.', code: 'billing_unavailable' });
+  }
+});
+
+app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
+  try {
+    if (!stripe) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
+    const customer = await stripeCustomerFor(req.user, { create: true });
+    const origin = requestOrigin(req);
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customer.id,
+      client_reference_id: req.user.uid,
+      line_items: [{ price: stripeMonthlyPriceId, quantity: 1 }],
+      success_url: `${origin}/manage.html?subscription=success`,
+      cancel_url: `${origin}/manage.html?subscription=cancelled`,
+      allow_promotion_codes: true,
+      metadata: { firebaseUid: req.user.uid },
+      subscription_data: { metadata: { firebaseUid: req.user.uid } }
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Stripe checkout session failed', err);
+    res.status(503).json({ error: 'Could not open subscription checkout. Please try again.', code: 'billing_unavailable' });
+  }
+});
+
 app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
@@ -1232,7 +1342,7 @@ app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   res.json(publicPortfolio(id, manifest, validation));
 });
 
-app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
+app.post('/api/publish/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });

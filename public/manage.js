@@ -1,4 +1,5 @@
-import { setupPublishControl } from './publish.js';
+import { setupPublishControl } from './publish.js?v=20260531-billing';
+import { bindProtectedZipLink } from './billing.js?v=20260531-billing';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');
@@ -164,7 +165,7 @@ function renderPortfolioList(portfolios) {
         ${buildDashboard}
         <a class="button ghost compact-button" href="${item.preview}" target="_blank">Preview</a>
         <button class="danger-button compact-button" type="button" data-delete-portfolio="${escapeHtml(item.id)}">Delete</button>
-        <a class="button hot compact-button" href="${item.zip}">Download Zip</a>
+        <a class="button hot compact-button" data-protected-zip href="${item.zip}">Download Zip</a>
         ${publishControlHtml()}
       </div>
     `;
@@ -175,6 +176,7 @@ function renderPortfolioList(portfolios) {
       setStatus
     });
     rowPublish.setPublished(item.published, item.customDomain);
+    bindProtectedZipLink(row.querySelector('[data-protected-zip]'), setStatus);
     projectList.appendChild(row);
   });
 }
@@ -225,7 +227,10 @@ function applyPortfolio(data) {
   if (siteTitleInput) siteTitleInput.value = data.siteTitle || '';
   if (portfolioPreview) portfolioPreview.href = data.preview;
   if (portfolioEditor) portfolioEditor.href = data.editor;
-  if (portfolioZip) portfolioZip.href = data.zip;
+  if (portfolioZip) {
+    portfolioZip.href = data.zip;
+    bindProtectedZipLink(portfolioZip, setStatus);
+  }
   publishControl.setPublished(data.published, data.customDomain);
   renderProjects();
 }

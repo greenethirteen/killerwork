@@ -37,6 +37,18 @@ AI_UPLOAD_ANALYSIS=true
 
 The AI pass does not scrape the web. It only reorganises the raw content already extracted by the importer. It is instructed not to invent projects, titles, awards, clients, or media.
 
+## Stripe subscriptions
+
+Publishing and ZIP downloads require an active KillaWork monthly subscription. Configure Stripe Checkout in `.env`:
+
+```bash
+STRIPE_SECRET_KEY=your_stripe_secret_key_here
+STRIPE_MONTHLY_PRICE_ID=price_1Tb1w7CE6bX7hMAXXOoILehR
+PUBLIC_APP_URL=https://killa.work
+```
+
+The server creates Stripe-hosted Checkout Sessions and checks the signed-in Firebase user's active subscription before each protected publish or download request.
+
 ## Output
 
 Each import creates:

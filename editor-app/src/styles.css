@@ -19,7 +19,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .kw-editor {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   height: 100vh;
   background: #07080d;
 }
@@ -33,8 +33,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 9px;
+  padding: 12px;
   border-right: 1px solid var(--line);
 }
 
@@ -57,11 +57,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
 }
 
-.home-button { width: 52px; height: 52px; border-radius: 16px; }
+.home-button { width: 42px; height: 42px; border-radius: 13px; }
 .brand-row span, .page-picker label, .publish-box label {
   display: block;
   color: var(--gold);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 950;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -69,13 +69,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand-row strong {
   display: block;
   margin-top: 2px;
-  font-size: 28px;
+  font-size: 23px;
   line-height: .92;
   letter-spacing: -.06em;
 }
 
-.page-picker { display: grid; gap: 8px; }
-.select-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; }
+.page-picker { display: grid; gap: 6px; }
+.select-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 7px; }
 select, input, textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -84,15 +84,16 @@ select, input, textarea {
   color: var(--text);
   outline: none;
 }
-select { min-height: 42px; padding: 0 12px; font-weight: 850; }
+select { min-height: 36px; padding: 0 10px; font-size: 13px; font-weight: 850; }
 textarea { resize: none; }
 
 .action-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
-.action-grid button, .action-grid a { min-height: 44px; }
+.action-grid button, .action-grid a { min-height: 36px; }
+.select-row button { min-height: 36px; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 button:hover:not(:disabled), a:hover { border-color: rgba(255, 209, 102, .44); background: rgba(255, 209, 102, .12); }
 
@@ -118,33 +119,24 @@ button:hover:not(:disabled), a:hover { border-color: rgba(255, 209, 102, .44); b
 .publish-box p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
 .publish-box a { color: var(--gold); font-weight: 900; text-decoration: none; }
 
-.inline-edit-help {
+.inline-edit-actions {
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid rgba(123, 223, 242, .28);
-  border-radius: 14px;
-  background: rgba(123, 223, 242, .08);
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 6px;
 }
-.inline-edit-help label {
-  color: var(--gold);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.inline-edit-help p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-.inline-edit-help button {
-  min-height: 38px;
-  border-radius: 12px;
+.inline-edit-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, .12);
   color: var(--text);
+  font-size: 12px;
   font-weight: 850;
+  cursor: pointer;
 }
 
 .chat-log {
@@ -191,8 +183,8 @@ button:hover:not(:disabled), a:hover { border-color: rgba(255, 209, 102, .44); b
   border-top: 1px solid var(--line);
 }
 .prompt-form textarea {
-  min-height: 130px;
-  padding: 14px;
+  min-height: 92px;
+  padding: 11px;
   background: #05060b;
   font-size: 14px;
   line-height: 1.45;
@@ -215,8 +207,8 @@ button:hover:not(:disabled), a:hover { border-color: rgba(255, 209, 102, .44); b
 }
 .prompt-actions {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  gap: 9px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 7px;
 }
 .prompt-actions input { display: none; }
 .prompt-actions button[type="submit"] { gap: 8px; }
@@ -366,7 +358,7 @@ button:hover:not(:disabled), a:hover { border-color: rgba(255, 209, 102, .44); b
 .empty-state a { color: var(--gold); font-weight: 950; }
 
 @media (max-width: 1180px) {
-  .kw-editor { grid-template-columns: 320px minmax(0, 1fr); }
+  .kw-editor { grid-template-columns: 290px minmax(0, 1fr); }
 }
 
 @media (max-width: 780px) {

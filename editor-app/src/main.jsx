@@ -16,7 +16,8 @@ import {
   Rocket,
   Save,
   Undo2,
-  Wand2
+  Wand2,
+  X
 } from 'lucide-react';
 import './styles.css';
 
@@ -49,13 +50,36 @@ async function api(path, options = {}) {
   }
   const res = await fetch(path, { ...options, headers });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 402 && data.code === 'subscription_required') {
+    const checkoutRes = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const checkout = await checkoutRes.json().catch(() => ({}));
+    if (checkoutRes.ok && checkout.url) window.location.assign(checkout.url);
+    throw new Error(checkout.error || data.error || 'Subscribe to publish your portfolio.');
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed.');
   return data;
 }
 
 function fileLabel(path) {
   if (path === 'index.html') return 'Home';
-  return path.replace(/\/index\.html?$/i, '').split('/').pop().replace(/[-_]+/g, ' ');
+  if (path === 'about.html') return 'About';
+  return path
+    .replace(/\/index\.html?$/i, '')
+    .split('/')
+    .pop()
+    .replace(/^behance[-_ ]+\d+[-_ ]*/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function pageLabel(page) {
+  const title = String(page?.title || '').replace(/^behance[-_ ]+\d+[-_ ]*/i, '').trim();
+  const label = title || fileLabel(page.path);
+  if (/[A-Z]/.test(label)) return label;
+  return label.replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 function aiResultMessage(data = {}) {
@@ -111,7 +135,9 @@ function App() {
   const toolbarRef = React.useRef(null);
   const textEditModeRef = React.useRef(false);
 
-  const pageOptions = pages.length ? pages : [{ path: 'index.html', title: 'Home', preview: publicPreviewUrl(jobId) }];
+  const pageOptions = (pages.length ? pages : [{ path: 'index.html', title: 'Home', preview: publicPreviewUrl(jobId) }])
+    .filter(page => page.path !== 'import-review.html')
+    .map(page => ({ ...page, title: pageLabel(page) }));
 
   React.useEffect(() => {
     if (!jobId) {
@@ -146,6 +172,7 @@ function App() {
 
   async function openFile(path, knownPages = pages) {
     const cleanPath = path || 'index.html';
+    setTextTarget(null);
     setSelectedFile(cleanPath);
     const matchingPage = knownPages.find(page => page.path === cleanPath);
     if (matchingPage) setSelectedPage(cleanPath);
@@ -298,6 +325,9 @@ function App() {
     const selector = 'h1,h2,h3,h4,h5,h6,p,span,li,a,figcaption,small,strong,em,b,i,div,td,th,blockquote';
     return [...doc.querySelectorAll(selector)].filter(node => {
       if (!node.textContent.trim()) return false;
+      const linkedMedia = node.closest('a[href], [data-url]');
+      if (linkedMedia?.querySelector('img, picture, video')) return false;
+      if (node.closest('.work-card')) return false;
       return ![...node.children].some(child => child.matches(selector) && child.textContent.trim());
     });
   }
@@ -329,6 +359,14 @@ function App() {
     applyTextEditingState(textEditMode);
     if (!textEditMode) setTextTarget(null);
   }, [textEditMode, previewSrc]);
+
+  React.useEffect(() => {
+    const exitOnEscape = event => {
+      if (event.key === 'Escape') exitTextEditing();
+    };
+    window.addEventListener('keydown', exitOnEscape);
+    return () => window.removeEventListener('keydown', exitOnEscape);
+  }, []);
 
   React.useEffect(() => {
     if (!textTarget) return;
@@ -373,6 +411,16 @@ function App() {
     target.classList.add('kw-inline-text-selected');
     setTextTarget(target);
     positionToolbar(target);
+  }
+
+  function handlePreviewKeyDown(event) {
+    if (event.key === 'Escape') exitTextEditing();
+  }
+
+  function exitTextEditing() {
+    textTarget?.classList.remove('kw-inline-text-selected');
+    setTextTarget(null);
+    setTextEditMode(false);
   }
 
   function applyTextStyle(style, value) {
@@ -453,7 +501,7 @@ function App() {
           <div className="select-row">
             <select value={selectedPage} onChange={event => choosePage(event.target.value)}>
               {pageOptions.map(page => (
-                <option key={page.path} value={page.path}>{page.title || fileLabel(page.path)}</option>
+                <option key={page.path} value={page.path}>{page.title}</option>
               ))}
             </select>
             <button type="button" title="Create page with AI" onClick={() => setPrompt('Create a new campaign page using the files I upload. Match the portfolio style and add it to the site navigation.')}>
@@ -472,11 +520,10 @@ function App() {
         </div>
 
         {textEditMode && (
-          <section className="inline-edit-help">
-            <label>Text editing</label>
-            <p>Click any text field in the preview, style it, then save changes.</p>
-            <button type="button" onClick={saveInlineTextEdits} disabled={!!busy}>Save text changes</button>
-          </section>
+          <div className="inline-edit-actions">
+            <button type="button" onClick={saveInlineTextEdits} disabled={!!busy}><Save size={14} /> Save text</button>
+            <button type="button" onClick={exitTextEditing} title="Exit text editing"><X size={15} /></button>
+          </div>
         )}
 
         {publishOpen && (
@@ -553,6 +600,8 @@ function App() {
             <button className={textAlign === 'left' ? 'active' : ''} type="button" onClick={() => applyTextAlignment('left')} title="Align left"><AlignLeft size={16} /></button>
             <button className={textAlign === 'center' ? 'active' : ''} type="button" onClick={() => applyTextAlignment('center')} title="Align center"><AlignCenter size={16} /></button>
             <button className={textAlign === 'right' ? 'active' : ''} type="button" onClick={() => applyTextAlignment('right')} title="Align right"><AlignRight size={16} /></button>
+            <span className="toolbar-divider" />
+            <button type="button" onClick={exitTextEditing} title="Exit text editing"><X size={16} /></button>
           </div>
         )}
         <iframe
@@ -564,6 +613,7 @@ function App() {
             applyTextEditingState(textEditMode);
             try {
               event.currentTarget.contentDocument?.addEventListener('click', handlePreviewClick);
+              event.currentTarget.contentDocument?.addEventListener('keydown', handlePreviewKeyDown);
             } catch {}
             syncPageFromPreview(event.currentTarget);
             if (previewRefreshing) setTimeout(() => setPreviewRefreshing(false), 420);

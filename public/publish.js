@@ -1,3 +1,5 @@
+import { handleSubscriptionRequired } from './billing.js?v=20260531-billing';
+
 export function setupPublishControl({ control, getJobId, setStatus }) {
   const noop = { show() {}, hide() {}, setPublished() {} };
   if (!control) return noop;
@@ -124,6 +126,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
         body: JSON.stringify({ subdomain })
       });
       const data = await res.json().catch(() => ({}));
+      if (await handleSubscriptionRequired(res, data, setStatus)) return;
       if (!res.ok) throw new Error(data.error || 'Publish failed.');
       input.value = data.published?.subdomain || subdomain;
       publishedState = data.published;

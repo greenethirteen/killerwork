@@ -8,6 +8,7 @@
     '.behance-site .site-header,.behance-project .site-header{align-items:flex-start;padding:28px 4vw 22px}',
     '.behance-site .site-header .brand,.behance-project .site-header .brand{font-size:clamp(34px,5vw,74px);line-height:.94;letter-spacing:-.06em}',
     '.behance-site .site-header nav,.behance-project .site-header nav{padding-top:9px}',
+    '.behance-site .home{padding-top:26px}.behance-site .behance-home .work-grid{margin-top:18px}',
     '.behance-project .project-meta,.behance-project .project-meta div:first-child,.behance-project .source-note,.behance-project .campaign-title-split small{color:var(--fg)}',
     '@media(max-width:650px){.behance-site .site-header,.behance-project .site-header{padding:22px 18px 14px}.behance-site .site-header .brand,.behance-project .site-header .brand{font-size:clamp(32px,10vw,52px)}.behance-site .site-header nav,.behance-project .site-header nav{padding-top:5px}}',
     '@keyframes portfolio-image-spin{to{transform:rotate(360deg)}}'
