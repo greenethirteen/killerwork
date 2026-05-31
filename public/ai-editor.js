@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260531-billing';
+import { setupPublishControl } from './publish.js?v=20260531-conversion';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job') || localStorage.getItem('killerwork:lastJobId') || '';

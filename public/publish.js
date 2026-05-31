@@ -1,4 +1,4 @@
-import { handleSubscriptionRequired } from './billing.js?v=20260531-billing';
+import { handleSubscriptionRequired } from './billing.js?v=20260531-conversion';
 
 export function setupPublishControl({ control, getJobId, setStatus }) {
   const noop = { show() {}, hide() {}, setPublished() {} };

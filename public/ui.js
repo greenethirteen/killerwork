@@ -1,5 +1,5 @@
-import { setupPublishControl } from './publish.js?v=20260531-billing';
-import { bindProtectedZipLink } from './billing.js?v=20260531-billing';
+import { setupPublishControl } from './publish.js?v=20260531-conversion';
+import { bindProtectedZipLink } from './billing.js?v=20260531-conversion';
 
 const form = document.getElementById('importForm');
 const uploadForm = document.getElementById('uploadForm');

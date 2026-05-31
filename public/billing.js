@@ -6,6 +6,10 @@ async function authHeaders(json = false) {
   };
 }
 
+function track(name, params = {}) {
+  window.KillerWorkAnalytics?.track?.(name, params);
+}
+
 export async function startSubscriptionCheckout(setStatus) {
   setStatus?.('Opening secure subscription checkout...');
   const res = await fetch('/api/billing/checkout', {
@@ -14,7 +18,43 @@ export async function startSubscriptionCheckout(setStatus) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data.error || 'Could not open subscription checkout.');
+  track('begin_checkout', {
+    value: 5,
+    currency: 'USD',
+    items: [{ item_id: 'killawork-monthly', item_name: 'KillaWork monthly subscription', price: 5, quantity: 1 }]
+  });
   window.location.assign(data.url);
+}
+
+export async function trackSubscriptionCheckoutReturn(setStatus) {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('subscription') === 'cancelled') {
+    setStatus?.('Subscription checkout cancelled.');
+    return;
+  }
+  const sessionId = params.get('session_id');
+  if (params.get('subscription') !== 'success' || !sessionId) return;
+  setStatus?.('Confirming your subscription...');
+  const res = await fetch(`/api/billing/checkout-session/${encodeURIComponent(sessionId)}`, {
+    headers: await authHeaders()
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.confirmed) throw new Error(data.error || 'Could not confirm your subscription.');
+  const storageKey = `killerwork:subscription-conversion:${sessionId}`;
+  if (!localStorage.getItem(storageKey)) {
+    track('conversion', {
+      send_to: data.googleAdsSendTo,
+      value: data.value,
+      currency: data.currency,
+      transaction_id: data.transactionId
+    });
+    localStorage.setItem(storageKey, 'true');
+  }
+  params.delete('subscription');
+  params.delete('session_id');
+  const query = params.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+  setStatus?.('Subscription active. Publishing and ZIP downloads are unlocked.', 'ok');
 }
 
 export async function handleSubscriptionRequired(res, data = {}, setStatus) {

@@ -44,6 +44,7 @@ Publishing and ZIP downloads require an active KillaWork monthly subscription. C
 ```bash
 STRIPE_SECRET_KEY=your_stripe_secret_key_here
 STRIPE_MONTHLY_PRICE_ID=price_1Tb1w7CE6bX7hMAXXOoILehR
+GOOGLE_ADS_SUBSCRIPTION_CONVERSION_LABEL=Zp-LCJf73rYcELr2j-FD
 PUBLIC_APP_URL=https://killa.work
 ```
 

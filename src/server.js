@@ -78,6 +78,8 @@ const firebaseAdmin = firebaseAccount ? admin.initializeApp({
 }) : null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const stripeMonthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1Tb1w7CE6bX7hMAXXOoILehR';
+const googleAdsId = 'AW-18188860218';
+const googleAdsSubscriptionConversionLabel = process.env.GOOGLE_ADS_SUBSCRIPTION_CONVERSION_LABEL || 'Zp-LCJf73rYcELr2j-FD';
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function firebaseWebConfig() {
@@ -1312,6 +1314,31 @@ app.get('/api/billing/status', requireFirebaseAuth, async (req, res) => {
   }
 });
 
+app.get('/api/billing/checkout-session/:sessionId', requireFirebaseAuth, async (req, res) => {
+  try {
+    if (!stripe) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
+    const session = await stripe.checkout.sessions.retrieve(req.params.sessionId, { expand: ['subscription'] });
+    const subscription = session.subscription && typeof session.subscription === 'object' ? session.subscription : null;
+    const belongsToUser = session.client_reference_id === req.user.uid || session.metadata?.firebaseUid === req.user.uid;
+    const matchingPlan = subscription?.items?.data?.some(line => line.price?.id === stripeMonthlyPriceId);
+    const active = ['active', 'trialing'].includes(subscription?.status);
+    if (!belongsToUser) return res.status(403).json({ error: 'This checkout session does not belong to your account.' });
+    if (session.mode !== 'subscription' || session.status !== 'complete' || !matchingPlan || !active) {
+      return res.status(409).json({ error: 'Your subscription has not been confirmed yet.', code: 'subscription_pending' });
+    }
+    res.json({
+      confirmed: true,
+      transactionId: session.id,
+      value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 5,
+      currency: String(session.currency || 'usd').toUpperCase(),
+      googleAdsSendTo: `${googleAdsId}/${googleAdsSubscriptionConversionLabel}`
+    });
+  } catch (err) {
+    console.error('Stripe checkout confirmation failed', err);
+    res.status(503).json({ error: 'Could not confirm your subscription. Please try again.', code: 'billing_unavailable' });
+  }
+});
+
 app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
   try {
     if (!stripe) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
@@ -1322,7 +1349,7 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
       customer: customer.id,
       client_reference_id: req.user.uid,
       line_items: [{ price: stripeMonthlyPriceId, quantity: 1 }],
-      success_url: `${origin}/manage.html?subscription=success`,
+      success_url: `${origin}/manage.html?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/manage.html?subscription=cancelled`,
       allow_promotion_codes: true,
       metadata: { firebaseUid: req.user.uid },
