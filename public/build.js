@@ -162,7 +162,7 @@ function resetCampaignForm() {
   campaignList.innerHTML = '';
   addCampaignCard(false);
   buildCampaigns.disabled = false;
-  buildCampaigns.textContent = currentJobId ? 'Create Page' : 'Generate portfolio page';
+  buildCampaigns.textContent = 'Create Page';
 }
 
 function campaignData(card) {

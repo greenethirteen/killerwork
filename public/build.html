@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Build from Work Files — KillaWork™</title>
-  <link rel="stylesheet" href="/ui.css" />
+  <link rel="stylesheet" href="/ui.css?v=20260531-compact-builder-modal" />
 </head>
 <body class="build-page">
   <main class="builder-shell work-builder-shell">
@@ -136,7 +136,7 @@
         <section class="builder-panel builder-upload-panel">
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
-            <button id="buildCampaigns" class="build-submit" type="submit">Generate portfolio page</button>
+            <button id="buildCampaigns" class="build-submit" type="submit">Create Page</button>
           </div>
         </section>
       </form>
@@ -180,7 +180,7 @@
     </article>
   </template>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260531-dashboard-controls'));
+    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260531-compact-builder-modal'));
   </script>
 </body>
 </html>
