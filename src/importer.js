@@ -1894,12 +1894,13 @@ function normalizedMetaLines(blocks = [], projectTitle = '') {
   return out.slice(0, 20);
 }
 
-function renderMetaBlocks(project) {
+function renderMetaBlocks(project, { includeTitle = false } = {}) {
   const lines = project.cleaned?.metadata?.length
     ? normalizedMetaLines(project.cleaned.metadata.map(text => ({ text })), project.title)
     : normalizedMetaLines(project.copyBlocks, project.title);
-  if (!lines.length) return '';
-  return `<section class="project-meta" aria-label="Project details">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
+  const displayLines = includeTitle ? [project.title, ...lines] : lines;
+  if (!displayLines.length) return '';
+  return `<section class="project-meta" aria-label="Project details">${displayLines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
 }
 
 function behanceDetailLines(blocks = [], projectTitle = '') {
@@ -2364,6 +2365,12 @@ function mergeStyle(...parts) {
     .join(';');
 }
 
+function renderCampaignBuilderHeader(manifest, prefix = '') {
+  const title = manifest.homeTitle || manifest.ownerName || 'Portfolio';
+  const intro = manifest.homeIntro ? `<span>${htmlEscape(manifest.homeIntro)}</span>` : '';
+  return `<header class="site-header campaign-builder-site-header"><a class="campaign-builder-brand" href="${prefix}index.html"><strong>${htmlEscape(title)}</strong>${intro}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a></nav></header>`;
+}
+
 function renderHomePage(manifest, cards) {
   const sourceHome = manifest.sourceHome || {};
   if (sourceHome.html && !manifest.homeOverride) {
@@ -2386,7 +2393,7 @@ function renderHomePage(manifest, cards) {
   const title = manifest.homeTitle || manifest.ownerName;
   const intro = manifest.homeIntro ? `<p class="intro">${htmlEscape(manifest.homeIntro)}</p>` : '';
   if (manifest.sourceUrl === 'campaign-builder') {
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body class="campaign-builder-home"><header class="site-header campaign-builder-site-header"><nav><a href="index.html">Work</a><a href="about.html">About</a></nav></header><main class="${homeClass}"><section class="home-identity"><h1>${htmlEscape(title)}</h1>${intro}</section><section class="work-grid">${cards}</section></main></body></html>`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body class="campaign-builder-home">${renderCampaignBuilderHeader(manifest)}<main class="${homeClass}"><section class="work-grid">${cards}</section></main></body></html>`;
   }
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KillaWork™</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico"></head><body><header class="site-header"><a class="brand" href="index.html">${htmlEscape(manifest.ownerName)}</a><nav><a href="index.html">Work</a><a href="about.html">About</a><a href="import-review.html">Review</a></nav></header><main class="${homeClass}"><h1>${htmlEscape(title)}</h1>${intro}<section class="work-grid">${cards}</section></main></body></html>`;
 }
@@ -2505,7 +2512,7 @@ export async function generateSite(manifest, outDir, progress) {
     }
     const mediaHtml = renderImportedSourceContent(p, cloneHtml);
     const footerGrid = renderProjectFooterGrid(manifest, p);
-    const meta = renderMetaBlocks(p);
+    const meta = renderMetaBlocks(p, { includeTitle: manifest.sourceUrl === 'campaign-builder' });
     const hasInlineText = cloneHtml || (p.contentItems || []).some(item => item.type === 'text');
     const showMeta = !hasInlineText ? meta : '';
     const intro = '';
@@ -2524,8 +2531,11 @@ export async function generateSite(manifest, outDir, progress) {
     const titleStyle = p.titleFontSize ? ` style="font-size:${Math.max(28, Math.min(120, Number(p.titleFontSize) || 82))}px"` : '';
     const headerHtml = isSourceReplica
       ? sourceHeader
-      : `<header class="project-header${manifest.sourceUrl === 'campaign-builder' ? ' campaign-project-header' : ''}"><a class="back-link" href="../../index.html">← Work</a><h1${titleStyle}>${htmlEscape(p.title)}</h1>${subtitleHtml}</header>`;
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}><main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
+      : manifest.sourceUrl === 'campaign-builder'
+        ? ''
+        : `<header class="project-header"><a class="back-link" href="../../index.html">← Work</a><h1${titleStyle}>${htmlEscape(p.title)}</h1>${subtitleHtml}</header>`;
+    const campaignHeader = manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest, '../../') : '';
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}</body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
