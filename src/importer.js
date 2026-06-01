@@ -2523,7 +2523,8 @@ function renderHomePage(manifest, cards) {
   const title = manifest.homeTitle || manifest.ownerName;
   const intro = manifest.homeIntro ? `<p class="intro">${htmlEscape(manifest.homeIntro)}</p>` : '';
   if (manifest.sourceUrl === 'campaign-builder') {
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body class="campaign-builder-home">${renderCampaignBuilderHeader(manifest)}<main class="${homeClass}"><section class="work-grid">${cards}</section></main></body></html>`;
+    const templateClass = ` template-${safeSlug(manifest.builderTemplate || 'editorial-grid')}`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body class="campaign-builder-home${templateClass}">${renderCampaignBuilderHeader(manifest)}<main class="${homeClass}"><section class="work-grid">${cards}</section></main></body></html>`;
   }
   const hero = manifest.sourcePlatform === 'behance' ? '' : `<h1>${htmlEscape(title)}</h1>`;
   const bodyClass = manifest.sourcePlatform === 'behance' ? ' class="behance-site"' : '';
@@ -2594,7 +2595,7 @@ export async function generateSite(manifest, outDir, progress) {
   if (await fs.pathExists(stagingAssetsDir)) {
     await fs.copy(stagingAssetsDir, path.join(siteDir, 'assets', 'imported'), { overwrite: true });
   }
-  await fs.copy(path.join(__dirname, '..', 'public', 'favicon.png'), path.join(siteDir, 'favicon.png'));
+  await fs.copy(path.join(__dirname, '..', 'public', 'favicon-logo-144.png'), path.join(siteDir, 'favicon.png'));
   const styles = await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.css'), 'utf8');
   await fs.writeFile(path.join(siteDir, 'styles.css'), styles);
   await fs.writeFile(path.join(siteDir, 'hls-player.js'), await fs.readFile(path.join(__dirname, '..', 'public', 'hls-player.js'), 'utf8'));
@@ -2677,7 +2678,7 @@ export async function generateSite(manifest, outDir, progress) {
         : `<header class="project-header">${backLink}${campaignTitleHtml}${subtitleHtml}</header>`;
     const campaignHeader = manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest, '../../') : '';
     const defaultHeader = manifest.sourcePlatform === 'behance' ? renderStandardSiteHeader(manifest, '../../') : '';
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.png" type="image/png"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.png" type="image/png"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ` campaign-builder-project template-${safeSlug(manifest.builderTemplate || 'editorial-grid')}` : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');

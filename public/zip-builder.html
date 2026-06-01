@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ZIP Builder Lab — KillaWork™</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/ui.css?v=20260601-zip-builder" />
+</head>
+<body class="zip-builder-page">
+  <main class="zip-builder-shell">
+    <nav class="topbar landing-topbar" aria-label="KillaWork">
+      <a class="logo" href="/">
+        <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" />
+        <span class="logo-text">KillaWork™</span>
+      </a>
+      <div class="topnav-actions">
+        <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
+        <span data-user-badge class="user-badge hidden"></span>
+        <a data-auth-link class="top-signin" href="#">Sign in</a>
+        <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
+      </div>
+    </nav>
+
+    <header class="zip-builder-hero">
+      <span class="zip-lab-pill">Testing feature</span>
+      <h1>Build a portfolio<br>from one ZIP.</h1>
+      <p>Upload ZIP <b>→</b> AI organises your work <b>→</b> approve projects <b>→</b> pick a template <b>→</b> build and publish</p>
+    </header>
+
+    <ol class="zip-builder-steps" aria-label="Builder steps">
+      <li class="active" data-step-marker="upload"><b>01</b><span>Upload ZIP</span></li>
+      <li data-step-marker="review"><b>02</b><span>Approve projects</span></li>
+      <li data-step-marker="template"><b>03</b><span>Pick template</span></li>
+      <li data-step-marker="build"><b>04</b><span>Build & publish</span></li>
+    </ol>
+
+    <section class="zip-builder-panel" data-step-panel="upload">
+      <div>
+        <span class="section-tab">Step 01</span>
+        <h2>Upload your work ZIP</h2>
+        <p>Folders become campaign suggestions. AI fills only the metadata it can support. You approve everything before the portfolio is built.</p>
+      </div>
+      <form id="zipUploadForm" class="zip-upload-form">
+        <label class="zip-drop">
+          <strong>Choose one ZIP file</strong>
+          <span>Use one folder per campaign when possible.</span>
+          <input id="zipFile" type="file" accept=".zip,application/zip" required />
+          <small id="zipFileName">No ZIP selected</small>
+        </label>
+        <button class="button hot" type="submit">Organise my work</button>
+      </form>
+    </section>
+
+    <section class="zip-builder-panel hidden" data-step-panel="review">
+      <div class="zip-panel-head">
+        <div>
+          <span class="section-tab">Step 02</span>
+          <h2>Approve the projects</h2>
+          <p>Check the AI suggestions and fill any blanks. Leave description or awards empty unless you want that text on the page.</p>
+        </div>
+      </div>
+      <div class="zip-owner-fields">
+        <label><span>Your name</span><input id="zipOwnerName" placeholder="Enter Your Name" /></label>
+        <label><span>Job title or short description</span><input id="zipOwnerIntro" placeholder="Creative Director" /></label>
+      </div>
+      <div id="zipCampaignList" class="zip-campaign-list"></div>
+      <div class="zip-panel-actions">
+        <button class="button ghost" type="button" data-back-step="upload">Back</button>
+        <button id="approveCampaigns" class="button hot" type="button">Approve projects</button>
+      </div>
+    </section>
+
+    <section class="zip-builder-panel hidden" data-step-panel="template">
+      <div>
+        <span class="section-tab">Step 03</span>
+        <h2>Pick a portfolio template</h2>
+        <p>You can edit the generated site after the build.</p>
+      </div>
+      <div class="zip-template-grid" id="zipTemplateGrid">
+        <button class="zip-template-card selected" type="button" data-template="editorial-grid">
+          <span class="zip-template-preview editorial"></span><strong>Editorial grid</strong><small>Large work-first tiles</small>
+        </button>
+        <button class="zip-template-card" type="button" data-template="gallery-focus">
+          <span class="zip-template-preview gallery"></span><strong>Gallery focus</strong><small>More breathing room</small>
+        </button>
+        <button class="zip-template-card" type="button" data-template="compact-grid">
+          <span class="zip-template-preview compact"></span><strong>Compact grid</strong><small>Denser campaign overview</small>
+        </button>
+      </div>
+      <div class="zip-panel-actions">
+        <button class="button ghost" type="button" data-back-step="review">Back</button>
+        <button id="startZipBuild" class="button hot" type="button">Build portfolio</button>
+      </div>
+    </section>
+
+    <section class="zip-builder-panel hidden" data-step-panel="build">
+      <div>
+        <span class="section-tab">Step 04</span>
+        <h2 id="zipBuildTitle">Building your portfolio</h2>
+        <p id="zipBuildDetail">Preparing your approved campaigns.</p>
+      </div>
+      <div class="zip-build-track"><div id="zipBuildBar"></div></div>
+      <strong id="zipBuildPercent">0%</strong>
+      <div id="zipBuildActions" class="zip-build-actions hidden">
+        <a id="zipPreviewLink" class="button hot" target="_blank" rel="noreferrer">Preview portfolio</a>
+        <a id="zipEditLink" class="button secondary" target="_blank" rel="noreferrer">Edit site</a>
+        <a id="zipDownloadLink" class="button secondary">Download ZIP</a>
+        <div id="publishControl" class="publish-control hidden" data-publish-domain="killa.work">
+          <button class="button secondary" type="button" data-publish-toggle>Publish</button>
+          <div class="publish-panel hidden" data-publish-panel>
+            <form data-publish-form>
+              <label><span>Portfolio URL</span><div class="publish-url-field"><input data-publish-input type="text" placeholder="your-name" autocomplete="off" /><b>.killa.work</b></div></label>
+              <button data-publish-submit type="submit">Publish</button>
+            </form>
+            <p class="publish-result hidden" data-publish-result></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="zipCampaignTemplate">
+    <article class="zip-campaign-card">
+      <div class="zip-campaign-card-head"><h3>Campaign A</h3><button type="button" data-remove-campaign>Remove</button></div>
+      <div class="zip-campaign-files"></div>
+      <div class="zip-campaign-fields">
+        <label><span>Campaign name</span><input data-field="campaign" /></label>
+        <label><span>Brand name</span><input data-field="brand" /></label>
+        <label><span>Ad agency</span><input data-field="agency" /></label>
+        <label class="wide"><span>Description / awards won</span><textarea data-field="notes" placeholder="Optional. Add verified details or leave this blank."></textarea></label>
+      </div>
+    </article>
+  </template>
+
+  <script type="module">
+    import('/auth.js?v=20260524-popup').then(() => import('/zip-builder.js?v=20260601-lab'));
+  </script>
+</body>
+</html>

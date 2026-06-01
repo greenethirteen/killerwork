@@ -453,7 +453,7 @@ export async function runUploadBuild({ files, outDir, title = '', aiCleanup = fa
   return { manifest: finalManifest, siteDir, zipPath, validation };
 }
 
-export async function runCampaignBuild({ files, campaigns = [], outDir, title = '', subtitle = '', aiCleanup = true, onProgress } = {}) {
+export async function runCampaignBuild({ files, campaigns = [], outDir, title = '', subtitle = '', template = '', aiCleanup = true, onProgress } = {}) {
   const progress = (stage, detail = '') => onProgress?.({ stage, detail, at: new Date().toISOString() });
   if (!files?.length) throw new Error('Upload at least one image, video, audio file, or PDF.');
   if (!Array.isArray(campaigns) || !campaigns.length) throw new Error('Add at least one campaign.');
@@ -475,6 +475,7 @@ export async function runCampaignBuild({ files, campaigns = [], outDir, title = 
   rawManifest.homeTitle = cleanText(title) || 'Your Name';
   rawManifest.homeIntro = cleanText(subtitle);
   rawManifest.buildMode = 'campaign-builder';
+  rawManifest.builderTemplate = cleanText(template) || 'editorial-grid';
   rawManifest = await cleanupCampaignBuilderManifestWithAI(rawManifest, { progress });
   await fs.writeJson(path.join(outDir, 'manifest.raw.json'), rawManifest, { spaces: 2 });
   progress('Raw manifest saved', 'manifest.raw.json');

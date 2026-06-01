@@ -10,6 +10,7 @@ import Stripe from 'stripe';
 import { runImport, generateSite, validateSite, zipDir, resolvePortfolioIdentity } from './importer.js';
 import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
+import { analyzePortfolioZip, stagedFilesForBuild } from './zipBuilder.js';
 import { hash, safeSlug } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,7 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8787;
 const jobs = new Map();
+const zipBuilderSessions = new Map();
 const generatedRoot = process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH
   ? path.resolve(process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH)
   : path.join(root, 'generated');
@@ -32,6 +34,15 @@ const upload = multer({
     cb(new Error('Only images, videos, audio files, PDFs, and web text files are supported.'));
   }
 });
+const zipUpload = multer({
+  dest: tmpUploadsDir,
+  limits: { files: 1, fileSize: 250 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (ext === '.zip' || ['application/zip', 'application/x-zip-compressed'].includes(String(file.mimetype || ''))) return cb(null, true);
+    cb(new Error('Upload one ZIP file.'));
+  }
+});
 
 await fs.ensureDir(generatedRoot);
 await fs.ensureDir(tmpUploadsDir);
@@ -41,18 +52,22 @@ app.use(compression());
 app.get('*', serveCustomDomainIfMapped);
 app.get(['/published/:subdomain', '/published/:subdomain/*'], servePublishedSite);
 app.get('*', serveKillaWorkHost);
+app.get('/favicon.ico', (req, res) => res.sendFile(path.join(root, 'public', 'favicon-logo-144.png')));
 app.use('/', express.static(path.join(root, 'public'), {
   setHeaders: (res, filePath) => {
     if (/\.(?:js|css|png|jpe?g|webp|avif|svg)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (/\.html$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
+      if (path.relative(path.join(root, 'public'), filePath) !== 'index.html') {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      }
     }
   }
 }));
 app.get(['/generated/:id/site', '/generated/:id/site/', '/generated/:id/site/index.html'], serveGeneratedHomePage);
 app.get('/generated/:id/site/work/:slug/index.html', serveGeneratedCampaignPage);
-app.get(['/generated/:id/site/favicon.ico', '/generated/:id/site/favicon.png'], (req, res) => res.sendFile(path.join(root, 'public', 'favicon.png')));
+app.get(['/generated/:id/site/favicon.ico', '/generated/:id/site/favicon.png'], (req, res) => res.sendFile(path.join(root, 'public', 'favicon-logo-144.png')));
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
 app.get('/generated/:id/*', generatedMissingHandler);
 
@@ -252,7 +267,7 @@ async function serveSiteFile(res, id, requestedPath = '') {
   const manifest = await readManifest(id);
   const cleanPath = String(requestedPath || '').replace(/^\/+/, '') || 'index.html';
   if (cleanPath === 'favicon.svg') return res.sendFile(path.join(root, 'public', 'favicon.svg'));
-  if (cleanPath === 'favicon.png' || cleanPath === 'favicon.ico') return res.sendFile(path.join(root, 'public', 'favicon.png'));
+  if (cleanPath === 'favicon.png' || cleanPath === 'favicon.ico') return res.sendFile(path.join(root, 'public', 'favicon-logo-144.png'));
   const target = path.normalize(path.join(siteRoot, cleanPath));
   if (target !== siteRoot && !target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
   const stat = await fs.stat(target).catch(() => null);
@@ -618,6 +633,99 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
     job.error = e.stack || e.message;
     job.progress.push({ stage: 'Build failed', detail: e.message, at: new Date().toISOString() });
     await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+  }
+});
+
+app.post('/api/zip-builder/analyze', requireFirebaseAuth, zipUpload.single('zip'), async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'Upload one ZIP file.' });
+  const staleBefore = Date.now() - (2 * 60 * 60 * 1000);
+  for (const [id, session] of zipBuilderSessions) {
+    if (Date.parse(session.createdAt || '') >= staleBefore) continue;
+    zipBuilderSessions.delete(id);
+    await fs.remove(session.sessionDir).catch(() => {});
+  }
+  const sessionId = `${Date.now()}-${hash(`${req.user.uid}:${file.originalname}:${file.size}`)}`;
+  const sessionDir = path.join(tmpUploadsDir, 'zip-builder', sessionId);
+  try {
+    const campaigns = await analyzePortfolioZip(file.path, sessionDir);
+    const session = { id: sessionId, ownerUid: req.user.uid, sessionDir, campaigns, createdAt: new Date().toISOString() };
+    zipBuilderSessions.set(sessionId, session);
+    res.json({
+      sessionId,
+      campaigns: campaigns.map(campaign => ({
+        id: campaign.id,
+        label: campaign.label,
+        campaign: campaign.campaign,
+        brand: campaign.brand,
+        agency: campaign.agency,
+        notes: campaign.notes,
+        files: campaign.files.map(asset => ({ name: asset.name, size: asset.size }))
+      }))
+    });
+  } catch (error) {
+    await fs.remove(sessionDir).catch(() => {});
+    res.status(400).json({ error: error.message || 'Could not analyze that ZIP.' });
+  } finally {
+    await fs.remove(file.path).catch(() => {});
+  }
+});
+
+app.post('/api/zip-builder/build', requireFirebaseAuth, async (req, res) => {
+  const session = zipBuilderSessions.get(String(req.body?.sessionId || ''));
+  if (!session) return res.status(404).json({ error: 'ZIP session expired. Upload the ZIP again.' });
+  if (session.ownerUid !== req.user.uid) return res.status(403).json({ error: 'Not your ZIP session.' });
+  const title = String(req.body?.title || '').trim();
+  const subtitle = String(req.body?.subtitle || '').trim();
+  const template = String(req.body?.template || 'editorial-grid').trim();
+  const approved = Array.isArray(req.body?.campaigns) ? req.body.campaigns : [];
+  if (!approved.length) return res.status(400).json({ error: 'Approve at least one campaign.' });
+
+  let files;
+  let campaigns;
+  try {
+    ({ files, campaigns } = stagedFilesForBuild(session, approved));
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Campaign approval data was invalid.' });
+  }
+  if (!files.length) return res.status(400).json({ error: 'No campaign assets were selected.' });
+
+  const id = `${Date.now()}-${hash(`${title}:${template}:${campaigns.map(campaign => campaign.title).join('|')}`)}`;
+  const outDir = jobDir(id);
+  const job = { id, url: 'zip-builder', aiCleanup: true, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  jobs.set(id, job);
+  res.json({ id });
+
+  const stages = ['Saving campaign assets','AI analyzing campaign asset','Building campaign pages','AI cleanup','Building static portfolio','Generated static site','Validating output','Validation passed','Validation warnings','ZIP ready'];
+  const updatePercent = (stage) => {
+    const index = stages.findIndex(item => stage.startsWith(item));
+    if (index >= 0) job.percent = Math.max(job.percent, Math.round(((index + 1) / stages.length) * 100));
+  };
+
+  try {
+    const result = await runCampaignBuild({ files, campaigns, outDir, title, subtitle, template, aiCleanup: true, onProgress: (event) => {
+      updatePercent(event.stage);
+      job.progress.push(event);
+      if (job.progress.length > 300) job.progress.shift();
+    }});
+    attachOwner(result.manifest, req.user);
+    await saveManifestAndRebuild(id, result.manifest);
+    job.status = 'done';
+    job.percent = 100;
+    job.links = {
+      preview: `/generated/${id}/site/index.html`,
+      manifest: `/generated/${id}/manifest.json`,
+      validation: `/generated/${id}/reports/validation.json`,
+      zip: `/api/download/${id}`
+    };
+  } catch (error) {
+    job.status = 'error';
+    job.error = error.stack || error.message;
+    job.progress.push({ stage: 'Build failed', detail: error.message, at: new Date().toISOString() });
+    await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+  } finally {
+    zipBuilderSessions.delete(session.id);
+    await fs.remove(session.sessionDir).catch(() => {});
   }
 });
 
