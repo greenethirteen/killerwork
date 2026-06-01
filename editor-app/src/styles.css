@@ -75,7 +75,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 .page-picker { display: grid; gap: 6px; }
-.select-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 7px; }
 select, input, textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -89,11 +88,11 @@ textarea { resize: none; }
 
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: 36px 36px 36px minmax(0, 1fr) 36px;
   gap: 6px;
 }
 .action-grid button, .action-grid a { min-height: 36px; }
-.select-row button { min-height: 36px; }
+.action-grid .text-edit-toggle { padding: 0 8px; font-size: 12px; font-weight: 850; white-space: nowrap; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 button:hover:not(:disabled), a:hover { border-color: rgba(255, 209, 102, .44); background: rgba(255, 209, 102, .12); }
 

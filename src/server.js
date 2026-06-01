@@ -52,6 +52,7 @@ app.use('/', express.static(path.join(root, 'public'), {
 }));
 app.get(['/generated/:id/site', '/generated/:id/site/', '/generated/:id/site/index.html'], serveGeneratedHomePage);
 app.get('/generated/:id/site/work/:slug/index.html', serveGeneratedCampaignPage);
+app.get(['/generated/:id/site/favicon.ico', '/generated/:id/site/favicon.png'], (req, res) => res.sendFile(path.join(root, 'public', 'favicon.png')));
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
 app.get('/generated/:id/*', generatedMissingHandler);
 
@@ -250,6 +251,8 @@ async function serveSiteFile(res, id, requestedPath = '') {
   const siteRoot = path.join(jobDir(id), 'site');
   const manifest = await readManifest(id);
   const cleanPath = String(requestedPath || '').replace(/^\/+/, '') || 'index.html';
+  if (cleanPath === 'favicon.svg') return res.sendFile(path.join(root, 'public', 'favicon.svg'));
+  if (cleanPath === 'favicon.png' || cleanPath === 'favicon.ico') return res.sendFile(path.join(root, 'public', 'favicon.png'));
   const target = path.normalize(path.join(siteRoot, cleanPath));
   if (target !== siteRoot && !target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
   const stat = await fs.stat(target).catch(() => null);
@@ -287,7 +290,7 @@ function portfolioRuntimeOptions(manifest, relativePath = '') {
   return {
     behanceHome: isBehance && isHomePagePath(relativePath),
     behanceProject: isBehance && isCampaignPagePath(relativePath),
-    pageTitle: isHomePagePath(relativePath) ? portfolioOwnerTitle(manifest) : ''
+    pageTitle: isHomePagePath(relativePath) ? portfolioBrowserTitle(manifest) : ''
   };
 }
 
@@ -298,6 +301,13 @@ function needsPortfolioRuntime(manifest, relativePath = '') {
 function portfolioOwnerTitle(manifest) {
   const identity = resolvePortfolioIdentity(manifest);
   return String(identity.ownerName || manifest?.homeTitle || manifest?.siteTitle || 'Portfolio').trim();
+}
+
+function portfolioBrowserTitle(manifest) {
+  if (manifest?.sourcePlatform === 'website' && manifest?.sourceHome?.title) {
+    return String(manifest.sourceHome.title).trim();
+  }
+  return portfolioOwnerTitle(manifest);
 }
 
 function escapeHtmlText(value = '') {
@@ -320,6 +330,11 @@ function addBodyClass(html, className) {
 async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '' } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
   if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
+  if (/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i.test(html)) {
+    html = html.replace(/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
+  } else {
+    html = html.replace(/<\/head>/i, '<link rel="icon" href="/favicon.svg" type="image/svg+xml"></head>');
+  }
   if (behanceHome) {
     html = addBodyClass(html, 'behance-site');
     html = html.replace(/<a\b[^>]*href=["'][^"']*import-review\.html["'][^>]*>\s*Review\s*<\/a>/gi, '');
@@ -421,6 +436,7 @@ async function generatedMissingHandler(req, res) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Preview unavailable - KillaWork</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#080811;color:#fffaf2;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     main{width:min(620px,calc(100% - 32px));padding:32px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.045));box-shadow:0 30px 90px rgba(0,0,0,.35)}

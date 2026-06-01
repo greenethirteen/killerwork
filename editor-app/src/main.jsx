@@ -7,13 +7,11 @@ import {
   Bold,
   Check,
   ExternalLink,
-  FolderPlus,
   Home,
   Italic,
   Loader2,
   Paperclip,
   Redo2,
-  Rocket,
   Save,
   Undo2,
   Wand2,
@@ -112,16 +110,12 @@ function App() {
   const [previewSrc, setPreviewSrc] = React.useState('');
   const [prompt, setPrompt] = React.useState('');
   const [attachments, setAttachments] = React.useState([]);
-  const [messages, setMessages] = React.useState([
-    { role: 'ai', text: 'I edit the actual HTML, CSS, JS, and assets in this generated site. Tell me what to change, or upload work and ask me to build a new page.' }
-  ]);
+  const [messages, setMessages] = React.useState([]);
   const [busy, setBusy] = React.useState('Loading editor...');
   const [status, setStatus] = React.useState('');
   const [previewRefreshing, setPreviewRefreshing] = React.useState(false);
   const [history, setHistory] = React.useState({ undoCount: 0, redoCount: 0 });
-  const [publishOpen, setPublishOpen] = React.useState(false);
-  const [subdomain, setSubdomain] = React.useState('');
-  const [textEditMode, setTextEditMode] = React.useState(true);
+  const [textEditMode, setTextEditMode] = React.useState(false);
   const [textTarget, setTextTarget] = React.useState(null);
   const [textSize, setTextSize] = React.useState(16);
   const [textFont, setTextFont] = React.useState('Inter');
@@ -287,26 +281,6 @@ function App() {
       setStatus(action === 'undo' ? 'Undo complete.' : 'Redo complete.');
     } catch (err) {
       setStatus(err.message || `${action} failed.`);
-    } finally {
-      setBusy('');
-    }
-  }
-
-  async function publish() {
-    const clean = subdomain.toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-    if (!clean) return setStatus('Choose a subdomain first.');
-    setBusy('Publishing...');
-    try {
-      const data = await api(`/api/publish/${encodeURIComponent(jobId)}`, {
-        method: 'POST',
-        body: JSON.stringify({ subdomain: clean })
-      });
-      setSite(current => ({ ...(current || {}), published: data.published }));
-      setPublishOpen(false);
-      addMessage('ai', `Published at ${data.published.url}.`);
-      setStatus('Published.');
-    } catch (err) {
-      setStatus(err.message || 'Publish failed.');
     } finally {
       setBusy('');
     }
@@ -498,24 +472,18 @@ function App() {
 
         <section className="page-picker">
           <label>Page</label>
-          <div className="select-row">
-            <select value={selectedPage} onChange={event => choosePage(event.target.value)}>
-              {pageOptions.map(page => (
-                <option key={page.path} value={page.path}>{page.title}</option>
-              ))}
-            </select>
-            <button type="button" title="Create page with AI" onClick={() => setPrompt('Create a new campaign page using the files I upload. Match the portfolio style and add it to the site navigation.')}>
-              <FolderPlus size={19} />
-            </button>
-          </div>
+          <select value={selectedPage} onChange={event => choosePage(event.target.value)}>
+            {pageOptions.map(page => (
+              <option key={page.path} value={page.path}>{page.title}</option>
+            ))}
+          </select>
         </section>
 
         <div className="action-grid">
           <button type="button" onClick={() => snapshotAction('undo')} disabled={!history.undoCount || !!busy} title="Undo"><Undo2 size={18} /></button>
           <button type="button" onClick={() => snapshotAction('redo')} disabled={!history.redoCount || !!busy} title="Redo"><Redo2 size={18} /></button>
           <button type="button" onClick={saveFile} disabled={!!busy} title="Save file"><Save size={18} /></button>
-          <button type="button" onClick={() => setPublishOpen(value => !value)} title="Publish"><Rocket size={18} /></button>
-          <button type="button" onClick={() => setTextEditMode(value => !value)} title="Edit text fields">{textEditMode ? <Check size={18} /> : 'T'}</button>
+          <button className="text-edit-toggle" type="button" onClick={() => setTextEditMode(value => !value)} title="Edit text">{textEditMode ? 'Editing Text' : 'Edit Text'}</button>
           <a href={publicPreviewUrl(jobId, selectedPage)} target="_blank" rel="noreferrer" title="Open preview"><ExternalLink size={18} /></a>
         </div>
 
@@ -524,18 +492,6 @@ function App() {
             <button type="button" onClick={saveInlineTextEdits} disabled={!!busy}><Save size={14} /> Save text</button>
             <button type="button" onClick={exitTextEditing} title="Exit text editing"><X size={15} /></button>
           </div>
-        )}
-
-        {publishOpen && (
-          <section className="publish-box">
-            <label>Portfolio URL</label>
-            <div className="publish-input">
-              <input value={subdomain} onChange={event => setSubdomain(event.target.value)} placeholder="abdullahfarouk" />
-              <span>.killa.work</span>
-            </div>
-            <button type="button" onClick={publish}>Publish</button>
-            <p>Need help? <a href="https://wa.me/971585002138" target="_blank" rel="noreferrer">Contact the Founder.</a></p>
-          </section>
         )}
 
         <section ref={chatRef} className="chat-log">
@@ -551,7 +507,7 @@ function App() {
           <textarea
             value={prompt}
             onChange={event => setPrompt(event.target.value)}
-            placeholder="Ask for copy, structure, title, ordering, styling, new pages, new sections, or uploaded work to be added directly into the site files."
+            placeholder="Describe the change you want AI to make."
           />
           {!!attachments.length && (
             <div className="attachments">
@@ -561,7 +517,7 @@ function App() {
           <div className="prompt-actions">
             <input ref={fileInputRef} type="file" multiple onChange={event => setAttachments([...event.target.files])} />
             <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach files"><Paperclip size={18} /></button>
-            <button type="submit" disabled={!!busy}><Wand2 size={18} /> Generate edit</button>
+            <button type="submit" disabled={!!busy}><Wand2 size={18} /> Make Changes</button>
           </div>
         </form>
       </aside>

@@ -345,7 +345,7 @@ form?.addEventListener('submit', async event => {
     setStatus(err.message || 'AI edit failed.', 'error');
   } finally {
     applyButton.disabled = false;
-    applyButton.textContent = 'Generate edit';
+    applyButton.textContent = 'Make Changes';
   }
 });
 
