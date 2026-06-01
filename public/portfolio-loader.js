@@ -2,9 +2,10 @@
   var style = document.createElement('style');
   style.textContent = [
     '.media.image{position:relative;min-height:72px}',
+    '.source-exact-image-frame{position:relative}',
     '.media-image-loader{position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:rgba(11,11,15,.82);transition:opacity .2s ease,visibility .2s ease}',
     '.media-image-loader:before{content:"";width:34px;height:34px;border-radius:999px;border:3px solid rgba(255,255,255,.2);border-top-color:#7bdff2;border-right-color:#ffd166;animation:portfolio-image-spin .8s linear infinite}',
-    '.media.image.is-loaded .media-image-loader{opacity:0;visibility:hidden;pointer-events:none}',
+    '.media.image.is-loaded .media-image-loader,.source-exact-image-frame.is-loaded>.media-image-loader{opacity:0;visibility:hidden;pointer-events:none}',
     '.behance-site .site-header,.behance-project .site-header{align-items:flex-start;padding:28px 4vw 22px}',
     '.behance-site .site-header .brand,.behance-project .site-header .brand{font-size:clamp(34px,5vw,74px);line-height:.94;letter-spacing:-.06em}',
     '.behance-site .site-header nav,.behance-project .site-header nav{padding-top:9px}',
@@ -27,18 +28,40 @@
     }
   }
 
-  document.querySelectorAll('.media.image').forEach(function (figure) {
-    var image = figure.querySelector('img');
-    if (!image || figure.querySelector('.media-image-loader')) return;
+  function attachImageLoader(frame, image) {
+    if (!frame || !image || frame.querySelector(':scope > .media-image-loader')) return;
     var loader = document.createElement('span');
     loader.className = 'media-image-loader';
     loader.setAttribute('aria-hidden', 'true');
-    figure.insertBefore(loader, image);
-    var done = function () { figure.classList.add('is-loaded'); };
+    frame.insertBefore(loader, frame.firstChild);
+    var done = function () { frame.classList.add('is-loaded'); };
     if (image.complete) done();
     else {
       image.addEventListener('load', done, { once: true });
       image.addEventListener('error', done, { once: true });
     }
+  }
+
+  document.querySelectorAll('.media.image').forEach(function (figure) {
+    attachImageLoader(figure, figure.querySelector('img'));
+  });
+
+  document.querySelectorAll('.source-exact-page img,.source-home-page img').forEach(function (image, index) {
+    image.loading = index < 2 ? 'eager' : 'lazy';
+    image.decoding = 'async';
+    if (index >= 2) image.removeAttribute('fetchpriority');
+    var picture = image.closest('picture');
+    var frame = picture ? picture.parentElement : image.parentElement;
+    if (!frame) return;
+    frame.classList.add('source-exact-image-frame');
+    attachImageLoader(frame, image);
+  });
+
+  document.querySelectorAll('.source-exact-page iframe,.source-home-page iframe').forEach(function (frame) {
+    frame.loading = 'lazy';
+  });
+
+  document.querySelectorAll('.source-exact-page video,.source-home-page video').forEach(function (video) {
+    if (!video.preload) video.preload = 'metadata';
   });
 })();

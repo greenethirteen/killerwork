@@ -117,6 +117,30 @@ function cleanTitle(title = '', owner = '') {
   return t || 'Untitled';
 }
 
+function looksLikeHostname(value = '') {
+  return /^(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(String(value || '').trim());
+}
+
+function sourceIdentityFromTitle(title = '', fallbackOwner = '') {
+  const clean = String(title || '').replace(/\s+/g, ' ').trim();
+  const parts = clean.split(/\s*[|]\s*/).map(part => part.trim()).filter(Boolean);
+  const ownerName = parts[0] && !looksLikeHostname(parts[0]) ? parts[0] : fallbackOwner;
+  return {
+    ownerName: ownerName || fallbackOwner,
+    homeIntro: parts.slice(1).join(' | ')
+  };
+}
+
+export function resolvePortfolioIdentity(manifest = {}) {
+  const ownerName = String(manifest.ownerName || '').trim();
+  const sourceIdentity = sourceIdentityFromTitle(manifest.sourceHome?.title || '', ownerName);
+  const shouldUseSourceOwner = manifest.sourcePlatform === 'website' && (!ownerName || looksLikeHostname(ownerName));
+  return {
+    ownerName: shouldUseSourceOwner ? sourceIdentity.ownerName : ownerName,
+    homeIntro: String(manifest.homeIntro || (shouldUseSourceOwner ? sourceIdentity.homeIntro : '') || '').trim()
+  };
+}
+
 function titleFromSlug(slug = 'project') {
   return String(slug || 'project')
     .split('/')
@@ -2190,13 +2214,18 @@ function addLazyMediaAttributes(html, eagerImageCount = 2) {
   const $ = cheerio.load(String(html || ''), { decodeEntities: false }, false);
   $('img').each((index, el) => {
     const img = $(el);
-    if (!img.attr('loading')) img.attr('loading', index < eagerImageCount ? 'eager' : 'lazy');
+    img.attr('loading', index < eagerImageCount ? 'eager' : 'lazy');
     if (!img.attr('decoding')) img.attr('decoding', 'async');
     if (index < eagerImageCount && !img.attr('fetchpriority')) img.attr('fetchpriority', 'high');
+    if (index >= eagerImageCount) img.removeAttr('fetchpriority');
   });
   $('iframe').each((_, el) => {
     const frame = $(el);
-    if (!frame.attr('loading')) frame.attr('loading', 'lazy');
+    frame.attr('loading', 'lazy');
+  });
+  $('video').each((_, el) => {
+    const video = $(el);
+    if (!video.attr('preload')) video.attr('preload', 'metadata');
   });
   return $.root().html();
 }
@@ -2471,7 +2500,8 @@ function parseBrandCampaignFromTitle(project = {}) {
 
 function renderHomePage(manifest, cards) {
   const sourceHome = manifest.sourceHome || {};
-  const ownerTitle = manifest.ownerName || manifest.homeTitle || 'Portfolio';
+  const identity = resolvePortfolioIdentity(manifest);
+  const ownerTitle = identity.ownerName || manifest.homeTitle || 'Portfolio';
   if (sourceHome.html && !manifest.homeOverride) {
     const pageVars = [
       sourceHome.backgroundColor ? `--bg:${sourceHome.backgroundColor}` : '',
@@ -2486,7 +2516,7 @@ function renderHomePage(manifest, cards) {
     const bodyClass = ['source-home', sourceHome.sourceBodyClass].filter(Boolean).join(' ');
     const bodyStyle = mergeStyle(pageVars, sourceHome.sourceBodyStyle);
     const bodyId = sourceHome.sourceBodyId ? ` id="${htmlEscape(sourceHome.sourceBodyId)}"` : '';
-    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(ownerTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(sourceHome.sourceSvgDefs)}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script></body></html>`;
+    return `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(ownerTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.ico">${styleTag(sourceHome.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(sourceHome.sourceSvgDefs)}<main class="source-home-page"${wrapperStyle}>${html}</main><script>document.querySelectorAll('[data-url]').forEach(function(el){el.tabIndex=0;el.style.cursor='pointer';function go(){var u=el.getAttribute('data-url');if(u) location.href=u;}el.addEventListener('click',go);el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});</script><script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body></html>`;
   }
   const homeClass = manifest.sourcePlatform === 'behance' ? 'home behance-home' : 'home';
   const title = manifest.homeTitle || manifest.ownerName;
@@ -2609,7 +2639,7 @@ export async function generateSite(manifest, outDir, progress) {
       const bodyStyle = mergeStyle(pageVars, p.sourceBodyStyle);
       const bodyId = p.sourceBodyId ? ` id="${htmlEscape(p.sourceBodyId)}"` : '';
       const needsHls = p.videos.some(v => v.type === 'hls' || mediaType(v.src) === 'hls') || /class=["'][^"']*\bhls-video\b/i.test(rewrittenClone);
-      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(p.sourceSvgDefs)}<main class="source-exact-page">${rewrittenClone}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}</body></html>`);
+      await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"${htmlId}${htmlClass}${htmlStyle}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body${bodyId} class="${htmlEscape(bodyClass)}"${bodyStyle ? ` style="${htmlEscape(bodyStyle)}"` : ''}>${hiddenSvgDefs(p.sourceSvgDefs)}<main class="source-exact-page">${rewrittenClone}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body></html>`);
       continue;
     }
     const mediaHtml = renderImportedSourceContent(p, cloneHtml);
@@ -2646,7 +2676,7 @@ export async function generateSite(manifest, outDir, progress) {
         : `<header class="project-header">${backLink}${campaignTitleHtml}${subtitleHtml}</header>`;
     const campaignHeader = manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest, '../../') : '';
     const defaultHeader = manifest.sourcePlatform === 'behance' ? renderStandardSiteHeader(manifest, '../../') : '';
-    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260531-behance-spacing"></script></body></html>`);
+    await fs.writeFile(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(p.title)} — ${htmlEscape(manifest.ownerName)}</title><link rel="icon" href="../../favicon.ico"><link rel="stylesheet" href="../../styles.css">${styleTag(p.sourceCss)}</head><body class="project${isSourceReplica ? ' source-replica' : ''}${manifest.sourceUrl === 'campaign-builder' ? ' campaign-builder-project' : ''}${manifest.sourcePlatform === 'behance' ? ' behance-project' : ''}"${pageVars ? ` style="${htmlEscape(pageVars)}"` : ''}>${campaignHeader || defaultHeader}<main class="project-page${layoutClass}"${mainStyle}>${headerHtml}${mediaHtml}${showMeta}${footerGrid}${rightsNote}</main>${needsHls ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script><script src="../../hls-player.js"></script>' : ''}${needsGallery ? '<script src="../../portfolio.js"></script>' : ''}<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body></html>`);
   }
 
   const rows = manifest.projects.map(p => `<tr><td><a href="work/${htmlEscape(p.slug)}/">${htmlEscape(p.title)}</a></td><td>${(p.images || []).length}</td><td>${(p.videos || []).length}</td><td>${(p.audios || []).length}</td><td>${(p.documents || []).length}</td><td>${p.cleaned ? htmlEscape(p.cleaned.pageType) : 'raw'}</td><td>${(p.warnings || []).map(htmlEscape).join('<br>')}</td></tr>`).join('');
@@ -2841,11 +2871,14 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
   progress('Found projects', `${projects.length} project pages`);
 
   const cache = new Map();
+  const websiteIdentity = sourceIdentityFromTitle(sourceHome?.title || '', sourceOwnerName);
   const rawManifest = {
     sourceUrl: url,
     sourcePlatform: behance ? 'behance' : 'website',
-    siteTitle: sourceHome?.title || (behance && sourceOwnerName ? `${sourceOwnerName} Portfolio` : 'Imported Portfolio'),
-    ownerName: sourceOwnerName,
+    siteTitle: behance && sourceOwnerName ? `${sourceOwnerName} Portfolio` : websiteIdentity.ownerName || sourceHome?.title || 'Imported Portfolio',
+    ownerName: behance ? sourceOwnerName : websiteIdentity.ownerName || sourceOwnerName,
+    homeTitle: behance ? sourceOwnerName : websiteIdentity.ownerName || sourceOwnerName,
+    homeIntro: behance ? '' : websiteIdentity.homeIntro,
     relatedProjects,
     sourceHome: null,
     sourceAbout: null,

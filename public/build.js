@@ -273,7 +273,7 @@ function setPortfolioAction(link, href = '') {
 function updatePortfolioControls(portfolio) {
   currentJobId = portfolio?.id || '';
   latestPortfolio = portfolio || null;
-  if (portfolioName) portfolioName.textContent = portfolio?.ownerName || portfolio?.siteTitle || 'Your Name';
+  if (portfolioName) portfolioName.textContent = portfolio?.ownerName || portfolio?.siteTitle || 'Enter Your Name';
   if (portfolioTagline) portfolioTagline.textContent = portfolio?.homeIntro || 'Your Job Title or Short Description';
   setPortfolioAction(previewPortfolioButton, portfolio?.preview);
   setPortfolioAction(editPortfolioButton, portfolio?.editor);
@@ -386,7 +386,7 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   const cards = [...campaignList.querySelectorAll('.campaign-card')];
   const campaigns = cards.map(campaignData);
-  const portfolioHeader = cleanEditableText(portfolioName?.textContent) || 'Your Name';
+  const portfolioHeader = cleanEditableText(portfolioName?.textContent);
   const portfolioSubhead = cleanEditableText(portfolioTagline?.textContent);
   const totalFiles = cards.reduce((sum, card) => sum + (card.querySelector('[data-field="files"]')?.files?.length || 0), 0);
   if (!totalFiles) {
@@ -437,7 +437,7 @@ form.addEventListener('submit', async event => {
     }
     return;
   }
-  body.append('title', portfolioHeader);
+  body.append('title', portfolioHeader === 'Enter Your Name' ? '' : portfolioHeader);
   body.append('subtitle', portfolioSubhead);
   body.append('campaigns', JSON.stringify(campaigns));
   cards.forEach((card, index) => {

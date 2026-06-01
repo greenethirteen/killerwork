@@ -7,7 +7,7 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
 import Stripe from 'stripe';
-import { runImport, generateSite, validateSite, zipDir } from './importer.js';
+import { runImport, generateSite, validateSite, zipDir, resolvePortfolioIdentity } from './importer.js';
 import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { hash, safeSlug } from './utils.js';
@@ -296,7 +296,8 @@ function needsPortfolioRuntime(manifest, relativePath = '') {
 }
 
 function portfolioOwnerTitle(manifest) {
-  return String(manifest?.ownerName || manifest?.homeTitle || manifest?.siteTitle || 'Portfolio').trim();
+  const identity = resolvePortfolioIdentity(manifest);
+  return String(identity.ownerName || manifest?.homeTitle || manifest?.siteTitle || 'Portfolio').trim();
 }
 
 function escapeHtmlText(value = '') {
@@ -328,9 +329,9 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
     html = html.replace(/<a\b[^>]*class=["'][^"']*\bback-link\b[^"']*["'][^>]*>\s*←\s*Work\s*<\/a>/gi, '');
   }
   if (html.includes('/portfolio-loader.js')) {
-    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260531-behance-spacing');
+    html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260601-squarespace-speed');
   } else {
-    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260531-behance-spacing"></script></body>');
+    html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body>');
   }
   res.setHeader('Cache-Control', 'no-cache');
   return res.type('html').send(html);
@@ -776,6 +777,7 @@ function publicProject(project) {
 }
 
 function publicHomePage(manifest, id) {
+  const identity = resolvePortfolioIdentity(manifest);
   const items = (manifest.projects || []).map((project, index) => {
     const thumb = project.thumbnail?.thumbSrc || project.thumbnail?.src || project.images?.[0]?.thumbSrc || project.images?.[0]?.src || '';
     return {
@@ -789,8 +791,8 @@ function publicHomePage(manifest, id) {
   });
   return {
     kind: 'home',
-    title: manifest.homeTitle || manifest.ownerName || manifest.siteTitle || 'Home',
-    homeIntro: manifest.homeIntro || '',
+    title: identity.ownerName || manifest.homeTitle || manifest.siteTitle || 'Home',
+    homeIntro: identity.homeIntro || '',
     slug: 'home',
     url: manifest.sourceUrl || '',
     images: [],
@@ -1230,11 +1232,12 @@ function projectSummary(project, id) {
 }
 
 function publicPortfolio(id, manifest, validation = null) {
+  const identity = resolvePortfolioIdentity(manifest);
   return {
     id,
-    siteTitle: manifest.siteTitle || '',
-    ownerName: manifest.ownerName || '',
-    homeIntro: manifest.homeIntro || '',
+    siteTitle: identity.ownerName || manifest.siteTitle || '',
+    ownerName: identity.ownerName || '',
+    homeIntro: identity.homeIntro || '',
     sourceUrl: manifest.sourceUrl || '',
     buildMode: manifest.buildMode || '',
     visualManager: visualManagerEnabled(manifest),
@@ -1252,10 +1255,11 @@ function publicPortfolio(id, manifest, validation = null) {
 }
 
 function publicPortfolioListItem(id, manifest) {
+  const identity = resolvePortfolioIdentity(manifest);
   return {
     id,
-    siteTitle: manifest.siteTitle || manifest.ownerName || 'Untitled portfolio',
-    ownerName: manifest.ownerName || '',
+    siteTitle: identity.ownerName || manifest.siteTitle || 'Untitled portfolio',
+    ownerName: identity.ownerName || '',
     sourceUrl: manifest.sourceUrl || '',
     buildMode: manifest.buildMode || '',
     visualManager: visualManagerEnabled(manifest),
