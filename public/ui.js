@@ -68,6 +68,67 @@ if (switcher && panels.length) {
   });
 }
 
+function initLandingMotion() {
+  const root = document.querySelector('.parallax-home');
+  if (!root) return;
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
+  const mobile = window.matchMedia('(max-width: 760px)').matches;
+  const revealItems = [...document.querySelectorAll('[data-reveal]')];
+  const parallaxItems = [...document.querySelectorAll('[data-parallax]')];
+
+  document.documentElement.classList.add('motion-ready');
+
+  if (reduceMotion) {
+    revealItems.forEach(item => item.classList.add('is-visible'));
+    return;
+  }
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      observer.unobserve(entry.target);
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+
+  revealItems.forEach(item => observer.observe(item));
+
+  let scrollFrame = 0;
+  const renderParallax = () => {
+    const scrollY = window.scrollY;
+    const mobileFactor = mobile ? 0.55 : 1;
+    parallaxItems.forEach(item => {
+      const speed = Number(item.dataset.parallaxSpeed || 0);
+      item.style.setProperty('--parallax-y', `${Math.round(scrollY * speed * mobileFactor)}px`);
+    });
+    scrollFrame = 0;
+  };
+  const requestParallax = () => {
+    if (!scrollFrame) scrollFrame = window.requestAnimationFrame(renderParallax);
+  };
+
+  renderParallax();
+  window.addEventListener('scroll', requestParallax, { passive: true });
+
+  if (finePointer && switcher) {
+    switcher.addEventListener('pointermove', event => {
+      const box = switcher.getBoundingClientRect();
+      const x = (event.clientX - box.left) / box.width - 0.5;
+      const y = (event.clientY - box.top) / box.height - 0.5;
+      switcher.style.setProperty('--stage-tilt-x', `${(-y * 2.2).toFixed(2)}deg`);
+      switcher.style.setProperty('--stage-tilt-y', `${(x * 2.8).toFixed(2)}deg`);
+    });
+    switcher.addEventListener('pointerleave', () => {
+      switcher.style.setProperty('--stage-tilt-x', '0deg');
+      switcher.style.setProperty('--stage-tilt-y', '0deg');
+    });
+  }
+}
+
+initLandingMotion();
+
 function setStep(stage){
   const s = String(stage).toLowerCase();
   const map = s.includes('scan') ? 'scan' : s.includes('crawl') || s.includes('analyz') || s.includes('organizing') ? 'crawl' : s.includes('asset') || s.includes('download') || s.includes('saving') ? 'assets' : s.includes('build') || s.includes('generate') ? 'build' : s.includes('validat') ? 'validate' : s.includes('zip') ? 'zip' : '';

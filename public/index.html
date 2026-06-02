@@ -27,12 +27,20 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css" />
+  <link rel="stylesheet" href="/ui.css?v=20260602-parallax" />
 </head>
-<body>
-  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+<body class="parallax-home">
+  <div class="landing-atmosphere" aria-hidden="true">
+    <div class="landing-grid" data-parallax data-parallax-speed="0.08"></div>
+    <div class="landing-wordmark landing-wordmark-a" data-parallax data-parallax-speed="-0.05">PORTFOLIO</div>
+    <div class="landing-wordmark landing-wordmark-b" data-parallax data-parallax-speed="0.1">BUILT FAST</div>
+    <div class="landing-stripe landing-stripe-a" data-parallax data-parallax-speed="-0.12"></div>
+    <div class="landing-stripe landing-stripe-b" data-parallax data-parallax-speed="0.16"></div>
+    <div class="landing-stripe landing-stripe-c" data-parallax data-parallax-speed="-0.08"></div>
+    <div class="landing-scanline"></div>
+  </div>
   <main class="shell dual-home-shell">
-    <nav class="topbar landing-topbar" aria-label="KillaWork">
+    <nav class="topbar landing-topbar" aria-label="KillaWork" data-reveal>
       <a class="logo" href="/">
         <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
         <span class="logo-text">KillaWork™</span>
@@ -44,7 +52,7 @@
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
-    <section class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options">
+    <section class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
       <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
         <div class="dual-panel-inner">
           <span class="section-tab">Import your portfolio</span>
@@ -136,7 +144,7 @@
       </div>
     </section>
 
-    <section class="proof-strip" aria-label="Agency proof" data-nosnippet>
+    <section class="proof-strip" aria-label="Agency proof" data-nosnippet data-reveal>
       <div class="proof-copy">
         <span>Trusted by creatives</span>
       </div>
@@ -148,38 +156,38 @@
       </div>
     </section>
 
-    <section class="comparison" data-nosnippet>
+    <section class="comparison" data-nosnippet data-reveal>
       <div class="comparison-copy">
         <span>Portfolio stack check</span>
         <h2>Why ad creatives use KillaWork™</h2>
       </div>
       <div class="comparison-table" role="table" aria-label="KillaWork versus Squarespace">
-        <div class="comparison-row comparison-head" role="row">
+        <div class="comparison-row comparison-head" role="row" data-reveal-item>
           <div role="columnheader">Need</div>
           <div role="columnheader">KillaWork™</div>
           <div role="columnheader">Generic builders</div>
         </div>
-        <div class="comparison-row" role="row">
+        <div class="comparison-row" role="row" data-reveal-item>
           <div role="cell">Cost and upkeep</div>
           <div class="plus" role="cell"><b>$5/mo.</b></div>
           <div class="minus" role="cell"><b>Up to $25/mo.</b></div>
         </div>
-        <div class="comparison-row" role="row">
+        <div class="comparison-row" role="row" data-reveal-item>
           <div role="cell">Import an existing book</div>
           <div class="plus" role="cell"><b>Built for migration.</b></div>
           <div class="minus" role="cell"><b>Mostly manual.</b></div>
         </div>
-        <div class="comparison-row" role="row">
+        <div class="comparison-row" role="row" data-reveal-item>
           <div role="cell">Build from raw work</div>
           <div class="plus" role="cell"><b>Upload your ads &amp; AI builds your portfolio</b></div>
           <div class="minus" role="cell"><b>Blank canvas.</b></div>
         </div>
-        <div class="comparison-row" role="row">
+        <div class="comparison-row" role="row" data-reveal-item>
           <div role="cell">Ad portfolio fit</div>
           <div class="plus" role="cell"><b>Made for campaigns.</b></div>
           <div class="minus" role="cell"><b>Made for websites.</b></div>
         </div>
-        <div class="comparison-row" role="row">
+        <div class="comparison-row" role="row" data-reveal-item>
           <div role="cell">After generation</div>
           <div class="plus" role="cell"><b>Edit, preview, export.</b></div>
           <div class="minus" role="cell"><b>Edit from scratch.</b></div>
@@ -187,7 +195,7 @@
       </div>
     </section>
 
-    <section class="purchase-block" aria-label="Pricing and trust" data-nosnippet>
+    <section class="purchase-block" aria-label="Pricing and trust" data-nosnippet data-reveal>
       <div class="section-kicker">Pricing</div>
       <div class="pricing-layout">
         <article class="pricing-card">
@@ -199,15 +207,15 @@
           <a class="button hot" href="#urlInput">Start for $5/mo</a>
         </article>
         <div class="pricing-list">
-          <div><b>Import existing portfolio</b><span>Pull in work pages, images, films, PDFs, titles, and project structure.</span></div>
-          <div><b>Build from raw work</b><span>Upload campaign assets and let AI organize them into portfolio-ready pages.</span></div>
-          <div><b>Edit, preview, export</b><span>Fix copy, review pages, share previews, manage projects, and download the site.</span></div>
-          <div><b>Cancel anytime</b><span>Your work stays yours. Keep access to edits, previews, and exports.</span></div>
+          <div data-reveal-item><b>Import existing portfolio</b><span>Pull in work pages, images, films, PDFs, titles, and project structure.</span></div>
+          <div data-reveal-item><b>Build from raw work</b><span>Upload campaign assets and let AI organize them into portfolio-ready pages.</span></div>
+          <div data-reveal-item><b>Edit, preview, export</b><span>Fix copy, review pages, share previews, manage projects, and download the site.</span></div>
+          <div data-reveal-item><b>Cancel anytime</b><span>Your work stays yours. Keep access to edits, previews, and exports.</span></div>
         </div>
       </div>
     </section>
 
-    <section class="before-after" aria-label="Before and after" data-nosnippet>
+    <section class="before-after" aria-label="Before and after" data-nosnippet data-reveal>
       <div class="before-after-col">
         <span>Before</span>
         <h2>Manual portfolio upkeep.</h2>
@@ -220,29 +228,29 @@
       </div>
     </section>
 
-    <section class="faq-section" aria-label="Frequently asked questions" data-nosnippet>
+    <section class="faq-section" aria-label="Frequently asked questions" data-nosnippet data-reveal>
       <div class="section-kicker">FAQ</div>
       <div class="faq-grid">
-        <details>
+        <details data-reveal-item>
           <summary>Can I cancel anytime?</summary>
           <p>Yes. The plan is month to month, and you can export your portfolio files when you need them.</p>
         </details>
-        <details>
+        <details data-reveal-item>
           <summary>Can I edit imported pages?</summary>
           <p>Yes. After import, you can review pages, change copy, manage projects, and preview the result.</p>
         </details>
-        <details>
+        <details data-reveal-item>
           <summary>What files can it handle?</summary>
           <p>Images, campaign boards, videos, audio/radio spots, PDFs, and existing project-page assets.</p>
         </details>
-        <details>
+        <details data-reveal-item>
           <summary>Which platforms can it import from?</summary>
           <p>It is built around portfolio-style sites and creative profiles from Behance, Squarespace, Wix, Cargo, Carbonmade, and Webflow.</p>
         </details>
       </div>
     </section>
 
-    <section class="ownership-note" data-nosnippet>
+    <section class="ownership-note" data-nosnippet data-reveal>
       <b>Your work stays yours.</b>
       <span>Build a polished creative portfolio or import from Squarespace or Behance in minutes, not days.</span>
     </section>
@@ -253,7 +261,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/ui.js?v=20260531-conversion'));
+    import('/auth.js?v=20260524-popup').then(() => import('/ui.js?v=20260602-parallax'));
   </script>
 </body>
 </html>
