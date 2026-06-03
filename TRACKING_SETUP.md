@@ -99,6 +99,18 @@ Trigger in code: signup_complete
 
 Do not also create a Google Ads conversion tag in GTM for `signup_complete`, or sign-ups may be counted twice.
 
+KillaWork fires the confirmed subscription purchase conversion directly from `public/tracking.js` when Stripe confirms Checkout on the return to `/manage.html`.
+
+Direct subscription conversion:
+
+```text
+Conversion ID: AW-18188860218
+Conversion Label: Zp-LCJf73rYcELr2j-FD
+Trigger in code: subscription_purchase
+```
+
+Do not also create a Google Ads conversion tag in GTM for `subscription_purchase`, or purchases may be counted twice.
+
 Create Google Ads conversion tags in GTM for the remaining funnel events and connect them to matching Custom Event triggers.
 
 Recommended funnel conversions:
@@ -111,16 +123,6 @@ Recommended funnel conversions:
 | Secondary | `hero_cta_click` |
 | Secondary | `upload_start` |
 | Secondary | `pricing_view` |
-
-For the confirmed Stripe subscription purchase:
-
-1. Create a Google Ads Conversion Tracking tag.
-2. Conversion ID: `AW-18188860218`.
-3. Conversion Label: `Zp-LCJf73rYcELr2j-FD`.
-4. Trigger: Custom Event `subscription_purchase`.
-5. Set **Transaction ID** to the Data Layer Variable `transaction_id`.
-6. Set **Conversion Value** to the Data Layer Variable `value`.
-7. Set **Currency Code** to the Data Layer Variable `currency`.
 
 KillaWork pushes `subscription_purchase` only after Stripe confirms the subscription and deduplicates it in the browser using the Stripe Checkout session ID.
 

@@ -3,6 +3,7 @@
   const defaultContainerId = 'GTM-NDCKPZ6Z';
   const googleAdsId = 'AW-18188860218';
   const signupConversionLabel = 'h929CMCvj7gcELr2j-FD';
+  const purchaseConversionLabel = 'Zp-LCJf73rYcELr2j-FD';
   const privateKeys = new Set(['email', 'phone', 'phone_number', 'user_name', 'username', 'full_name', 'first_name', 'last_name']);
   const isDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   let googleAdsConfigured = false;
@@ -20,6 +21,7 @@
     const safe = safeParams(params);
     dataLayer.push({ event: eventName, ...safe });
     if (eventName === 'signup_complete') trackSignupConversion();
+    if (eventName === 'subscription_purchase') trackPurchaseConversion(safe);
     if (isDevelopment) console.log(`[tracking] ${eventName}`, safe);
   }
 
@@ -45,6 +47,16 @@
       send_to: `${googleAdsId}/${signupConversionLabel}`,
       value: 1.0,
       currency: 'AED'
+    });
+  }
+
+  function trackPurchaseConversion(params = {}) {
+    configureGoogleAds();
+    window.gtag('event', 'conversion', {
+      send_to: `${googleAdsId}/${purchaseConversionLabel}`,
+      value: Number(params.value) || 5.0,
+      currency: params.currency || 'USD',
+      transaction_id: params.transaction_id || ''
     });
   }
 
