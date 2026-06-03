@@ -32,7 +32,7 @@ function publicPreviewUrl(jobId, path = 'index.html') {
 }
 
 async function loadAuth() {
-  if (!window.KillerWorkAuth) await import(/* @vite-ignore */ '/auth.js?v=20260524-popup');
+  if (!window.KillerWorkAuth) await import(/* @vite-ignore */ '/auth.js?v=20260602-gtm');
   return window.KillerWorkAuth;
 }
 

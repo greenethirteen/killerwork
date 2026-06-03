@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260603-gtm"></script>
   <title>Build from Work Files — KillaWork™</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/ui.css?v=20260601-preview-highlight" />
 </head>
 <body class="build-page">
-  <main class="builder-shell work-builder-shell">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <main class="builder-shell work-builder-shell" data-clarity-mask="true">
     <nav class="topbar landing-topbar" aria-label="KillaWork">
       <a class="logo" href="/">
         <picture>
@@ -181,7 +183,7 @@
     </article>
   </template>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/build.js?v=20260601-portfolio-identity'));
+    import('/auth.js?v=20260602-gtm').then(() => import('/build.js?v=20260602-gtm'));
   </script>
 </body>
 </html>

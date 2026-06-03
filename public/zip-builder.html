@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260603-gtm"></script>
   <title>ZIP Builder Lab — KillaWork™</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/ui.css?v=20260601-zip-builder" />
 </head>
 <body class="zip-builder-page">
-  <main class="zip-builder-shell">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <main class="zip-builder-shell" data-clarity-mask="true">
     <nav class="topbar landing-topbar" aria-label="KillaWork">
       <a class="logo" href="/">
         <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" />
@@ -134,7 +136,7 @@
   </template>
 
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/zip-builder.js?v=20260601-lab'));
+    import('/auth.js?v=20260602-gtm').then(() => import('/zip-builder.js?v=20260602-gtm'));
   </script>
 </body>
 </html>

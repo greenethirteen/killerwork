@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260603-gtm"></script>
   <title>KillaWork™ Project Manager</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
   <link rel="stylesheet" href="/ui.css" />
 </head>
 <body>
-  <main class="manager-shell">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <main class="manager-shell" data-clarity-mask="true">
     <nav class="topbar manager-topbar" aria-label="KillaWork">
       <a class="logo manager-logo" href="/">
         <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
@@ -33,7 +35,7 @@
     <section id="projectList" class="project-manager-list"></section>
   </main>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/manage.js?v=20260531-conversion'));
+    import('/auth.js?v=20260602-gtm').then(() => import('/manage.js?v=20260602-gtm'));
   </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-import { setupPublishControl } from './publish.js?v=20260531-conversion';
-import { bindProtectedZipLink } from './billing.js?v=20260531-conversion';
+import { setupPublishControl } from './publish.js?v=20260602-gtm';
+import { bindProtectedZipLink } from './billing.js?v=20260602-gtm';
 
 const form = document.getElementById('importForm');
 const uploadForm = document.getElementById('uploadForm');
@@ -28,6 +28,31 @@ const panels = [...document.querySelectorAll('.dual-panel')];
 let timer;
 let activeButton = startBtn;
 let currentJobId = '';
+
+function track(name, params = {}) {
+  window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
+}
+
+document.querySelectorAll('.dual-panel-build .button, .purchase-block .button').forEach(link => {
+  link.addEventListener('click', () => track('secondary_cta_click', {
+    cta_text: link.textContent.trim(),
+    location: link.closest('.purchase-block') ? 'pricing' : 'hero'
+  }));
+});
+startBtn?.addEventListener('click', () => track('hero_cta_click', {
+  cta_text: startBtn.textContent.trim(),
+  location: 'hero'
+}));
+
+const pricing = document.querySelector('.purchase-block');
+if (pricing) {
+  const pricingObserver = new IntersectionObserver(entries => {
+    if (!entries.some(entry => entry.isIntersecting)) return;
+    track('pricing_view');
+    pricingObserver.disconnect();
+  }, { threshold: 0.35 });
+  pricingObserver.observe(pricing);
+}
 
 const publishControl = setupPublishControl({
   control: document.getElementById('publishControl'),
@@ -177,7 +202,6 @@ async function poll(id){
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  window.KillerWorkAnalytics?.track('import_click', { event_category: 'import', event_label: urlInput.value });
   activeButton = startBtn;
   actions.classList.add('hidden');
   publishControl.hide();
@@ -231,10 +255,12 @@ if (uploadForm) {
     body.append('title', uploadTitle.value || '');
     body.append('aiCleanup', '1');
     [...uploadFiles.files].forEach(file => body.append('files', file));
+    track('upload_start', { file_count: uploadFiles.files.length, upload_type: 'campaign_files' });
 
     const res = await fetch('/api/upload-build', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
     const data = await res.json().catch(() => ({}));
     if(!res.ok){ detail.textContent = data.error || 'Could not start upload build'; buildUploadBtn.disabled=false; buildUploadBtn.textContent='Try again'; return; }
+    track('upload_success', { file_count: uploadFiles.files.length, upload_type: 'campaign_files' });
     clearInterval(timer);
     timer = setInterval(() => poll(data.id), 1000);
     poll(data.id);

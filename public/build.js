@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260531-conversion';
+import { setupPublishControl } from './publish.js?v=20260602-gtm';
 
 const form = document.getElementById('campaignBuilder');
 const dashboard = document.getElementById('portfolioDashboard');
@@ -26,6 +26,10 @@ let optimisticProgressTimer;
 let currentJobId = '';
 let latestPortfolio = null;
 let buildPortfolios = [];
+
+function track(name, params = {}) {
+  window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
+}
 
 function setProgress(percent = 0) {
   const normalized = Math.max(0, Math.min(100, Math.round(percent)));
@@ -393,6 +397,7 @@ form.addEventListener('submit', async event => {
     showProgressError('Upload at least one asset.');
     return;
   }
+  track('upload_start', { file_count: totalFiles, upload_type: 'campaign_files' });
 
   const body = new FormData();
   if (currentJobId) {
@@ -424,6 +429,7 @@ form.addEventListener('submit', async event => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not add portfolio page.');
+      track('upload_success', { file_count: totalFiles, upload_type: 'campaign_files' });
       await finishProgress('Portfolio page added', `${data.page?.title || campaign.title} is now in your portfolio.`);
       closeBuilder();
       hideProgress();
@@ -468,6 +474,7 @@ form.addEventListener('submit', async event => {
     buildCampaigns.textContent = 'Try again';
     return;
   }
+  track('upload_success', { file_count: totalFiles, upload_type: 'campaign_files' });
   clearInterval(timer);
   timer = setInterval(() => poll(data.id), 1000);
   poll(data.id);

@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260531-conversion';
+import { setupPublishControl } from './publish.js?v=20260602-gtm';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');

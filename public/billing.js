@@ -7,7 +7,7 @@ async function authHeaders(json = false) {
 }
 
 function track(name, params = {}) {
-  window.KillerWorkAnalytics?.track?.(name, params);
+  window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
 }
 
 export async function startSubscriptionCheckout(setStatus) {
@@ -18,10 +18,10 @@ export async function startSubscriptionCheckout(setStatus) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data.error || 'Could not open subscription checkout.');
-  track('begin_checkout', {
-    value: 5,
+  track('checkout_start', {
+    plan_name: 'KillaWork monthly subscription',
+    price: 5,
     currency: 'USD',
-    items: [{ item_id: 'killawork-monthly', item_name: 'KillaWork monthly subscription', price: 5, quantity: 1 }]
   });
   window.location.assign(data.url);
 }
@@ -42,8 +42,7 @@ export async function trackSubscriptionCheckoutReturn(setStatus) {
   if (!res.ok || !data.confirmed) throw new Error(data.error || 'Could not confirm your subscription.');
   const storageKey = `killerwork:subscription-conversion:${sessionId}`;
   if (!localStorage.getItem(storageKey)) {
-    track('conversion', {
-      send_to: data.googleAdsSendTo,
+    track('subscription_purchase', {
       value: data.value,
       currency: data.currency,
       transaction_id: data.transactionId

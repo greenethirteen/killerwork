@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260531-conversion';
+import { setupPublishControl } from './publish.js?v=20260602-gtm';
 
 const panels = [...document.querySelectorAll('[data-step-panel]')];
 const markers = [...document.querySelectorAll('[data-step-marker]')];
@@ -24,6 +24,10 @@ let currentJobId = '';
 let timer;
 let selectedTemplate = 'editorial-grid';
 let campaigns = [];
+
+function track(name, params = {}) {
+  window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
+}
 
 function showStep(step) {
   panels.forEach(panel => panel.classList.toggle('hidden', panel.dataset.stepPanel !== step));
@@ -128,10 +132,12 @@ uploadForm.addEventListener('submit', async event => {
   try {
     const body = new FormData();
     body.append('zip', file);
+    track('upload_start', { file_count: 1, upload_type: 'portfolio_zip' });
     const authToken = await token();
     const response = await fetch('/api/zip-builder/analyze', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` }, body });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'Could not analyse the ZIP.');
+    track('upload_success', { file_count: 1, upload_type: 'portfolio_zip' });
     sessionId = data.sessionId;
     campaigns = data.campaigns || [];
     renderCampaigns();
@@ -161,6 +167,7 @@ document.getElementById('zipTemplateGrid').addEventListener('click', event => {
   const button = event.target.closest('[data-template]');
   if (!button) return;
   selectedTemplate = button.dataset.template;
+  track('template_selected', { template_id: selectedTemplate });
   document.querySelectorAll('[data-template]').forEach(item => item.classList.toggle('selected', item === button));
 });
 

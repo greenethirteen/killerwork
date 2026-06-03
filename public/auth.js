@@ -3,6 +3,7 @@ import {
   GoogleAuthProvider,
   browserLocalPersistence,
   getAuth,
+  getAdditionalUserInfo,
   onAuthStateChanged,
   setPersistence,
   signInWithPopup,
@@ -13,38 +14,18 @@ const manageLatestLinks = [...document.querySelectorAll('[data-manage-latest]')]
 const authLinks = [...document.querySelectorAll('[data-auth-link]')];
 const logoutButtons = [...document.querySelectorAll('[data-auth-logout]')];
 const userBadges = [...document.querySelectorAll('[data-user-badge]')];
-const GOOGLE_ADS_ID = 'AW-18188860218';
 let authInstance = null;
 let authReadyResolve;
 let authReadyDone = false;
 let authStateSettled = false;
 const authReady = new Promise(resolve => { authReadyResolve = resolve; });
 
-function initGoogleAdsTag() {
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = window.gtag || function gtag() { window.dataLayer.push(arguments); };
-  if (!document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}"]`)) {
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`;
-    document.head.appendChild(script);
-  }
-  if (!window.__killerworkGoogleAdsConfigured) {
-    window.gtag('js', new Date());
-    window.gtag('config', GOOGLE_ADS_ID);
-    window.__killerworkGoogleAdsConfigured = true;
-  }
+function trackEvent(name, params = {}) {
+  window.KillerWorkTracking?.trackEvent?.(name, params);
 }
 
-function trackGoogleAdsEvent(name, params = {}) {
-  initGoogleAdsTag();
-  window.gtag('event', name, { send_to: GOOGLE_ADS_ID, ...params });
-}
-
-initGoogleAdsTag();
 window.KillerWorkAnalytics = {
-  track: trackGoogleAdsEvent,
-  googleAdsId: GOOGLE_ADS_ID
+  track: trackEvent
 };
 
 function resolveAuthReady() {
@@ -68,7 +49,10 @@ async function signInWithGooglePopup(auth) {
   const user = result?.user || auth.currentUser;
   if (user) {
     setSignedIn(user);
-    trackGoogleAdsEvent('sign_in', { method: 'Google' });
+    trackEvent('sign_in', { page_path: window.location.pathname, method: 'google' });
+    if (getAdditionalUserInfo(result)?.isNewUser) {
+      trackEvent('signup_complete', { page_path: window.location.pathname, method: 'google' });
+    }
   }
   resolveAuthReady();
   return user;
@@ -146,6 +130,7 @@ async function initFirebaseAuth() {
   authLinks.forEach(link => {
     link.addEventListener('click', async event => {
       event.preventDefault();
+      trackEvent('signup_start', { page_path: window.location.pathname, source_section: 'header' });
       link.setAttribute('aria-busy', 'true');
       try {
         await signInWithGooglePopup(auth);

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260603-gtm"></script>
   <title>KillaWork™</title>
   <meta name="description" content="Build a polished creative portfolio or import from Squarespace or Behance in minutes, not days." />
   <meta name="robots" content="index,follow,max-snippet:160,max-image-preview:large" />
@@ -27,17 +28,14 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260602-parallax" />
+  <link rel="stylesheet" href="/ui.css?v=20260603-clean-depth" />
 </head>
 <body class="parallax-home">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
   <div class="landing-atmosphere" aria-hidden="true">
     <div class="landing-grid" data-parallax data-parallax-speed="0.08"></div>
     <div class="landing-wordmark landing-wordmark-a" data-parallax data-parallax-speed="-0.05">PORTFOLIO</div>
     <div class="landing-wordmark landing-wordmark-b" data-parallax data-parallax-speed="0.1">BUILT FAST</div>
-    <div class="landing-stripe landing-stripe-a" data-parallax data-parallax-speed="-0.12"></div>
-    <div class="landing-stripe landing-stripe-b" data-parallax data-parallax-speed="0.16"></div>
-    <div class="landing-stripe landing-stripe-c" data-parallax data-parallax-speed="-0.08"></div>
-    <div class="landing-scanline"></div>
   </div>
   <main class="shell dual-home-shell">
     <nav class="topbar landing-topbar" aria-label="KillaWork" data-reveal>
@@ -47,7 +45,7 @@
       </a>
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
-        <span data-user-badge class="user-badge hidden"></span>
+        <span data-user-badge class="user-badge hidden" data-clarity-mask="true"></span>
         <a data-auth-link class="top-signin" href="#">Sign in</a>
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
@@ -61,7 +59,7 @@
             <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
           </div>
           <p>Build a polished creative portfolio or import from Squarespace or Behance<br class="mobile-break"> in minutes, not days.</p>
-          <form id="importForm" class="url-form">
+          <form id="importForm" class="url-form" data-clarity-mask="true">
             <input id="urlInput" type="url" placeholder="www.kapilbhimekar.com" required />
             <button id="startBtn" type="submit">Start import</button>
           </form>
@@ -261,7 +259,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260524-popup').then(() => import('/ui.js?v=20260602-parallax'));
+    import('/auth.js?v=20260602-gtm').then(() => import('/ui.js?v=20260602-gtm'));
   </script>
 </body>
 </html>

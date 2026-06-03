@@ -53,6 +53,15 @@ app.get('*', serveCustomDomainIfMapped);
 app.get(['/published/:subdomain', '/published/:subdomain/*'], servePublishedSite);
 app.get('*', serveKillaWorkHost);
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(root, 'public', 'favicon-logo-144.png')));
+app.get('/api/tracking-config', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ containerId: process.env.GTM_CONTAINER_ID || 'GTM-NDCKPZ6Z' });
+});
+app.get('/gtm-noscript.html', (req, res) => {
+  const containerId = String(process.env.GTM_CONTAINER_ID || 'GTM-NDCKPZ6Z');
+  if (!/^GTM-[A-Z0-9]+$/i.test(containerId)) return res.status(204).end();
+  res.redirect(302, `https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(containerId)}`);
+});
 app.use('/', express.static(path.join(root, 'public'), {
   setHeaders: (res, filePath) => {
     if (/\.(?:js|css|png|jpe?g|webp|avif|svg)$/i.test(filePath)) {
@@ -94,8 +103,6 @@ const firebaseAdmin = firebaseAccount ? admin.initializeApp({
 }) : null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const stripeMonthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1Tb1w7CE6bX7hMAXXOoILehR';
-const googleAdsId = 'AW-18188860218';
-const googleAdsSubscriptionConversionLabel = process.env.GOOGLE_ADS_SUBSCRIPTION_CONVERSION_LABEL || 'Zp-LCJf73rYcELr2j-FD';
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function firebaseWebConfig() {
@@ -1458,8 +1465,7 @@ app.get('/api/billing/checkout-session/:sessionId', requireFirebaseAuth, async (
       confirmed: true,
       transactionId: session.id,
       value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 5,
-      currency: String(session.currency || 'usd').toUpperCase(),
-      googleAdsSendTo: `${googleAdsId}/${googleAdsSubscriptionConversionLabel}`
+      currency: String(session.currency || 'usd').toUpperCase()
     });
   } catch (err) {
     console.error('Stripe checkout confirmation failed', err);
