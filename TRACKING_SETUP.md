@@ -83,13 +83,27 @@ transaction_id
 
 ## Google Ads Conversion Tags
 
-Create Google Ads conversion tags and connect them to matching Custom Event triggers.
+The confirmed sign-up conversion is fired directly by `public/tracking.js` when Firebase confirms a new account.
+
+Direct sign-up conversion:
+
+```text
+Conversion ID: AW-18188860218
+Conversion Label: h929CMCvj7gcELr2j-FD
+Value: 1.0
+Currency: AED
+Trigger in code: signup_complete
+```
+
+Do not also create a Google Ads conversion tag in GTM for `signup_complete`, or sign-ups may be counted twice.
+
+Create Google Ads conversion tags in GTM for the remaining funnel events and connect them to matching Custom Event triggers.
 
 Recommended funnel conversions:
 
 | Priority | Event |
 | --- | --- |
-| Primary | `signup_complete` |
+| Primary/Secondary, direct code conversion | `signup_complete` |
 | Primary | `upload_success` |
 | Primary | `checkout_start` |
 | Secondary | `hero_cta_click` |

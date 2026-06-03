@@ -1,8 +1,11 @@
 (function() {
   const dataLayer = window.dataLayer = window.dataLayer || [];
   const defaultContainerId = 'GTM-NDCKPZ6Z';
+  const googleAdsId = 'AW-18188860218';
+  const signupConversionLabel = 'h929CMCvj7gcELr2j-FD';
   const privateKeys = new Set(['email', 'phone', 'phone_number', 'user_name', 'username', 'full_name', 'first_name', 'last_name']);
   const isDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  let googleAdsConfigured = false;
 
   function safeParams(params = {}) {
     return Object.fromEntries(Object.entries(params).flatMap(([key, value]) => {
@@ -16,10 +19,34 @@
     if (!eventName) return;
     const safe = safeParams(params);
     dataLayer.push({ event: eventName, ...safe });
+    if (eventName === 'signup_complete') trackSignupConversion();
     if (isDevelopment) console.log(`[tracking] ${eventName}`, safe);
   }
 
   window.KillerWorkTracking = { trackEvent };
+
+  function configureGoogleAds() {
+    window.gtag = window.gtag || function() { dataLayer.push(arguments); };
+    if (googleAdsConfigured) return;
+    googleAdsConfigured = true;
+    if (!document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${googleAdsId}"]`)) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(googleAdsId)}`;
+      document.head.appendChild(script);
+    }
+    window.gtag('js', new Date());
+    window.gtag('config', googleAdsId);
+  }
+
+  function trackSignupConversion() {
+    configureGoogleAds();
+    window.gtag('event', 'conversion', {
+      send_to: `${googleAdsId}/${signupConversionLabel}`,
+      value: 1.0,
+      currency: 'AED'
+    });
+  }
 
   fetch('/api/tracking-config')
     .then(response => response.json())
