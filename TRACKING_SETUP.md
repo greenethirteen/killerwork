@@ -1,6 +1,8 @@
 # KillaWork Tracking Setup
 
-KillaWork loads Google Tag Manager once on product pages. Google Ads, GA4, and Microsoft Clarity should be configured inside GTM instead of being added as separate website scripts.
+KillaWork loads Google Tag Manager once on product pages. GA4 and Microsoft Clarity should be configured inside GTM instead of being added as separate website scripts.
+
+KillaWork also loads the Google Ads base tag directly for `AW-18188860218` on product pages so Google Ads can detect the sign-up conversion action. The conversion hit itself is still fired only after Firebase confirms a new account.
 
 Generated customer portfolio sites are intentionally excluded from KillaWork product analytics.
 

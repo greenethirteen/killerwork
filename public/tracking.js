@@ -48,6 +48,8 @@
     });
   }
 
+  configureGoogleAds();
+
   fetch('/api/tracking-config')
     .then(response => response.json())
     .then(({ containerId }) => {
