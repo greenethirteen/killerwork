@@ -84,10 +84,10 @@
 }
 
 .import-copy-flip{display:grid}
-.highlight-site{font-weight:900;text-shadow:0 0 12px rgba(255,255,255,.12)}
-.highlight-behance{color:var(--blue)}
-.highlight-squarespace{color:var(--gold)}
-.highlight-wix{color:var(--green)}
+.highlight-site{font-weight:900;text-shadow:0 0 20px rgba(255,255,255,.18)}
+.highlight-behance{color:#ff8ad4}
+.highlight-squarespace{color:#ffd166}
+.highlight-wix{color:#7bdff2}
 .dual-panel-import h1 .headline-second{display:block;white-space:normal}
 .import-copy-slide{
   grid-area:1/1;
