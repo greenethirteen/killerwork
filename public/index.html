@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="/tracking.js?v=20260604-clarity-direct"></script>
   <title>KillaWork™</title>
-  <meta name="description" content="Build a polished creative portfolio or import from Squarespace or Behance in minutes, not days." />
+  <meta name="description" content="Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days." />
   <meta name="robots" content="index,follow,max-snippet:160,max-image-preview:large" />
   <meta name="application-name" content="KillaWork™" />
   <link rel="canonical" href="https://killa.work/" />
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="KillaWork™" />
   <meta property="og:title" content="KillaWork™" />
-  <meta property="og:description" content="Build a polished creative portfolio or import from Squarespace or Behance in minutes, not days." />
+  <meta property="og:description" content="Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days." />
   <meta property="og:url" content="https://killa.work/" />
   <meta property="og:image" content="https://killa.work/logos/killa-work-logo.png" />
   <meta name="twitter:card" content="summary" />
@@ -28,7 +28,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260604-mobile-clarity" />
+  <link rel="stylesheet" href="/ui.css?v=20260604-conversion-showcase" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -55,10 +55,15 @@
         <div class="dual-panel-inner">
           <span class="section-tab">Import your portfolio</span>
           <div class="hero-headline-row">
-            <h1>Move your portfolio<br><span class="headline-second">out of <span class="site-flip" data-nosnippet aria-label="Squarespace, Behance, Wix, Carbonmade, Cargo, and Webflow"><span>Squarespace.</span><span>Behance.</span><span>Wix.</span><span>Carbonmade.</span><span>Cargo.</span><span>Webflow.</span></span></span></h1>
+            <h1>Move your portfolio<br><span class="headline-second">out of <span class="site-flip" data-nosnippet aria-label="Squarespace, Behance, and Cargo"><span>Squarespace.</span><span>Behance.</span><span>Cargo.</span></span></span></h1>
             <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
           </div>
-          <p>Build a polished creative portfolio or import from Squarespace or Behance<br class="mobile-break"> in minutes, not days.</p>
+          <p>Build a polished creative portfolio or import from Behance, Squarespace, or Cargo<br class="mobile-break"> in minutes, not days.</p>
+          <ol class="conversion-flow" aria-label="How KillaWork works">
+            <li><b>Import for free</b><span>Bring in your Behance or Squarespace portfolio.</span></li>
+            <li><b>Preview the polish</b><span>Review the generated portfolio before paying.</span></li>
+            <li><b>Pay $5 to publish</b><span>Go live when it looks right.</span></li>
+          </ol>
           <form id="importForm" class="url-form">
             <input id="urlInput" type="url" placeholder="www.kapilbhimekar.com" required data-clarity-mask="true" />
             <button id="startBtn" type="submit">Start import</button>
@@ -74,7 +79,8 @@
           <p><span>Drop in the work and let AI build</span><span>your portfolio in minutes, not days.</span></p>
           <div class="dual-actions">
             <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
-            <a class="button secondary zip-builder-test-link" href="/zip-builder.html">Try ZIP builder lab</a>
+            <a class="button secondary button-disabled zip-builder-test-link" href="#" aria-disabled="true" tabindex="-1">Try ZIP builder lab</a>
+            <span class="coming-soon-note">Coming soon</span>
           </div>
         </div>
       </article>
@@ -154,6 +160,49 @@
       </div>
     </section>
 
+    <section class="behance-import-showcase" aria-label="Behance import before and after" data-nosnippet data-reveal>
+      <div class="showcase-copy">
+        <span class="section-kicker">Behance import</span>
+        <h2>From profile grid to polished portfolio.</h2>
+        <p>KillaWork imports the work, keeps the campaign structure, and turns a Behance profile into a clean portfolio preview you can edit before publishing.</p>
+      </div>
+      <div class="showcase-stage">
+        <article class="behance-before" aria-label="Before Behance profile">
+          <div class="browser-bar"><b>Behance</b><span>Search...</span></div>
+          <div class="behance-profile-row">
+            <div class="avatar-demo"></div>
+            <div><h3>Gautam Wadher</h3><p>Creative Director</p><small>Dubai, United Arab Emirates</small></div>
+            <dl><div><dt>Project Views</dt><dd>40,346</dd></div><div><dt>Appreciations</dt><dd>4,610</dd></div></dl>
+          </div>
+          <div class="behance-tabs"><b>Work</b><span>Moodboards</span><span>Appreciations</span></div>
+          <div class="behance-grid-demo">
+            <figure class="demo-tile tile-ikea"><span>Ikea - Sustainability</span></figure>
+            <figure class="demo-tile tile-kino"><span>Kinokuniya - Lean on a book</span></figure>
+            <figure class="demo-tile tile-snickers"><span>Snickers - You're not you when you're hungry.</span></figure>
+            <figure class="demo-tile tile-mercedes"><span>Mercedes - Science of stability</span></figure>
+          </div>
+        </article>
+        <div class="showcase-arrow" aria-hidden="true">→</div>
+        <article class="killa-after" aria-label="After KillaWork portfolio">
+          <nav><b>Gautam Wadher</b><span>Work</span><span>About</span></nav>
+          <div class="after-hero">
+            <div class="after-portrait"></div>
+            <div>
+              <h3>Gautam<br>Wadher</h3>
+              <p class="after-role">Creative Director</p>
+              <p>I create ideas that move people and build brands. Work imported, cleaned up, and ready to publish.</p>
+            </div>
+          </div>
+          <h4>Featured Work</h4>
+          <div class="after-grid-demo">
+            <figure class="demo-tile tile-ikea"><span>Ikea - Sustainability</span></figure>
+            <figure class="demo-tile tile-kino"><span>Kinokuniya - Lean on a book</span></figure>
+            <figure class="demo-tile tile-snickers"><span>Snickers - You're not you when you're hungry.</span></figure>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section class="comparison" data-nosnippet data-reveal>
       <div class="comparison-copy">
         <span>Portfolio stack check</span>
@@ -200,9 +249,9 @@
           <div>
             <span class="pricing-label">KillaWork™ Portfolio</span>
             <h2>$5<span>/mo</span></h2>
-            <p>Import your existing portfolio or build one from raw campaign work, then edit and keep it online.</p>
+            <p>Import for free, preview your polished portfolio, then pay $5/month only when you are ready to publish.</p>
           </div>
-          <a class="button hot" href="#urlInput">Start for $5/mo</a>
+          <a class="button hot" href="#urlInput">Import for free</a>
         </article>
         <div class="pricing-list">
           <div data-reveal-item><b>Import existing portfolio</b><span>Pull in work pages, images, films, PDFs, titles, and project structure.</span></div>
@@ -243,19 +292,19 @@
         </details>
         <details data-reveal-item>
           <summary>Which platforms can it import from?</summary>
-          <p>It is built around portfolio-style sites and creative profiles from Behance, Squarespace, Wix, Cargo, Carbonmade, and Webflow.</p>
+          <p>It is built around portfolio-style sites and creative profiles from Behance, Squarespace, and Cargo.</p>
         </details>
       </div>
     </section>
 
     <section class="ownership-note" data-nosnippet data-reveal>
       <b>Your work stays yours.</b>
-      <span>Build a polished creative portfolio or import from Squarespace or Behance in minutes, not days.</span>
+      <span>Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days.</span>
     </section>
 
     <footer class="site-footer" data-nosnippet>
       <b>KillaWork™</b>
-      <span>Build a polished creative portfolio or import from Squarespace or Behance in minutes, not days.</span>
+      <span>Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days.</span>
     </footer>
   </main>
   <script type="module">
