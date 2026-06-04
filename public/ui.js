@@ -217,7 +217,7 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     detail.textContent = err.message || 'Sign in required.';
     startBtn.disabled = false;
-    startBtn.textContent = 'Start import';
+    startBtn.textContent = 'Import in 1 click';
     return;
   }
   startBtn.textContent = 'Importing...';
