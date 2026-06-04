@@ -84,6 +84,11 @@
 }
 
 .import-copy-flip{display:grid}
+.highlight-site{font-weight:900;text-shadow:0 0 12px rgba(255,255,255,.12)}
+.highlight-behance{color:var(--blue)}
+.highlight-squarespace{color:var(--gold)}
+.highlight-wix{color:var(--green)}
+.dual-panel-import h1 .headline-second{display:block;white-space:normal}
 .import-copy-slide{
   grid-area:1/1;
   display:grid;
