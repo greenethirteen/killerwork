@@ -105,11 +105,26 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const stripeMonthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1Tb1w7CE6bX7hMAXXOoILehR';
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
-function firebaseWebConfig() {
+function requestHostname(req) {
+  const forwardedHost = String(req?.get?.('x-forwarded-host') || '').split(',')[0].trim();
+  const host = forwardedHost || String(req?.get?.('host') || '').trim();
+  return host.replace(/:\d+$/, '').toLowerCase();
+}
+
+function firebaseAuthDomain(req) {
+  const configuredDomain = process.env.FIREBASE_AUTH_DOMAIN || '';
+  const hostname = requestHostname(req);
+  const defaultFirebaseDomain = firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : '';
+  if (configuredDomain && configuredDomain !== defaultFirebaseDomain) return configuredDomain;
+  if (hostname && !['localhost', '127.0.0.1'].includes(hostname)) return hostname;
+  return configuredDomain || defaultFirebaseDomain;
+}
+
+function firebaseWebConfig(req) {
   const projectId = process.env.FIREBASE_PROJECT_ID || firebaseProjectId;
   return {
     apiKey: process.env.FIREBASE_WEB_API_KEY || '',
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : ''),
+    authDomain: firebaseAuthDomain(req),
     projectId,
     appId: process.env.FIREBASE_WEB_APP_ID || '',
     measurementId: process.env.FIREBASE_MEASUREMENT_ID || ''
@@ -482,7 +497,7 @@ async function generatedMissingHandler(req, res) {
 }
 
 app.get('/api/firebase-config', (req, res) => {
-  const config = firebaseWebConfig();
+  const config = firebaseWebConfig(req);
   res.json({
     configured: !!(config.apiKey && config.authDomain && config.projectId),
     adminConfigured: !!firebaseAdmin,
