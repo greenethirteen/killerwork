@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260604-clarity-direct"></script>
+  <title>My Profile — KillaWork™</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
+  <link rel="stylesheet" href="/ui.css?v=20260604-profile" />
+</head>
+<body>
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <main class="profile-shell" data-clarity-mask="true">
+    <nav class="topbar manager-topbar" aria-label="KillaWork">
+      <a class="logo manager-logo" href="/">
+        <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
+        <span class="logo-text">KillaWork™</span>
+      </a>
+      <div class="topnav-actions">
+        <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
+        <a data-user-badge class="user-badge profile-link hidden" href="/profile.html"></a>
+        <a data-auth-link class="auth-button" href="#">Sign up / sign in</a>
+        <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
+      </div>
+    </nav>
+
+    <header class="profile-header">
+      <span class="section-tab">My profile</span>
+      <h1>Account</h1>
+      <p>Review your KillaWork sign-in details and subscription.</p>
+    </header>
+
+    <div id="profileStatus" class="editor-status">Loading profile...</div>
+
+    <section class="profile-layout">
+      <article class="profile-panel">
+        <h2>Profile</h2>
+        <dl class="profile-fields">
+          <div><dt>Name</dt><dd id="profileName">-</dd></div>
+          <div><dt>Email address</dt><dd id="profileEmail">-</dd></div>
+          <div><dt>Sign-in provider</dt><dd id="profileProvider">-</dd></div>
+        </dl>
+        <button id="resetPasswordButton" class="button secondary" type="button">Reset password</button>
+      </article>
+
+      <article class="profile-panel">
+        <h2>Subscription</h2>
+        <dl class="profile-fields">
+          <div><dt>Status</dt><dd id="subscriptionStatus">Checking...</dd></div>
+          <div><dt>Plan</dt><dd>KillaWork monthly</dd></div>
+        </dl>
+        <div class="profile-actions">
+          <button id="subscribeButton" class="button hot" type="button">Subscribe</button>
+          <button id="cancelSubscriptionButton" class="button danger-button" type="button">Cancel subscription</button>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script type="module">
+    import('/auth.js?v=20260604-profile').then(() => import('/profile.js?v=20260604-profile'));
+  </script>
+</body>
+</html>

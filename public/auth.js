@@ -5,6 +5,7 @@ import {
   getAuth,
   getAdditionalUserInfo,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   setPersistence,
   signInWithPopup,
   signOut
@@ -65,6 +66,17 @@ window.KillerWorkAuth = {
     const user = authInstance?.currentUser;
     return user ? user.getIdToken() : '';
   },
+  async currentUser() {
+    await authReady;
+    const user = authInstance?.currentUser;
+    return user ? {
+      uid: user.uid,
+      displayName: user.displayName || '',
+      email: user.email || '',
+      photoURL: user.photoURL || '',
+      providerId: user.providerData?.[0]?.providerId || ''
+    } : null;
+  },
   async requireToken() {
     await authReady;
     if (!authInstance) throw new Error('Firebase sign-in is not configured.');
@@ -77,6 +89,14 @@ window.KillerWorkAuth = {
   async authHeaders() {
     const token = await this.currentToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+  async sendPasswordReset() {
+    await authReady;
+    if (!authInstance) throw new Error('Firebase sign-in is not configured.');
+    const email = authInstance.currentUser?.email || '';
+    if (!email) throw new Error('No email address is available for this account.');
+    await sendPasswordResetEmail(authInstance, email);
+    return email;
   }
 };
 
@@ -109,6 +129,10 @@ function setSignedIn(user) {
   userBadges.forEach(badge => {
     badge.classList.remove('hidden');
     badge.textContent = user.displayName || user.email || 'Signed in';
+    if (badge.tagName === 'A') {
+      badge.href = '/profile.html';
+      badge.title = 'My profile';
+    }
   });
 }
 

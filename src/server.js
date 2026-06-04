@@ -1496,6 +1496,23 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
   }
 });
 
+app.post('/api/billing/portal', requireFirebaseAuth, async (req, res) => {
+  try {
+    if (!stripe) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
+    const customer = await stripeCustomerFor(req.user);
+    if (!customer) return res.status(404).json({ error: 'No billing customer exists for this account.', code: 'billing_customer_missing' });
+    const origin = requestOrigin(req);
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customer.id,
+      return_url: `${origin}/profile.html`
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Stripe billing portal failed', err);
+    res.status(503).json({ error: 'Could not open billing portal. Please try again.', code: 'billing_unavailable' });
+  }
+});
+
 app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
