@@ -1,6 +1,8 @@
 # KillaWork Tracking Setup
 
-KillaWork loads Google Tag Manager once on product pages. GA4 and Microsoft Clarity should be configured inside GTM instead of being added as separate website scripts.
+KillaWork loads Google Tag Manager once on product pages for GA4 and funnel tags.
+
+KillaWork also loads Microsoft Clarity directly from `public/tracking.js` using project ID `x0t08kbqi9`. Keep Clarity out of GTM unless the direct loader is removed first, or sessions may be duplicated.
 
 KillaWork also loads the Google Ads base tag directly for `AW-18188860218` on product pages so Google Ads can detect the sign-up conversion action. The conversion hit itself is still fired only after Firebase confirms a new account.
 
@@ -28,9 +30,8 @@ Create and publish these tags:
    - Trigger: `All Pages`.
 
 3. **Microsoft Clarity**
-   - Use the Microsoft Clarity GTM template or a Custom HTML tag containing the Clarity snippet.
+   - Do not add a Clarity tag in GTM while `public/tracking.js` loads Clarity directly.
    - Clarity project ID: `x0t08kbqi9`.
-   - Trigger: `All Pages`.
 
 ## Custom Event Triggers
 

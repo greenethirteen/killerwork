@@ -1,12 +1,14 @@
 (function() {
   const dataLayer = window.dataLayer = window.dataLayer || [];
   const defaultContainerId = 'GTM-NDCKPZ6Z';
+  const clarityProjectId = 'x0t08kbqi9';
   const googleAdsId = 'AW-18188860218';
   const signupConversionLabel = 'h929CMCvj7gcELr2j-FD';
   const purchaseConversionLabel = 'Zp-LCJf73rYcELr2j-FD';
   const privateKeys = new Set(['email', 'phone', 'phone_number', 'user_name', 'username', 'full_name', 'first_name', 'last_name']);
   const isDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   let googleAdsConfigured = false;
+  let clarityConfigured = false;
 
   function safeParams(params = {}) {
     return Object.fromEntries(Object.entries(params).flatMap(([key, value]) => {
@@ -26,6 +28,20 @@
   }
 
   window.KillerWorkTracking = { trackEvent };
+
+  function configureClarity() {
+    if (clarityConfigured || !clarityProjectId || isDevelopment) return;
+    clarityConfigured = true;
+    if (typeof window.clarity === 'function') return;
+    window.clarity = function() {
+      (window.clarity.q = window.clarity.q || []).push(arguments);
+    };
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.clarity.ms/tag/${encodeURIComponent(clarityProjectId)}`;
+    const firstScript = document.getElementsByTagName('script')[0];
+    firstScript.parentNode.insertBefore(script, firstScript);
+  }
 
   function configureGoogleAds() {
     window.gtag = window.gtag || function() { dataLayer.push(arguments); };
@@ -60,6 +76,7 @@
     });
   }
 
+  configureClarity();
   configureGoogleAds();
 
   fetch('/api/tracking-config')
