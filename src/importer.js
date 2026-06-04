@@ -1322,12 +1322,34 @@ async function getBehanceProfileImageFromHtml(url, profileName = '', progress) {
     const $ = cheerio.load(html);
     const candidates = $('img').map((_, node) => {
       const img = $(node);
+      const width = Number(img.attr('width')) || 0;
+      const height = Number(img.attr('height')) || 0;
       return {
         src: normalizeUrl(img.attr('src') || img.attr('data-src') || img.attr('data-image') || bestSrcsetUrl(img.attr('srcset') || img.attr('data-srcset')), behanceProjectsUrl(url)),
-        alt: textFromHtml(img.attr('alt') || '')
+        alt: textFromHtml(img.attr('alt') || ''),
+        className: textFromHtml(img.attr('class') || ''),
+        width,
+        height
       };
     }).get();
-    return candidates.find(img => img.src && !/\/projects\//i.test(img.src) && (/pps\.services\.adobe\.com|profile|avatar|portrait/i.test(`${img.src} ${img.alt}`) || (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase()))))?.src || '';
+    const scoreProfileImage = (img) => {
+      if (!img.src || /\/projects\//i.test(img.src)) return -Infinity;
+      const haystack = `${img.src} ${img.alt} ${img.className}`;
+      if (/banner|cover|header|background/i.test(haystack)) return -Infinity;
+      const ratio = img.width && img.height ? img.width / img.height : 0;
+      if (ratio && (ratio > 2.2 || ratio < 0.45)) return -Infinity;
+      let score = 0;
+      if (/pps\.services\.adobe\.com/i.test(img.src)) score += 100;
+      if (/avatar/i.test(haystack)) score += 70;
+      if (/profile|portrait|user|owner/i.test(haystack)) score += 35;
+      if (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase())) score += 20;
+      if (ratio && ratio > 0.75 && ratio < 1.35) score += 18;
+      return score;
+    };
+    return candidates
+      .map(img => ({ ...img, score: scoreProfileImage(img) }))
+      .filter(img => img.score > 0)
+      .sort((a, b) => b.score - a.score)[0]?.src || '';
   } catch (e) {
     progress?.('Profile image fallback warning', e.message);
     return '';
@@ -1487,12 +1509,32 @@ async function getBehanceProjects(page, url, progress) {
     const fields = [...new Set([...document.querySelectorAll('a[href*="/search/projects/"], a[href*="/galleries/"], a[href*="field="]')]
       .map(a => clean(a.innerText))
       .filter(text => text && text.length <= 42 && !/^(search|projects|galleries)$/i.test(text)))].slice(0, 6);
-    const profileImage = [...document.querySelectorAll('img')].map(img => ({
+    const profileImages = [...document.querySelectorAll('img')].map(img => ({
       src: abs(img.currentSrc || img.src || img.getAttribute('src') || ''),
       alt: clean(img.getAttribute('alt')),
+      className: clean(img.className || ''),
       width: img.naturalWidth || img.width || 0,
       height: img.naturalHeight || img.height || 0
-    })).find(img => img.src && !/\/projects\//i.test(img.src) && (/(avatar|user|profile|owners|portrait)/i.test(`${img.src} ${img.alt}`) || (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase()))));
+    }));
+    const scoreProfileImage = (img) => {
+      if (!img.src || /\/projects\//i.test(img.src)) return -Infinity;
+      const haystack = `${img.src} ${img.alt} ${img.className}`;
+      if (/banner|cover|header|background/i.test(haystack)) return -Infinity;
+      const ratio = img.width && img.height ? img.width / img.height : 0;
+      if (ratio && (ratio > 2.2 || ratio < 0.45)) return -Infinity;
+      let score = 0;
+      if (/pps\.services\.adobe\.com/i.test(img.src)) score += 100;
+      if (/avatar/i.test(haystack)) score += 70;
+      if (/profile|portrait|user|owner/i.test(haystack)) score += 35;
+      if (profileName && img.alt.toLowerCase().includes(profileName.toLowerCase())) score += 20;
+      if (ratio && ratio > 0.75 && ratio < 1.35) score += 18;
+      if (img.width >= 80 && img.height >= 80) score += 8;
+      return score;
+    };
+    const profileImage = profileImages
+      .map(img => ({ ...img, score: scoreProfileImage(img) }))
+      .filter(img => img.score > 0)
+      .sort((a, b) => b.score - a.score)[0];
     const usefulProfileLines = profileLines.filter(line => line.length > 2 && line.length < 90 && !isChromeLine(line));
     const role = usefulProfileLines.find(line => /\b(creative|director|copywriter|writer|designer|art director)\b/i.test(line)) || '';
     const location = usefulProfileLines.find(text => !/\b(Ogilvy|Saatchi|Thompson|JWT|BBDO|FP7|Burnett)\b/i.test(text) && /,\s*[A-Z][a-z]+|United|Bahrain|Dubai|London|New York|India|Sri Lanka|Canada|Australia|Germany|France|Spain|Singapore|Qatar|Saudi/i.test(text)) || '';

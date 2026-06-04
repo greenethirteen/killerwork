@@ -159,6 +159,9 @@
   .dual-switcher[data-active-panel="build"] .dual-panel-import h1{font-size:31px;line-height:.98}
   .headline-second{white-space:normal}
   .site-flip{min-width:0}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .site-flip{display:inline;perspective:none}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .site-flip span{display:none;animation:none;opacity:1;transform:none;filter:none}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .site-flip span:first-child{display:inline}
   .savings-badge{display:flex;width:100%;max-width:100%;min-width:0;padding:10px 14px 10px 30px;border-radius:18px;overflow:hidden}
   .savings-badge span{display:block;min-width:0;max-width:100%;white-space:normal;font-size:15px;line-height:1.16;overflow-wrap:break-word}
   .url-form input,.url-form button{width:100%;max-width:100%;min-width:0}
