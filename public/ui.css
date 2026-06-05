@@ -192,7 +192,8 @@
   .dual-panel{width:100%;max-width:100%;min-width:0;padding:28px 28px}
   .dual-panel-inner,.hero-headline-row,.url-form{width:100%;max-width:100%;min-width:0}
   .dual-switcher[data-active-panel="import"] .dual-panel-import h1,
-  .dual-switcher[data-active-panel="build"] .dual-panel-build h2{font-size:36px;line-height:.96;letter-spacing:-.06em}
+  .dual-switcher[data-active-panel="build"] .dual-panel-build h2{font-size:40px;line-height:.94;letter-spacing:-.06em}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-slide p{font-size:16px;line-height:1.28}
   .dual-switcher[data-active-panel="import"] .dual-panel-build h2,
   .dual-switcher[data-active-panel="build"] .dual-panel-import h1{font-size:31px;line-height:.98}
   .headline-second{white-space:normal}
