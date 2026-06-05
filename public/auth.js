@@ -109,6 +109,7 @@ function setSignedOut(message = '') {
   authLinks.forEach(link => {
     link.classList.remove('hidden');
     link.href = '#';
+    link.textContent = 'Sign up / Sign in';
     if (message) link.title = message;
   });
   manageLatestLinks.forEach(link => link.classList.add('hidden'));
@@ -127,11 +128,12 @@ function setSignedIn(user) {
   });
   logoutButtons.forEach(button => button.classList.remove('hidden'));
   userBadges.forEach(badge => {
+    const label = user.displayName || user.email || 'My profile';
     badge.classList.remove('hidden');
-    badge.textContent = user.displayName || user.email || 'Signed in';
+    badge.textContent = label;
     if (badge.tagName === 'A') {
       badge.href = '/profile.html';
-      badge.title = 'My profile';
+      badge.title = label === 'My profile' ? 'My profile' : `My profile: ${label}`;
     }
   });
 }

@@ -28,7 +28,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260605-import-copy-flip-v2" />
+  <link rel="stylesheet" href="/ui.css?v=20260605-import-mobile-nav-fix" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -46,7 +46,7 @@
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
-        <a data-auth-link class="top-signin" href="#">Sign in</a>
+        <a data-auth-link class="top-signin" href="#">Sign up / Sign in</a>
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
@@ -56,7 +56,7 @@
           <span class="section-tab">Import your portfolio</span>
           <div class="import-copy-flip" data-nosnippet aria-label="Behance, Squarespace, and Wix import messages">
             <div class="import-copy-slide">
-              <h1>Turn your <span class="highlight-site highlight-behance">Behance</span><br><span class="headline-second">portfolio into a pro site</span></h1>
+              <h1>Turn your <span class="highlight-site highlight-behance">Behance</span><br><span class="headline-second">page into a pro site</span></h1>
               <p>Import your work and launch a sharper portfolio in minutes.</p>
             </div>
             <div class="import-copy-slide">
@@ -69,11 +69,6 @@
             </div>
           </div>
           <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
-          <ol class="conversion-flow" aria-label="How KillaWork works">
-            <li><b>Import for free</b></li>
-            <li><b>Preview the polish</b></li>
-            <li><b>Pay $5 to publish</b></li>
-          </ol>
           <form id="importForm" class="url-form">
             <input id="urlInput" type="url" placeholder="www.kapilbhimekar.com" required data-clarity-mask="true" />
             <button id="startBtn" type="submit">Import in 1 click</button>
@@ -321,7 +316,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260603-ads-base2').then(() => import('/ui.js?v=20260605-import-copy-flip-v2'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260605-import-mobile-fix'));
   </script>
 </body>
 </html>
