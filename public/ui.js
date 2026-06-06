@@ -25,6 +25,8 @@ const downloadLink = document.getElementById('downloadLink');
 const steps = [...document.querySelectorAll('.step')];
 const switcher = document.querySelector('.dual-switcher');
 const panels = [...document.querySelectorAll('.dual-panel')];
+const importCopyFlip = document.querySelector('.import-copy-flip');
+const importCopySlides = [...document.querySelectorAll('.import-copy-slide')];
 let timer;
 let activeButton = startBtn;
 let currentJobId = '';
@@ -52,6 +54,23 @@ if (pricing) {
     pricingObserver.disconnect();
   }, { threshold: 0.35 });
   pricingObserver.observe(pricing);
+}
+
+function syncImportCopyHeight() {
+  if (!importCopyFlip || !importCopySlides.length) return;
+  const activeSlide = importCopySlides
+    .map(slide => ({ slide, opacity: Number(getComputedStyle(slide).opacity) || 0 }))
+    .sort((a, b) => b.opacity - a.opacity)[0]?.slide || importCopySlides[0];
+  const slideTop = activeSlide.getBoundingClientRect().top;
+  const lastChild = activeSlide.lastElementChild;
+  const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + activeSlide.scrollHeight;
+  importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(contentBottom - slideTop)}px`);
+}
+
+if (importCopyFlip && importCopySlides.length) {
+  syncImportCopyHeight();
+  window.addEventListener('resize', syncImportCopyHeight);
+  window.setInterval(syncImportCopyHeight, 250);
 }
 
 const publishControl = setupPublishControl({
@@ -235,7 +254,7 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     detail.textContent = err.message || 'Sign in required.';
     startBtn.disabled = false;
-    startBtn.textContent = 'Import';
+    startBtn.textContent = 'Import it';
     return;
   }
   startBtn.textContent = 'Importing...';

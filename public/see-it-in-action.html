@@ -7,7 +7,7 @@
   <title>See It In Action | KillaWork™</title>
   <meta name="description" content="See how KillaWork turns a Behance portfolio into a polished portfolio site." />
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260606-action-preview" />
+  <link rel="stylesheet" href="/ui.css?v=20260606-action-fullscreen" />
 </head>
 <body class="action-page">
   <main class="action-shell" aria-label="Before and after portfolio preview">
@@ -21,21 +21,22 @@
       </div>
     </header>
 
-    <section class="action-copy">
-      <span>Gautam Wadher</span>
-      <h1>From Behance profile to polished KillaWork portfolio</h1>
-    </section>
-
     <section class="action-preview-frame" data-preview-state="before">
       <div class="action-preview-track">
         <article class="action-preview-panel" aria-label="Before Behance portfolio">
           <a href="https://www.behance.net/gautamwadher" target="_blank" rel="noopener">
-            <img src="/showcase/gautam-before.jpg" alt="Gautam Wadher Behance portfolio before KillaWork import" />
+            <picture>
+              <source media="(max-width: 760px)" srcset="/showcase/gautam-before-mobile.jpg" />
+              <img src="/showcase/gautam-before.jpg" alt="Gautam Wadher Behance portfolio before KillaWork import" />
+            </picture>
           </a>
         </article>
         <article class="action-preview-panel" aria-label="After KillaWork portfolio">
           <a href="https://killa.work/generated/1780238978336-9b86b97ddce1/site/index.html" target="_blank" rel="noopener">
-            <img src="/showcase/gautam-after.jpg" alt="Gautam Wadher KillaWork portfolio after import" />
+            <picture>
+              <source media="(max-width: 760px)" srcset="/showcase/gautam-after-mobile.jpg" />
+              <img src="/showcase/gautam-after.jpg" alt="Gautam Wadher KillaWork portfolio after import" />
+            </picture>
           </a>
         </article>
       </div>
