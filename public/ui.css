@@ -406,3 +406,8 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 
 .dual-switcher[data-active-panel="build"] .dual-panel-build .collapsed-note{display:none}
 .dual-switcher[data-active-panel="build"] .dual-panel-build p{margin-top:-18px}
+
+@media(max-width:760px){
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{margin-bottom:10px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge{margin-bottom:6px}
+}
