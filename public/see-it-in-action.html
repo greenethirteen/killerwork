@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, follow" />
+  <title>See It In Action | KillaWork™</title>
+  <meta name="description" content="See how KillaWork turns a Behance portfolio into a polished portfolio site." />
+  <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
+  <link rel="stylesheet" href="/ui.css?v=20260606-action-preview" />
+</head>
+<body class="action-page">
+  <main class="action-shell" aria-label="Before and after portfolio preview">
+    <header class="action-topbar">
+      <a class="action-logo" href="/" aria-label="KillaWork home">
+        <img src="/logos/killa-work-logo.png" alt="KillaWork™" width="612" height="408" />
+      </a>
+      <div class="action-toggle" role="tablist" aria-label="Preview state">
+        <button class="active" type="button" data-preview-tab="before" role="tab" aria-selected="true">Before</button>
+        <button type="button" data-preview-tab="after" role="tab" aria-selected="false">After</button>
+      </div>
+    </header>
+
+    <section class="action-copy">
+      <span>Gautam Wadher</span>
+      <h1>From Behance profile to polished KillaWork portfolio</h1>
+    </section>
+
+    <section class="action-preview-frame" data-preview-state="before">
+      <div class="action-preview-track">
+        <article class="action-preview-panel" aria-label="Before Behance portfolio">
+          <a href="https://www.behance.net/gautamwadher" target="_blank" rel="noopener">
+            <img src="/showcase/gautam-before.jpg" alt="Gautam Wadher Behance portfolio before KillaWork import" />
+          </a>
+        </article>
+        <article class="action-preview-panel" aria-label="After KillaWork portfolio">
+          <a href="https://killa.work/generated/1780238978336-9b86b97ddce1/site/index.html" target="_blank" rel="noopener">
+            <img src="/showcase/gautam-after.jpg" alt="Gautam Wadher KillaWork portfolio after import" />
+          </a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const frame = document.querySelector('[data-preview-state]');
+      const buttons = [...document.querySelectorAll('[data-preview-tab]')];
+      const setState = state => {
+        frame.dataset.previewState = state;
+        buttons.forEach(button => {
+          const active = button.dataset.previewTab === state;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-selected', String(active));
+        });
+      };
+      buttons.forEach(button => button.addEventListener('click', () => setState(button.dataset.previewTab)));
+    })();
+  </script>
+</body>
+</html>

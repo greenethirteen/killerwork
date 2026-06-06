@@ -30,14 +30,14 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260606-splash-logo-only" />
+  <link rel="stylesheet" href="/ui.css?v=20260606-action-preview" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
   <section class="splash-intro" data-splash-intro aria-label="KillaWork introduction">
     <button class="splash-intro-dismiss" type="button" data-splash-dismiss aria-label="Enter KillaWork">
       <img src="/logos/killa-work-logo.png" alt="KillaWork™" width="612" height="408" />
-      <span>A better, simpler, affordable way to create and maintain your portfolio</span>
+      <span>A better, simpler, affordable way for portfolios</span>
     </button>
   </section>
   <script>
@@ -98,9 +98,10 @@
           </div>
           <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
           <form id="importForm" class="url-form">
-            <input id="urlInput" type="url" value="https://www.behance.net/gautamwadher" placeholder="https://yourportfolio.com" required data-clarity-mask="true" />
-            <button id="startBtn" type="submit">Start import</button>
+            <input id="urlInput" type="url" placeholder="Type your portfolio URL" required data-clarity-mask="true" />
+            <button id="startBtn" type="submit">Import</button>
           </form>
+          <a class="button secondary see-action-button" href="/see-it-in-action.html">See it in action</a>
         </div>
       </article>
 
@@ -343,7 +344,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-splash-intro'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-action-preview'));
   </script>
 </body>
 </html>
