@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260606-panel-spacing" />
+  <link rel="stylesheet" href="/ui.css?v=20260606-build-headline-cleanup" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -63,7 +63,7 @@
             </div>
             <div class="import-copy-slide">
               <h1>Import <span class="highlight-site highlight-squarespace">Squarespace</span><br><span class="headline-second">portfolios in a click</span></h1>
-              <p>Bring your existing site over without rebuilding it</p>
+              <p>Bring your site over without rebuilding it</p>
             </div>
             <div class="import-copy-slide">
               <h1>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-wix">Wix</span></span></h1>
@@ -73,7 +73,7 @@
           <div class="savings-badge"><span>Pay $5/mo here instead of up to $25/mo there.</span></div>
           <form id="importForm" class="url-form">
             <input id="urlInput" type="url" value="https://www.behance.net/gautamwadher" placeholder="https://yourportfolio.com" required data-clarity-mask="true" />
-            <button id="startBtn" type="submit">Import in 1 click</button>
+            <button id="startBtn" type="submit">Start import</button>
           </form>
         </div>
       </article>
@@ -100,20 +100,19 @@
       </div>
       <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
       <div class="steps">
-        <div class="step" data-step="scan">Scan homepage</div>
-        <div class="step" data-step="crawl">Crawl projects</div>
-        <div class="step" data-step="assets">Download assets</div>
-        <div class="step" data-step="build">Build site</div>
-        <div class="step" data-step="validate">Validate</div>
-        <div class="step" data-step="zip">ZIP</div>
+        <div class="step" data-step="scan">Read site</div>
+        <div class="step" data-step="crawl">Find work</div>
+        <div class="step" data-step="assets">Import media</div>
+        <div class="step" data-step="build">Build preview</div>
+        <div class="step" data-step="validate">Check pages</div>
+        <div class="step" data-step="zip">Ready</div>
       </div>
-      <pre id="logBox" class="logs"></pre>
       <div id="actions" class="actions hidden">
         <a id="previewLink" class="button" target="_blank">Preview site</a>
         <a id="manageLink" class="button secondary" target="_blank">Manage projects</a>
         <a id="editorLink" class="button secondary" target="_blank">AI edit</a>
-        <a id="reviewLink" class="button secondary" target="_blank">Review import</a>
-        <a id="manifestLink" class="button ghost" target="_blank">Manifest</a>
+        <a id="reviewLink" class="button secondary hidden" target="_blank">Review import</a>
+        <a id="manifestLink" class="button ghost hidden" target="_blank">Manifest</a>
         <a id="downloadLink" class="button hot">Download ZIP</a>
         <div id="publishControl" class="publish-control hidden" data-publish-domain="killa.work">
           <button class="button secondary" type="button" data-publish-toggle>Publish</button>
@@ -318,7 +317,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260605-import-mobile-fix'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-clean-progress'));
   </script>
 </body>
 </html>

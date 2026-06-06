@@ -160,23 +160,40 @@ function setStep(stage){
   steps.forEach(el => el.classList.toggle('active', el.dataset.step === map));
 }
 
+function friendlyProgress(stage = '', fallback = '') {
+  const text = String(stage).toLowerCase();
+  if (text.includes('fail')) return { title: 'Import needs attention', detail: fallback || 'Something stopped the import. Please try again.' };
+  if (text.includes('zip') || text.includes('ready')) return { title: 'Preparing your preview', detail: 'Getting your preview and download ready' };
+  if (text.includes('validat')) return { title: 'Checking the preview', detail: 'Making sure the pages are ready to view' };
+  if (text.includes('build') || text.includes('generate')) return { title: 'Building your preview', detail: 'Turning the imported work into a polished portfolio' };
+  if (text.includes('ai') || text.includes('cleanup')) return { title: 'Polishing the portfolio', detail: 'Cleaning up structure, titles, and copy' };
+  if (text.includes('asset') || text.includes('download') || text.includes('saving')) return { title: 'Importing the media', detail: 'Bringing images and videos into KillaWork' };
+  if (text.includes('project') || text.includes('crawl') || text.includes('found') || text.includes('organizing')) return { title: 'Finding the work', detail: 'Collecting projects and campaign structure' };
+  if (text.includes('scan') || text.includes('start')) return { title: 'Reading your portfolio', detail: 'Looking through the site and finding the work' };
+  return { title: 'Import running', detail: fallback || 'Your preview is being created' };
+}
+
 async function poll(id){
   const headers = await window.KillerWorkAuth.authHeaders();
   const res = await fetch(`/api/jobs/${id}`, { headers });
   const job = await res.json();
   const last = job.progress?.[job.progress.length-1];
+  const friendly = friendlyProgress(last?.stage, job.url);
   panel.classList.remove('hidden');
-  pill.textContent = job.status;
-  title.textContent = last?.stage || 'Import running';
-  detail.textContent = last?.detail || job.url;
+  pill.textContent = job.status === 'running' ? 'Working' : job.status;
+  title.textContent = friendly.title;
+  detail.textContent = friendly.detail;
   bar.style.width = `${job.percent || 0}%`;
   pct.textContent = `${job.percent || 0}%`;
-  logs.textContent = (job.progress || []).map(e => `[${new Date(e.at).toLocaleTimeString()}] ${e.stage}${e.detail ? ' — ' + e.detail : ''}`).join('\n');
-  logs.scrollTop = logs.scrollHeight;
+  if (logs) {
+    logs.textContent = '';
+  }
   setStep(last?.stage || '');
   if(job.status === 'done'){
     clearInterval(timer);
     pill.textContent = 'Complete';
+    title.textContent = 'Your preview is ready';
+    detail.textContent = 'Open it now, make edits, or publish when you are ready';
     actions.classList.remove('hidden');
     currentJobId = job.id;
     previewLink.href = job.links.preview;
@@ -194,7 +211,8 @@ async function poll(id){
   if(job.status === 'error'){
     clearInterval(timer);
     pill.textContent = 'Error';
-    detail.textContent = job.error || 'Import failed';
+    title.textContent = 'Import needs attention';
+    detail.textContent = job.error || 'Something stopped the import. Please try again.';
     activeButton.disabled = false;
     activeButton.textContent = 'Try again';
   }
@@ -205,19 +223,19 @@ form.addEventListener('submit', async (e) => {
   activeButton = startBtn;
   actions.classList.add('hidden');
   publishControl.hide();
-  logs.textContent = '';
+  if (logs) logs.textContent = '';
   panel.classList.remove('hidden');
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   startBtn.disabled = true;
   startBtn.textContent = 'Signing in...';
-  bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting import'; detail.textContent = urlInput.value;
+  bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Getting ready'; detail.textContent = 'We will sign you in and start building a preview';
   let token = '';
   try {
     token = await window.KillerWorkAuth.requireToken();
   } catch (err) {
     detail.textContent = err.message || 'Sign in required.';
     startBtn.disabled = false;
-    startBtn.textContent = 'Import in 1 click';
+    startBtn.textContent = 'Start import';
     return;
   }
   startBtn.textContent = 'Importing...';
@@ -235,7 +253,7 @@ if (uploadForm) {
     activeButton = buildUploadBtn;
     actions.classList.add('hidden');
     publishControl.hide();
-    logs.textContent = '';
+    if (logs) logs.textContent = '';
     panel.classList.remove('hidden');
     buildUploadBtn.disabled = true;
     buildUploadBtn.textContent = 'Signing in...';
