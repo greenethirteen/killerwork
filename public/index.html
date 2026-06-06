@@ -30,10 +30,37 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260606-build-headline-cleanup" />
+  <link rel="stylesheet" href="/ui.css?v=20260606-splash-intro" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <section class="splash-intro" data-splash-intro aria-label="KillaWork introduction">
+    <button class="splash-intro-dismiss" type="button" data-splash-dismiss aria-label="Enter KillaWork">
+      <img src="/logos/killa-work-logo.png" alt="KillaWork™" width="612" height="408" />
+      <strong>KillaWork™</strong>
+      <span>A better, simpler, affordable way to create and maintain your portfolio</span>
+    </button>
+  </section>
+  <script>
+    (() => {
+      const splash = document.querySelector('[data-splash-intro]');
+      if (!splash) return;
+      let dismissed = false;
+      const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        splash.classList.add('is-exiting');
+        window.setTimeout(() => splash.remove(), 720);
+      };
+      splash.querySelector('[data-splash-dismiss]')?.addEventListener('click', dismiss);
+      window.addEventListener('wheel', dismiss, { passive: true, once: true });
+      window.addEventListener('touchmove', dismiss, { passive: true, once: true });
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') dismiss();
+      });
+      window.setTimeout(dismiss, 1700);
+    })();
+  </script>
   <div class="landing-atmosphere" aria-hidden="true">
     <div class="landing-grid" data-parallax data-parallax-speed="0.08"></div>
     <div class="landing-wordmark landing-wordmark-a" data-parallax data-parallax-speed="-0.05">PORTFOLIO</div>
@@ -317,7 +344,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-clean-progress'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-splash-intro'));
   </script>
 </body>
 </html>

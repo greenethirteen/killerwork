@@ -349,6 +349,15 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 @media(max-width:760px){.zip-builder-shell{width:min(100% - 20px,680px)}.zip-builder-page .landing-topbar{margin-bottom:10px}.zip-builder-hero{padding-top:12px}.zip-builder-hero p{font-size:15px}.zip-builder-steps{grid-template-columns:1fr 1fr}.zip-builder-panel{padding:15px}.zip-upload-form,.zip-owner-fields,.zip-campaign-fields,.zip-template-grid{grid-template-columns:1fr}.zip-campaign-fields .wide{grid-column:auto}.zip-panel-head{display:block}.zip-panel-actions .button{flex:1}.zip-builder-panel .publish-panel{position:fixed;left:12px;right:12px;top:120px;width:auto}}
 
 /* Home-page motion system */
+.splash-intro{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:28px;background:radial-gradient(circle at 18% 12%,rgba(36,36,90,.9),transparent 34%),radial-gradient(circle at 82% 20%,rgba(93,27,85,.82),transparent 38%),#080910;color:#fffaf2;transition:opacity .58s ease,transform .72s cubic-bezier(.16,1,.3,1),visibility .58s ease}
+.splash-intro:before{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:72px 72px;mask-image:radial-gradient(circle at center,rgba(0,0,0,.72),transparent 72%);content:"";opacity:.38}
+.splash-intro-dismiss{position:relative;z-index:1;display:grid;justify-items:center;gap:14px;width:min(760px,100%);padding:0;border:0;background:transparent;color:inherit;text-align:center;cursor:pointer}
+.splash-intro-dismiss img{display:block;width:min(260px,54vw);height:auto;filter:drop-shadow(0 22px 28px rgba(0,0,0,.35));animation:splash-logo-rise .9s cubic-bezier(.16,1,.3,1) both}
+.splash-intro-dismiss strong{font-size:clamp(54px,9vw,126px);line-height:.88;font-weight:1000;letter-spacing:-.075em;animation:splash-copy-rise .9s .08s cubic-bezier(.16,1,.3,1) both}
+.splash-intro-dismiss span{max-width:720px;color:#e9e1d8;font-size:clamp(20px,3vw,34px);font-weight:850;line-height:1.12;letter-spacing:-.045em;animation:splash-copy-rise .9s .16s cubic-bezier(.16,1,.3,1) both}
+.splash-intro.is-exiting{opacity:0;transform:translateY(-34px) scale(.985);visibility:hidden;pointer-events:none}
+@keyframes splash-logo-rise{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes splash-copy-rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .parallax-home{position:relative;overflow-x:hidden;background:#080910}
 .landing-atmosphere{position:fixed;z-index:-1;inset:0;overflow:hidden;pointer-events:none;background:linear-gradient(145deg,#090b19 0%,#080910 42%,#180916 100%)}
 .landing-atmosphere:before{position:absolute;inset:0;background:linear-gradient(105deg,rgba(48,57,139,.42),transparent 38%,rgba(98,16,77,.38));content:""}
@@ -389,6 +398,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .parallax-home .dual-panel{border-radius:14px}
 }
 @media(prefers-reduced-motion:reduce){
+  .splash-intro,.splash-intro-dismiss img,.splash-intro-dismiss strong,.splash-intro-dismiss span{animation:none;transition:none}
   .landing-grid,.landing-wordmark{transform:none!important}
   .parallax-home .landing-topbar .logo-image{animation:none}
   .motion-ready [data-reveal],.motion-ready [data-reveal-item]{opacity:1;transform:none;transition:none}
