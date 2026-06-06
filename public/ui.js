@@ -60,6 +60,7 @@ function syncImportCopyHeight() {
   if (!importCopyFlip || !importCopySlides.length) return;
   const activeSlide = importCopySlides
     .map(slide => ({ slide, opacity: Number(getComputedStyle(slide).opacity) || 0 }))
+    .filter(entry => entry.opacity > 0.05)
     .sort((a, b) => b.opacity - a.opacity)[0]?.slide || importCopySlides[0];
   const slideTop = activeSlide.getBoundingClientRect().top;
   const lastChild = activeSlide.lastElementChild;
@@ -68,7 +69,7 @@ function syncImportCopyHeight() {
 }
 
 if (importCopyFlip && importCopySlides.length) {
-  syncImportCopyHeight();
+  requestAnimationFrame(syncImportCopyHeight);
   window.addEventListener('resize', syncImportCopyHeight);
   window.setInterval(syncImportCopyHeight, 250);
 }

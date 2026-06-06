@@ -82,7 +82,7 @@
   letter-spacing:0;
 }
 
-.import-copy-flip{position:relative;display:block;height:var(--import-copy-height,auto)}
+.import-copy-flip{position:relative;display:block;height:var(--import-copy-height,210px)}
 .highlight-site{font-weight:900;text-shadow:0 0 20px rgba(255,255,255,.18)}
 .highlight-behance{color:#ff8ad4}
 .highlight-squarespace{color:#ffd166}
@@ -412,7 +412,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .dual-switcher[data-active-panel="build"] .dual-panel-build p{margin-top:0}
 .dual-panel .url-form{grid-template-columns:1fr;gap:14px}
 .import-action-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.import-action-row button,.import-action-row .button{width:100%;min-height:62px}
+.import-action-row button,.import-action-row .button{width:100%;min-height:62px;font-size:16px;font-weight:950;line-height:1;letter-spacing:0}
 .see-action-button{width:100%}
 .dual-switcher[data-active-panel="build"] .dual-panel-import .see-action-button{display:none}
 @keyframes importCopyFlip{
@@ -439,6 +439,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 
 @media(max-width:760px){
   .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{min-height:0;margin-bottom:0}
+  .import-copy-flip{height:var(--import-copy-height,180px)}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-slide{gap:8px}
   .import-action-row{gap:10px}
   .import-action-row button,.import-action-row .button{min-height:54px;padding:14px 16px}
