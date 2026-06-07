@@ -54,6 +54,8 @@
 
 .dual-home-shell{padding-top:12px}.dual-switcher{margin-top:12px}.logo-image{max-height:142px;max-width:260px}.landing-topbar .logo-image{max-height:134px;max-width:250px}.publish-panel{width:min(430px,calc(100vw - 34px))}.publish-divider{display:flex;align-items:center;gap:10px;margin:16px 0 12px;color:var(--muted);font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}.publish-divider:before,.publish-divider:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.12)}.custom-domain-block form{display:grid;gap:12px}.custom-domain-block[data-enabled="false"]{opacity:.68}.custom-domain-block[data-enabled="false"] .custom-domain-instructions{display:block;color:var(--muted)}.custom-domain-block input:disabled,.custom-domain-block button:disabled{cursor:not-allowed;opacity:.58}@media(max-width:760px){.dual-home-shell{padding-top:12px}.dual-switcher{margin-top:10px}.landing-topbar .logo-image,.logo-image{max-height:112px;max-width:210px}}
 
+.home-opening-header{display:grid;gap:10px;max-width:1040px;margin:10px 0 20px;padding-left:4px}.home-opening-header h1{max-width:980px;margin:0;font-size:clamp(48px,7vw,96px);line-height:.9;letter-spacing:-.07em}.home-opening-header p{max-width:800px;margin:0;color:#e6ded5;font-size:clamp(18px,2.2vw,28px);line-height:1.25;letter-spacing:-.02em}@media(max-width:760px){.home-opening-header{gap:8px;margin:6px 0 18px;padding-left:0}.home-opening-header h1{font-size:clamp(40px,12vw,54px);line-height:.92}.home-opening-header p{font-size:17px;line-height:1.32}}
+
 @media(max-width:760px){
   body{font-family:"Helvetica Neue",Arial,sans-serif}
   .dual-home-shell{width:100%;padding:8px 22px 46px}
