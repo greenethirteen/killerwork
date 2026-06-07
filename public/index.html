@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260606-action-preview" />
+  <link rel="stylesheet" href="/ui.css?v=20260606-home-previews" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -241,6 +241,97 @@
       </div>
     </section>
 
+    <section class="one-to-one-showcase" aria-label="Squarespace one to one import preview" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Squarespace import</span>
+        <h2>One-to-one imports for portfolio sites</h2>
+        <p>Move the same portfolio over without rebuilding the layout. Preview the original and the KillaWork import side by side in one place.</p>
+      </div>
+      <div class="one-to-one-frame" data-squarespace-preview="before">
+        <div class="one-to-one-controls" role="tablist" aria-label="Squarespace preview state">
+          <button class="active" type="button" data-squarespace-tab="before" role="tab" aria-selected="true">Before</button>
+          <button type="button" data-squarespace-tab="after" role="tab" aria-selected="false">After</button>
+        </div>
+        <div class="one-to-one-track">
+          <figure class="one-to-one-panel" aria-label="Before Squarespace site">
+            <picture>
+              <source media="(max-width: 760px)" srcset="/showcase/kapil-squarespace-mobile.jpg">
+              <img src="/showcase/kapil-squarespace.jpg" alt="Kapil Bhimekar Squarespace portfolio before import" loading="lazy">
+            </picture>
+            <figcaption>kapilbhimekar.com on Squarespace</figcaption>
+          </figure>
+          <figure class="one-to-one-panel" aria-label="After KillaWork import">
+            <picture>
+              <source media="(max-width: 760px)" srcset="/showcase/kapil-squarespace-mobile.jpg">
+              <img src="/showcase/kapil-squarespace.jpg" alt="Kapil Bhimekar portfolio after one-to-one KillaWork import" loading="lazy">
+            </picture>
+            <figcaption>Same page imported into KillaWork</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="workflow-preview" aria-label="KillaWork grid and editor previews" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Preview the system</span>
+        <h2>Grid, editor, preview, export</h2>
+        <p>KillaWork turns imported work into a project grid, then gives you a focused editor for copy, pages, preview links, and publishing.</p>
+      </div>
+      <div class="workflow-preview-grid">
+        <article class="workflow-card project-grid-card" aria-label="Project grid preview">
+          <div class="workflow-card-top"><span>Project grid</span><b>Imported work, organized</b></div>
+          <div class="mini-project-grid">
+            <figure><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="" loading="lazy"><figcaption>Ikea - Sustainability</figcaption></figure>
+            <figure><img src="/showcase/behance-gautam/kinokuniya-lean.jpg" alt="" loading="lazy"><figcaption>Kinokuniya</figcaption></figure>
+            <figure><img src="/showcase/behance-gautam/snickers.png" alt="" loading="lazy"><figcaption>Snickers</figcaption></figure>
+            <figure><img src="/showcase/behance-gautam/mercedes-parking.png" alt="" loading="lazy"><figcaption>Mercedes</figcaption></figure>
+          </div>
+        </article>
+        <article class="workflow-card editor-card" aria-label="Editor preview">
+          <div class="workflow-card-top"><span>Editor</span><b>Clean edits before publish</b></div>
+          <div class="mini-editor-shell">
+            <aside><b>Pages</b><span>Home</span><span>Work</span><span>About</span></aside>
+            <div class="mini-editor-main">
+              <label>Headline<input value="Craft till it hurts."></label>
+              <label>Project title<input value="NBA - The Great Indian Dunk"></label>
+              <label>Intro copy<textarea>Imported layout, cleaned assets, and editable copy.</textarea></label>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="publish-howto" aria-label="How publishing works" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Publish</span>
+        <h2>Preview for free. Publish when it is ready.</h2>
+        <p>Import your portfolio, review the generated site, then publish on a KillaWork link or connect your own domain when you are ready to go live.</p>
+      </div>
+      <div class="publish-steps">
+        <article data-reveal-item>
+          <span>1</span>
+          <b>Import or build</b>
+          <p>Bring in Behance, Squarespace, Wix, or raw campaign files and generate a private preview.</p>
+        </article>
+        <article data-reveal-item>
+          <span>2</span>
+          <b>Edit the site</b>
+          <p>Use the editor to clean titles, copy, pages, project order, and portfolio details before launch.</p>
+        </article>
+        <article data-reveal-item>
+          <span>3</span>
+          <b>Publish for $5/month</b>
+          <p>Choose a KillaWork URL, share the live link, or connect a custom domain from the publish panel.</p>
+        </article>
+      </div>
+      <div class="publish-panel-demo" aria-label="Publish panel preview">
+        <div class="publish-demo-head"><span>Publish panel</span><b>Go live</b></div>
+        <label><span>Your KillaWork URL</span><div>kapilbhimekar.killa.work</div></label>
+        <label><span>Custom domain</span><div>www.kapilbhimekar.com</div></label>
+        <button type="button">Publish site</button>
+      </div>
+    </section>
+
     <section class="comparison" data-nosnippet data-reveal>
       <div class="comparison-copy">
         <span>Portfolio stack check</span>
@@ -346,7 +437,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-action-preview'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260606-home-previews'));
   </script>
 </body>
 </html>

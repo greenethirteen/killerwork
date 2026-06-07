@@ -27,6 +27,8 @@ const switcher = document.querySelector('.dual-switcher');
 const panels = [...document.querySelectorAll('.dual-panel')];
 const importCopyFlip = document.querySelector('.import-copy-flip');
 const importCopySlides = [...document.querySelectorAll('.import-copy-slide')];
+const squarespacePreview = document.querySelector('[data-squarespace-preview]');
+const squarespaceTabs = [...document.querySelectorAll('[data-squarespace-tab]')];
 let timer;
 let activeButton = startBtn;
 let currentJobId = '';
@@ -72,6 +74,21 @@ if (importCopyFlip && importCopySlides.length) {
   requestAnimationFrame(syncImportCopyHeight);
   window.addEventListener('resize', syncImportCopyHeight);
   window.setInterval(syncImportCopyHeight, 250);
+}
+
+if (squarespacePreview && squarespaceTabs.length) {
+  squarespaceTabs.forEach(button => {
+    button.addEventListener('click', () => {
+      const state = button.dataset.squarespaceTab;
+      squarespacePreview.dataset.squarespacePreview = state;
+      squarespaceTabs.forEach(tab => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
+      track('squarespace_preview_toggle', { state });
+    });
+  });
 }
 
 const publishControl = setupPublishControl({
