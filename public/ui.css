@@ -476,6 +476,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .url-form input{padding:12px 16px;border-radius:18px;font-size:15px}
   .import-action-row{gap:10px}
   .import-action-row button,.import-action-row .button{min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px}
+  .dual-actions .button{width:max-content;min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1}
   .dual-switcher[data-active-panel="import"] .dual-panel-build{min-height:0;padding:22px 28px 10px}
   .dual-switcher[data-active-panel="import"] .dual-panel-build .dual-panel-inner{height:auto;gap:9px}
   .dual-switcher[data-active-panel="import"] .dual-panel-build .collapsed-note{max-height:20px;font-size:12px;line-height:1;margin-bottom:0}
