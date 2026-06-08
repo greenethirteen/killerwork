@@ -467,7 +467,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .dual-panel{padding:22px 28px}
   .dual-panel-inner{gap:10px}
   .section-tab{padding:7px 11px;font-size:10px}
-  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:126px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:104px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:36px;line-height:.92}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-slide p{font-size:14px;line-height:1.18}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge{margin-bottom:0;padding:8px 12px 8px 28px;border-radius:16px}
@@ -476,13 +476,13 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .url-form input{padding:12px 16px;border-radius:18px;font-size:15px}
   .import-action-row{gap:10px}
   .import-action-row button,.import-action-row .button{min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px}
-  .dual-switcher[data-active-panel="import"] .dual-panel-build{min-height:0;padding:22px 28px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-build{min-height:0;padding:22px 28px 10px}
   .dual-switcher[data-active-panel="import"] .dual-panel-build .dual-panel-inner{height:auto;gap:9px}
-  .dual-switcher[data-active-panel="import"] .dual-panel-build .collapsed-note{max-height:20px;font-size:12px;line-height:1}
+  .dual-switcher[data-active-panel="import"] .dual-panel-build .collapsed-note{max-height:20px;font-size:12px;line-height:1;margin-bottom:0}
 }
 
 @media(max-width:340px){
-  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:154px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:136px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:33px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge{padding-left:20px;padding-right:8px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge:before{left:8px;width:6px;height:6px;box-shadow:0 0 0 4px rgba(140,255,193,.18)}
