@@ -396,7 +396,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .motion-ready .is-visible [data-reveal-item]:nth-child(5){transition-delay:.28s}
 .motion-ready .is-visible [data-reveal-item]:nth-child(6){transition-delay:.35s}
 @keyframes landing-logo-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-@media(max-width:560px){.splash-intro-dismiss{grid-template-columns:1fr;justify-items:center;align-content:center;gap:12px;width:min(360px,100%);padding:28px;text-align:center}.splash-intro-dismiss img{width:min(228px,60vw);margin:0 auto}.splash-intro-dismiss span{max-width:300px;margin:0 auto;padding:12px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.14);font-size:clamp(16px,4.6vw,19px);line-height:1.12}}
+@media(max-width:560px){.splash-intro-dismiss{grid-template-columns:1fr;justify-items:center;align-content:center;gap:12px;width:min(318px,calc(100% - 34px));padding:28px;text-align:center}.splash-intro-dismiss img{width:min(206px,54vw);margin:0 auto}.splash-intro-dismiss span{max-width:260px;margin:0 auto;padding:12px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.14);font-size:clamp(16px,4.6vw,19px);line-height:1.12}}
 @media(max-width:760px){
   .landing-grid{background-size:48px 48px;opacity:.25}
   .landing-wordmark{font-size:128px;-webkit-text-stroke-color:rgba(255,255,255,.055)}
