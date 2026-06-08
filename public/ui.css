@@ -477,6 +477,11 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .import-action-row{gap:10px}
   .import-action-row button,.import-action-row .button{min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px}
   .dual-actions .button{width:max-content;min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1}
+  .dual-switcher[data-active-panel="build"] .dual-panel-import{min-height:0;padding:22px 28px}
+  .dual-switcher[data-active-panel="build"] .dual-panel-import .dual-panel-inner{height:auto;gap:10px;align-content:start}
+  .dual-switcher[data-active-panel="build"] .dual-panel-import .import-copy-flip{height:58px;min-height:0;margin-bottom:0}
+  .dual-switcher[data-active-panel="build"] .dual-panel-import h1{font-size:28px;line-height:.96}
+  .dual-switcher[data-active-panel="build"] .dual-panel-import .headline-second:after{content:none}
   .dual-switcher[data-active-panel="import"] .dual-panel-build{min-height:0;padding:22px 28px 10px}
   .dual-switcher[data-active-panel="import"] .dual-panel-build .dual-panel-inner{height:auto;gap:9px}
   .dual-switcher[data-active-panel="import"] .dual-panel-build .collapsed-note{max-height:20px;font-size:12px;line-height:1;margin-bottom:0}
@@ -484,6 +489,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 
 @media(max-width:340px){
   .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:136px}
+  .dual-switcher[data-active-panel="build"] .dual-panel-import .import-copy-flip{height:72px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:33px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge{padding-left:20px;padding-right:8px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge:before{left:8px;width:6px;height:6px;box-shadow:0 0 0 4px rgba(140,255,193,.18)}
