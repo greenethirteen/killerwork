@@ -59,6 +59,12 @@ zipInput.addEventListener('change', () => {
   }
 });
 
+// Auto-resize prompt textarea
+promptInput.addEventListener('input', () => {
+  promptInput.style.height = 'auto';
+  promptInput.style.height = `${Math.min(promptInput.scrollHeight, 120)}px`;
+});
+
 // ── Auth helpers ──────────────────────────────────────────────────────────
 function track(name, params = {}) {
   window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
@@ -95,10 +101,6 @@ function setActionLink(link, href) {
 
 function setBusy(isBusy) {
   submitBtn.disabled = isBusy;
-  submitBtn.querySelector('span') && (submitBtn.querySelector('span').textContent = isBusy ? 'Building...' : 'Build My Portfolio');
-  if (!submitBtn.querySelector('span')) {
-    submitBtn.childNodes.forEach(n => { if (n.nodeType === 3) n.textContent = isBusy ? ' Building...' : ' Build My Portfolio'; });
-  }
   form.classList.toggle('is-building', isBusy);
 }
 
