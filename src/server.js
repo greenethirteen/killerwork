@@ -11,6 +11,7 @@ import { runImport, generateSite, validateSite, zipDir, resolvePortfolioIdentity
 import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { analyzePortfolioZip, stagedFilesForBuild } from './zipBuilder.js';
+import { runPortfolioStudioBuild } from './portfolioStudio.js';
 import { hash, safeSlug } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -655,6 +656,74 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
     job.error = e.stack || e.message;
     job.progress.push({ stage: 'Build failed', detail: e.message, at: new Date().toISOString() });
     await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+  }
+});
+
+app.post('/api/portfolio-studio/build', requireFirebaseAuth, zipUpload.single('zip'), async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'Upload one ZIP file.' });
+  const name = String(req.body?.name || '').trim();
+  const jobTitle = String(req.body?.jobTitle || '').trim();
+  const linkedin = String(req.body?.linkedin || '').trim();
+  const style = String(req.body?.style || 'straightforward').trim();
+  const prompt = String(req.body?.prompt || '').trim().slice(0, 4000);
+  if (!prompt) {
+    await fs.remove(file.path).catch(() => {});
+    return res.status(400).json({ error: 'Describe the portfolio you want to build.' });
+  }
+
+  const id = `${Date.now()}-${hash(`${req.user.uid}:${name}:${jobTitle}:${linkedin}:${style}:${prompt}:${file.originalname}:${file.size}`)}`;
+  const outDir = jobDir(id);
+  const job = { id, url: 'portfolio-studio', aiCleanup: true, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  jobs.set(id, job);
+  res.json({ id });
+
+  const stages = ['Reading upload', 'ZIP analyzed', 'AI planning site', 'Creating code project', 'Portfolio code ready', 'Validating output', 'Validation passed', 'Validation warnings', 'ZIP ready'];
+  const updatePercent = (stage) => {
+    const index = stages.findIndex(item => stage.startsWith(item));
+    if (index >= 0) job.percent = Math.max(job.percent, Math.round(((index + 1) / stages.length) * 100));
+  };
+
+  try {
+    const result = await runPortfolioStudioBuild({
+      zipPath: file.path,
+      outDir,
+      name,
+      jobTitle,
+      linkedin,
+      style,
+      prompt,
+      onProgress: (event) => {
+        updatePercent(event.stage);
+        job.progress.push(event);
+        if (job.progress.length > 300) job.progress.shift();
+      }
+    });
+    attachOwner(result.manifest, req.user);
+    await fs.writeJson(path.join(outDir, 'manifest.json'), result.manifest, { spaces: 2 });
+    await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), result.manifest, { spaces: 2 });
+    job.progress.push({ stage: 'Validating output', detail: 'Checking generated links and local assets', at: new Date().toISOString() });
+    updatePercent('Validating output');
+    const validation = await validateSite(result.siteDir);
+    job.progress.push({ stage: validation.ok ? 'Validation passed' : 'Validation warnings', detail: validation.ok ? 'No missing local assets found' : `${validation.errors.length} issue(s) found`, at: new Date().toISOString() });
+    updatePercent(validation.ok ? 'Validation passed' : 'Validation warnings');
+    await zipDir(result.siteDir, path.join(outDir, 'site.zip'));
+    job.progress.push({ stage: 'ZIP ready', detail: 'Portfolio package created', at: new Date().toISOString() });
+    updatePercent('ZIP ready');
+    job.status = 'done';
+    job.percent = 100;
+    job.links = {
+      preview: `/generated/${id}/site/index.html`,
+      manifest: `/generated/${id}/manifest.json`,
+      validation: `/generated/${id}/reports/validation.json`,
+      zip: `/api/download/${id}`
+    };
+  } catch (error) {
+    job.status = 'error';
+    job.error = error.stack || error.message;
+    job.progress.push({ stage: 'Build failed', detail: error.message, at: new Date().toISOString() });
+  } finally {
+    await fs.remove(file.path).catch(() => {});
   }
 });
 

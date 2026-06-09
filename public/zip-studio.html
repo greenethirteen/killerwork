@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260604-clarity-direct"></script>
+  <title>ZIP Studio - KillaWork™</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/ui.css?v=20260609-zip-studio" />
+</head>
+<body class="zip-studio-page">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <main class="studio-shell" data-clarity-mask="true">
+    <aside class="studio-rail" aria-label="Workspace navigation">
+      <a href="/" class="studio-rail-mark" title="KillaWork home">K</a>
+      <span class="studio-rail-dot active"></span>
+      <span class="studio-rail-dot"></span>
+      <span class="studio-rail-dot"></span>
+    </aside>
+
+    <section class="studio-agent" aria-label="AI website builder">
+      <header class="studio-agent-head">
+        <div>
+          <a class="studio-back" href="/">KillaWork™</a>
+          <h1>Portfolio Studio</h1>
+        </div>
+        <div class="studio-auth">
+          <a data-manage-latest class="hidden" href="/manage.html">Manage</a>
+          <span data-user-badge class="user-badge hidden"></span>
+          <a data-auth-link class="top-signin" href="#">Sign in</a>
+          <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <div id="studioFeed" class="studio-feed" aria-live="polite">
+        <article class="studio-message assistant">
+          <span>Builder</span>
+          <p>Tell me what kind of advertising portfolio you want, add your name and title, then upload one ZIP of your work. I’ll analyze the assets, generate a custom site, and open it in the preview.</p>
+        </article>
+        <article class="studio-checklist">
+          <b>What this builds</b>
+          <ul>
+            <li>Standalone HTML/CSS/JS portfolio</li>
+            <li>Custom art direction from your prompt</li>
+            <li>Project pages from ZIP folders and files</li>
+            <li>Preview, code studio, publish, and download</li>
+          </ul>
+        </article>
+      </div>
+
+      <form id="studioForm" class="studio-composer">
+        <div class="studio-identity-row">
+          <label><span>Name</span><input id="studioName" autocomplete="name" placeholder="Jane Doe" /></label>
+          <label><span>Job title</span><input id="studioTitle" autocomplete="organization-title" placeholder="Creative Director" /></label>
+          <label><span>LinkedIn</span><input id="studioLinkedin" autocomplete="url" placeholder="https://linkedin.com/in/janedoe" /></label>
+        </div>
+        <div class="studio-style-row" role="radiogroup" aria-label="Portfolio style">
+          <label>
+            <input type="radio" name="studioStyle" value="straightforward" checked />
+            <span><b>Straightforward</b><small>Clean work-first portfolio</small></span>
+          </label>
+          <label>
+            <input type="radio" name="studioStyle" value="parallax" />
+            <span><b>Parallax</b><small>Visual, immersive, high-impact</small></span>
+          </label>
+        </div>
+        <textarea id="studioPrompt" placeholder="Describe the site you want. Example: Build a bold senior creative portfolio for automotive and culture work. Make it punchy, premium, and very visual." required></textarea>
+        <div class="studio-file-row">
+          <label class="studio-file-button">
+            <input id="studioZip" type="file" accept=".zip,application/zip" required />
+            <span>Attach ZIP</span>
+          </label>
+          <small id="studioZipName">No ZIP selected</small>
+          <button id="studioSubmit" type="submit">Build</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="studio-workspace" aria-label="Portfolio preview workspace">
+      <header class="studio-topbar">
+        <div class="studio-tabs">
+          <span class="studio-tab active">Preview</span>
+          <span class="studio-tab">Tools & files</span>
+        </div>
+        <div class="studio-actions">
+          <a id="studioOpenEditor" class="studio-icon-link disabled" target="_blank" rel="noreferrer" title="Open code studio">Code</a>
+          <a id="studioDownload" class="studio-icon-link disabled" title="Download ZIP">ZIP</a>
+          <div id="studioPublishControl" class="publish-control studio-publish-control hidden" data-publish-domain="killa.work">
+            <button type="button" data-publish-toggle>Publish</button>
+            <div class="publish-panel hidden" data-publish-panel>
+              <form data-publish-form>
+                <label><span>Portfolio URL</span><div class="publish-url-field"><input data-publish-input type="text" placeholder="your-name" autocomplete="off" /><b>.killa.work</b></div></label>
+                <button data-publish-submit type="submit">Publish</button>
+              </form>
+              <p class="publish-result hidden" data-publish-result></p>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div class="studio-browser">
+        <div class="studio-browser-bar">
+          <span></span><span></span><span></span>
+          <b id="studioAddress">portfolio preview</b>
+        </div>
+        <div id="studioPreviewEmpty" class="studio-preview-empty">
+          <strong>Ready for a ZIP</strong>
+          <p>Your generated portfolio preview will appear here while the build log runs on the left.</p>
+        </div>
+        <iframe id="studioPreview" class="hidden" title="Generated portfolio preview"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import('/auth.js?v=20260603-ads-base2').then(() => import('/zip-studio.js?v=20260609-zip-studio'));
+  </script>
+</body>
+</html>
