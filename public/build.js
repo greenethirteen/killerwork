@@ -252,7 +252,8 @@ function plusTile(index = 0) {
   const tile = document.createElement('article');
   const classes = ['tile-nike', 'tile-cold', 'tile-flora', 'tile-social', 'tile-pitch', 'tile-car'];
   tile.className = `portfolio-tile ${classes[index % classes.length]}`;
-  tile.innerHTML = '<button type="button" data-open-builder aria-label="Add project">+</button>';
+  const label = index === 0 ? '<span class="tile-first-label">Add your first project</span>' : '';
+  tile.innerHTML = `<button type="button" data-open-builder aria-label="Add project">+</button>${label}`;
   tile.querySelector('button').addEventListener('click', openBuilder);
   return tile;
 }

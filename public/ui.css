@@ -530,3 +530,4 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge:before{left:8px;width:6px;height:6px;box-shadow:0 0 0 4px rgba(140,255,193,.18)}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge span{font-size:9px}
 }
+.tile-first-label{position:absolute;left:50%;top:calc(50% + 48px);transform:translateX(-50%);white-space:nowrap;color:rgba(255,255,255,.55);font-size:12px;font-weight:850;letter-spacing:.04em;pointer-events:none;z-index:2}
