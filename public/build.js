@@ -326,7 +326,7 @@ function updatePortfolioControls(portfolio) {
   if (portfolioName) portfolioName.textContent = portfolio?.ownerName || portfolio?.siteTitle || 'Enter Your Name';
   if (portfolioTagline) portfolioTagline.textContent = portfolio?.homeIntro || 'Your Job Title or Short Description';
   setPortfolioAction(previewPortfolioButton, portfolio?.preview);
-  setPortfolioAction(editPortfolioButton, portfolio?.editor);
+  setPortfolioAction(editPortfolioButton, portfolio?.id ? `/pixel-editor.html?job=${encodeURIComponent(portfolio.id)}` : '');
   if (portfolioSiteSelect) portfolioSiteSelect.value = portfolio?.id || '';
   if (portfolio) {
     publishControl.setPublished(portfolio.published, portfolio.customDomain);
@@ -535,7 +535,7 @@ previewPortfolioButton?.addEventListener('click', event => {
   if (!latestPortfolio?.preview) event.preventDefault();
 });
 editPortfolioButton?.addEventListener('click', event => {
-  if (!latestPortfolio?.editor) event.preventDefault();
+  if (!latestPortfolio?.id) event.preventDefault();
 });
 publishLiveSiteButton?.addEventListener('click', () => {
   if (!currentJobId) {

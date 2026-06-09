@@ -160,7 +160,7 @@ function renderPortfolioList(portfolios) {
         <p>${projectLabel}${source}</p>
       </div>
       <div class="manager-project-actions">
-        <a class="button secondary compact-button" href="/pixel-editor.html?job=${encodeURIComponent(item.id)}">Design</a>
+        <a class="button secondary compact-button" href="/pixel-editor.html?job=${encodeURIComponent(item.id)}">Edit</a>
         ${buildDashboard}
         <a class="button ghost compact-button" href="${item.preview}" target="_blank">Preview</a>
         <button class="danger-button compact-button" type="button" data-delete-portfolio="${escapeHtml(item.id)}">Delete</button>
