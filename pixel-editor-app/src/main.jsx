@@ -40,8 +40,8 @@ function pageLabel(path) {
 }
 
 const INJECT_STYLES = `
-  #kw-sel-box { box-sizing:border-box; pointer-events:none; outline:2px solid #ff5200; box-shadow:0 0 0 4000px rgba(0,0,0,.0); }
-  .kw-handle { pointer-events:all !important; cursor:se-resize; }
+  #kw-sel-box { box-sizing:border-box; pointer-events:all; cursor:move; outline:2px solid #ff5200; }
+  .kw-handle { pointer-events:all !important; }
   .kw-hover-candidate:hover { outline:2px dashed rgba(255,82,0,.45) !important; cursor:pointer !important; }
   [contenteditable] { outline:2px dashed rgba(74,144,217,.5) !important; min-height:1em; }
   [contenteditable]:focus { outline:2px solid #4a90d9 !important; }
@@ -173,6 +173,45 @@ function setupSelectMode(frame, { onSelect, onDeselect, onDirty }) {
         cursor:${cur};z-index:2;`;
       h.addEventListener('mousedown', e => startResize(e, dir));
       selBox.appendChild(h);
+    });
+
+    // ── Drag to move ──────────────────────────────────────────────────────────
+    selBox.addEventListener('mousedown', (e) => {
+      if (e.target.dataset.kwHandle) return; // let resize handle it
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Parse existing translate so we accumulate moves
+      const curTransform = el.style.transform || '';
+      const tm = curTransform.match(/translate\(\s*([-\d.]+)px,\s*([-\d.]+)px\s*\)/);
+      const baseTx = tm ? parseFloat(tm[1]) : 0;
+      const baseTy = tm ? parseFloat(tm[2]) : 0;
+      const baseNoTranslate = curTransform.replace(/translate\([^)]+\)/g, '').trim();
+
+      const startX = e.clientX, startY = e.clientY;
+      let moved = false;
+
+      function onDragMove(me) {
+        const dx = me.clientX - startX, dy = me.clientY - startY;
+        if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+        moved = true;
+        const tx = baseTx + dx, ty = baseTy + dy;
+        el.style.transform = (baseNoTranslate ? baseNoTranslate + ' ' : '') + `translate(${tx}px, ${ty}px)`;
+
+        const r = el.getBoundingClientRect();
+        const sx = win.scrollX || 0, sy = win.scrollY || 0;
+        selBox.style.top  = (r.top  + sy - 2) + 'px';
+        selBox.style.left = (r.left + sx - 2) + 'px';
+        bar.style.top  = (r.top  + sy - 36) + 'px';
+        bar.style.left = (r.left + sx) + 'px';
+      }
+      function onDragUp() {
+        doc.removeEventListener('mousemove', onDragMove);
+        doc.removeEventListener('mouseup', onDragUp);
+        if (moved) onDirty();
+      }
+      doc.addEventListener('mousemove', onDragMove);
+      doc.addEventListener('mouseup', onDragUp);
     });
 
     // Update overlay on scroll
