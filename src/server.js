@@ -7,7 +7,7 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
 import Stripe from 'stripe';
-import { runImport, generateSite, validateSite, zipDir, resolvePortfolioIdentity } from './importer.js';
+import { runImport, generateSite, validateSite, zipDir, resolvePortfolioIdentity, renderAboutPage } from './importer.js';
 import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
 import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
 import { analyzePortfolioZip, stagedFilesForBuild } from './zipBuilder.js';
@@ -1606,6 +1606,8 @@ function publicPortfolio(id, manifest, validation = null) {
     published: manifest.published || null,
     customDomain: manifest.customDomain || null,
     projects: (manifest.projects || []).map(project => projectSummary(project, id)),
+    hasAboutPage: !!(manifest.aboutProfile?.paragraphs?.length || manifest.sourceAbout?.html),
+    aboutProfile: manifest.aboutProfile || null,
     validation
   };
 }
@@ -1825,6 +1827,107 @@ app.delete('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   await fs.remove(dir);
   jobs.delete(req.params.id);
   res.json({ ok: true });
+});
+
+app.post('/api/about-page/:id', requireFirebaseAuth, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+
+  const name = String(req.body?.name || '').trim();
+  const role = String(req.body?.role || '').trim();
+  const agency = String(req.body?.agency || '').trim();
+  const location = String(req.body?.location || '').trim();
+  const bio = String(req.body?.bio || '').trim().slice(0, 2000);
+  const email = String(req.body?.email || '').trim();
+  const awards = String(req.body?.awards || '').trim().slice(0, 1000);
+  const linkedinUrl = String(req.body?.linkedinUrl || '').trim();
+
+  try {
+    let resolvedName = name || manifest.ownerName || '';
+    let resolvedRole = role;
+    let linkedinAbout = '';
+
+    // LinkedIn enrichment (best-effort)
+    if (linkedinUrl && /linkedin\.com/i.test(linkedinUrl)) {
+      try {
+        const { scrapeLinkedInMeta } = await import('./portfolioScraper.js');
+        const li = await scrapeLinkedInMeta(linkedinUrl);
+        if (li) {
+          if (!resolvedName && li.name) resolvedName = li.name;
+          if (!resolvedRole && li.jobTitle) resolvedRole = li.jobTitle;
+          if (li.about) linkedinAbout = li.about;
+        }
+      } catch { /* graceful */ }
+    }
+
+    const rawBio = bio || linkedinAbout || '';
+    let paragraphs = rawBio.split(/\n\n+/).map(p => p.replace(/\n/g, ' ').trim()).filter(Boolean);
+
+    // AI bio rewrite (if OpenAI available and bio provided)
+    if (rawBio && process.env.OPENAI_API_KEY) {
+      try {
+        const systemPrompt = `You are writing the About page copy for an advertising professional's portfolio.
+Write 2-3 punchy, confident paragraphs. Senior voice. No filler phrases.
+Never use: "I am passionate about", "journey", "obsessed with", "unleash", "vibrant world", "creative storytelling", "showcases", "drive results".
+Return JSON only: { "paragraphs": ["para1", "para2"] }`;
+        const userContent = [
+          `Name: ${resolvedName}`,
+          resolvedRole ? `Role: ${resolvedRole}` : '',
+          agency ? `Agency/Company: ${agency}` : '',
+          location ? `Location: ${location}` : '',
+          awards ? `Awards/Recognition: ${awards}` : '',
+          `Bio: ${rawBio}`
+        ].filter(Boolean).join('\n');
+
+        const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+          body: JSON.stringify({
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            temperature: 0.4,
+            response_format: { type: 'json_object' },
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }]
+          }),
+          signal: AbortSignal.timeout(20000)
+        });
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          const parsed = JSON.parse(aiData.choices?.[0]?.message?.content || '{}');
+          if (Array.isArray(parsed.paragraphs) && parsed.paragraphs.length) {
+            paragraphs = parsed.paragraphs.filter(Boolean);
+          }
+        }
+      } catch { /* fall through to raw paragraphs */ }
+    }
+
+    const links = [];
+    if (linkedinUrl) links.push({ url: linkedinUrl, label: 'LinkedIn' });
+
+    manifest.aboutProfile = {
+      name: resolvedName,
+      role: resolvedRole,
+      agency,
+      location,
+      paragraphs,
+      email,
+      links,
+      awards
+    };
+    if (resolvedName && !manifest.ownerName) manifest.ownerName = resolvedName;
+
+    // Write about.html directly (no full site rebuild needed)
+    const sitePath = siteDir(id);
+    await fs.writeFile(path.join(sitePath, 'about.html'), renderAboutPage(manifest));
+    await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+    await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
+    await zipDir(sitePath, path.join(jobDir(id), 'site.zip'));
+
+    res.json({ ok: true, portfolio: publicPortfolio(id, manifest), aboutProfile: manifest.aboutProfile });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not build about page.' });
+  }
 });
 
 async function requireEditablePortfolio(id, user) {

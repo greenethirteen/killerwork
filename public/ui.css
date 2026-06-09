@@ -531,3 +531,42 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge span{font-size:9px}
 }
 .tile-first-label{position:absolute;left:50%;top:calc(50% + 48px);transform:translateX(-50%);white-space:nowrap;color:rgba(255,255,255,.55);font-size:12px;font-weight:850;letter-spacing:.04em;pointer-events:none;z-index:2}
+
+/* ── About page tile ─────────────────────────────────────────────────────── */
+.about-page-tile{background:linear-gradient(135deg,#0e1117,#1a1f2e)!important}
+.about-page-tile::before{background:radial-gradient(circle at 80% 20%,rgba(120,160,255,.18),transparent 40%),radial-gradient(circle at 20% 80%,rgba(80,220,180,.1),transparent 40%),linear-gradient(135deg,#0e1117,#1a1f2e)!important}
+.about-tile-add-btn{position:absolute;left:50%;top:50%;transform:translate(-50%,-60%);display:grid;place-items:center;width:72px;height:72px;padding:0;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:42px;font-weight:300;box-shadow:0 18px 46px rgba(0,0,0,.28);z-index:2;border:1px solid rgba(255,255,255,.2)}
+.about-tile-add-btn:hover{transform:translate(-50%,-60%) scale(1.04);background:rgba(255,255,255,.18)}
+.about-tile-label{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);white-space:nowrap;color:rgba(255,255,255,.65);font-size:13px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;pointer-events:none;z-index:2}
+.about-page-tile--built .about-tile-label{color:rgba(255,255,255,.85);bottom:24px}
+.about-page-tile--built::after{content:"";position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(0deg,rgba(10,12,20,.82),transparent);z-index:1}
+.about-page-tile--built .tile-project-actions{bottom:auto;top:12px;right:12px;left:auto}
+
+/* ── About modal ─────────────────────────────────────────────────────────── */
+.about-modal-backdrop{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.68);backdrop-filter:blur(12px)}
+.about-modal-backdrop.hidden{display:none}
+.about-modal{width:min(640px,100%);max-height:calc(100vh - 40px);overflow-y:auto;border-radius:18px;background:#fff;box-shadow:0 32px 80px rgba(0,0,0,.36);display:grid}
+.about-modal-head{display:grid;grid-template-columns:1fr auto;gap:12px;padding:24px 24px 20px;border-bottom:1px solid #eee}
+.about-modal-kicker{margin:0 0 4px;color:#6d7179;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
+.about-modal-head h2{margin:0 0 6px;font-size:22px;letter-spacing:-.02em;color:#111}
+.about-modal-sub{margin:0;color:#6d7179;font-size:14px;line-height:1.4}
+.about-modal-close{align-self:start;display:grid;place-items:center;width:36px;height:36px;border:1px solid #e0ddd6;border-radius:9px;background:#f8f7f4;color:#6d7179;font-size:14px;cursor:pointer}
+.about-modal-close:hover{background:#f0eeea;color:#111}
+.about-form{padding:20px 24px 24px}
+.about-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.about-field{display:grid;gap:5px}
+.about-field--full{grid-column:1 / -1}
+.about-field span{color:#4e535b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.about-field-opt{font-weight:500;text-transform:none;letter-spacing:0;opacity:.7}
+.about-field input,.about-field textarea{border:1px solid #dedbd4;border-radius:9px;background:#fbfaf8;color:#111;padding:10px 12px;font:inherit;font-size:14px;outline:none;resize:vertical}
+.about-field input:focus,.about-field textarea:focus{border-color:#1d7af2;box-shadow:0 0 0 2px rgba(29,122,242,.12)}
+.about-field textarea{min-height:100px;line-height:1.45}
+.about-form-footer{margin-top:20px;padding-top:18px;border-top:1px solid #ece9e2}
+.about-form-error{margin-bottom:12px;padding:10px 12px;border:1px solid #ffc7c7;border-radius:8px;background:#fff1f1;color:#c00;font-size:13px}
+.about-submit-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;border:0;border-radius:11px;background:#111;color:#fff;font-size:15px;font-weight:950;cursor:pointer;transition:background .12s;letter-spacing:.01em}
+.about-submit-btn:hover{background:#1d7af2}
+.about-submit-btn:disabled{opacity:.5;cursor:not-allowed;background:#111}
+.about-building{display:grid;place-items:center;gap:14px;padding:48px 24px;text-align:center;color:#6d7179;font-size:15px}
+.about-building-spinner{width:36px;height:36px;border:3px solid #e8e5de;border-top-color:#1d7af2;border-radius:50%;animation:about-spin .7s linear infinite}
+@keyframes about-spin{to{transform:rotate(360deg)}}
+@media(max-width:560px){.about-form-grid{grid-template-columns:1fr}.about-field--full{grid-column:auto}}

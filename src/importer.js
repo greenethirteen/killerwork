@@ -2574,7 +2574,7 @@ function renderHomePage(manifest, cards) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(browserTitle)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body${bodyClass}>${renderStandardSiteHeader(manifest, '', includeReview)}<main class="${homeClass}">${hero}${intro}<section class="work-grid">${cards}</section></main></body></html>`;
 }
 
-function renderAboutPage(manifest) {
+export function renderAboutPage(manifest) {
   const sourceAbout = manifest.sourceAbout || {};
   if (sourceAbout.html) {
     const html = rewriteCrossOriginSvgSprites(rewriteHomeLinks(sourceAbout.html, manifest.projects, manifest.sourceUrl));

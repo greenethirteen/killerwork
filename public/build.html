@@ -182,6 +182,71 @@
       </label>
     </article>
   </template>
+  <!-- ── About page builder modal ─────────────────────────────────────── -->
+  <div id="aboutModal" class="about-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle">
+    <div class="about-modal">
+      <header class="about-modal-head">
+        <div>
+          <p class="about-modal-kicker">About page</p>
+          <h2 id="aboutModalTitle">Build your About page</h2>
+          <p class="about-modal-sub">Add your details and the AI writes a sharp, professional bio — then instantly adds it to your portfolio.</p>
+        </div>
+        <button class="about-modal-close" id="aboutModalClose" type="button" aria-label="Close">✕</button>
+      </header>
+
+      <form id="aboutForm" class="about-form" novalidate>
+        <div class="about-form-grid">
+          <label class="about-field">
+            <span>Full name</span>
+            <input id="aboutName" type="text" autocomplete="name" placeholder="Jane Doe" />
+          </label>
+          <label class="about-field">
+            <span>Job title / Role</span>
+            <input id="aboutRole" type="text" autocomplete="organization-title" placeholder="Creative Director" />
+          </label>
+          <label class="about-field">
+            <span>Agency / Company</span>
+            <input id="aboutAgency" type="text" autocomplete="organization" placeholder="DDB, Wieden+Kennedy…" />
+          </label>
+          <label class="about-field">
+            <span>Location</span>
+            <input id="aboutLocation" type="text" autocomplete="address-level2" placeholder="New York, London…" />
+          </label>
+          <label class="about-field about-field--full">
+            <span>Awards &amp; recognition <span class="about-field-opt">(optional)</span></span>
+            <input id="aboutAwards" type="text" placeholder="Cannes Lions Gold, D&AD Pencil…" />
+          </label>
+          <label class="about-field about-field--full">
+            <span>Bio <span class="about-field-opt">(AI will rewrite this into compelling copy)</span></span>
+            <textarea id="aboutBio" rows="4" placeholder="Write a few sentences about yourself, your approach, the work you do and who you've worked with. The more you give, the better the AI output."></textarea>
+          </label>
+          <label class="about-field">
+            <span>Contact email <span class="about-field-opt">(optional)</span></span>
+            <input id="aboutEmail" type="email" autocomplete="email" placeholder="jane@example.com" />
+          </label>
+          <label class="about-field">
+            <span>LinkedIn URL <span class="about-field-opt">(optional — AI extracts extra info)</span></span>
+            <input id="aboutLinkedin" type="url" autocomplete="url" placeholder="https://linkedin.com/in/janedoe" />
+          </label>
+        </div>
+
+        <div class="about-form-footer">
+          <p id="aboutFormError" class="about-form-error hidden"></p>
+          <button id="aboutSubmit" class="about-submit-btn" type="submit">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Build About Page with AI
+          </button>
+        </div>
+      </form>
+
+      <!-- Building state -->
+      <div id="aboutBuilding" class="about-building hidden">
+        <div class="about-building-spinner"></div>
+        <p id="aboutBuildingMsg">AI is writing your bio…</p>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import('/auth.js?v=20260603-ads-base2').then(() => import('/build.js?v=20260602-gtm'));
   </script>

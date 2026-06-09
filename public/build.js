@@ -27,6 +27,15 @@ let currentJobId = '';
 let latestPortfolio = null;
 let buildPortfolios = [];
 
+// ── About modal refs ──────────────────────────────────────────────────────
+const aboutModal = document.getElementById('aboutModal');
+const aboutForm = document.getElementById('aboutForm');
+const aboutModalClose = document.getElementById('aboutModalClose');
+const aboutSubmit = document.getElementById('aboutSubmit');
+const aboutBuilding = document.getElementById('aboutBuilding');
+const aboutBuildingMsg = document.getElementById('aboutBuildingMsg');
+const aboutFormError = document.getElementById('aboutFormError');
+
 function track(name, params = {}) {
   window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
 }
@@ -258,14 +267,50 @@ function plusTile(index = 0) {
   return tile;
 }
 
+function aboutTile(portfolio) {
+  const tile = document.createElement('article');
+  const hasAbout = !!portfolio?.hasAboutPage;
+  tile.className = `portfolio-tile about-page-tile ${hasAbout ? 'about-page-tile--built' : ''}`;
+  const jobId = portfolio?.id || '';
+  const previewHref = `/generated/${encodeURIComponent(jobId)}/site/about.html`;
+  const editorHref = `/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent('about.html')}`;
+
+  if (hasAbout) {
+    tile.dataset.href = previewHref;
+    tile.innerHTML = `
+      <div class="tile-project-actions">
+        <a class="tile-action-btn" href="${escapeHtml(previewHref)}" target="_blank" rel="noreferrer">Preview</a>
+        <a class="tile-action-btn" href="${escapeHtml(editorHref)}" target="_blank" rel="noreferrer">Edit</a>
+        <button class="tile-action-btn" type="button" id="rebuildAboutBtn">Rebuild</button>
+      </div>
+      <strong class="about-tile-label">About</strong>
+    `;
+    tile.addEventListener('click', event => {
+      if (event.target.closest('a,button')) return;
+      window.open(previewHref, '_blank', 'noopener');
+    });
+    tile.querySelector('#rebuildAboutBtn')?.addEventListener('click', () => openAboutModal(portfolio));
+  } else {
+    tile.innerHTML = `
+      <button type="button" class="about-tile-add-btn" aria-label="Build about page">+</button>
+      <span class="about-tile-label">About page</span>
+    `;
+    tile.querySelector('.about-tile-add-btn').addEventListener('click', () => openAboutModal(portfolio));
+  }
+  return tile;
+}
+
 function renderPortfolioPreview(portfolio) {
   if (!portfolioGrid) return;
   portfolioGrid.innerHTML = '';
   const projects = portfolio?.projects || [];
   projects.forEach(project => portfolioGrid.appendChild(projectTile(project, portfolio.id)));
-  for (let i = projects.length; i < Math.max(6, projects.length + 1); i += 1) {
-    portfolioGrid.appendChild(plusTile(i));
+  if (portfolio) portfolioGrid.appendChild(aboutTile(portfolio));
+  const emptySlots = Math.max(0, 5 - projects.length);
+  for (let i = 0; i < emptySlots; i += 1) {
+    portfolioGrid.appendChild(plusTile(projects.length + i));
   }
+  if (projects.length >= 5) portfolioGrid.appendChild(plusTile(projects.length + 5));
 }
 
 function setPortfolioAction(link, href = '') {
@@ -510,3 +555,98 @@ portfolioSiteSelect?.addEventListener('change', () => {
 });
 
 loadLatestPortfolio();
+
+// ── About modal ───────────────────────────────────────────────────────────
+function openAboutModal(portfolio) {
+  if (!aboutModal) return;
+  // Pre-fill name from portfolio if available
+  const nameEl = document.getElementById('aboutName');
+  if (nameEl && !nameEl.value && portfolio?.ownerName) nameEl.value = portfolio.ownerName;
+  // Pre-fill from existing aboutProfile if rebuilding
+  const profile = portfolio?.aboutProfile;
+  if (profile) {
+    if (nameEl && profile.name) nameEl.value = profile.name;
+    const roleEl = document.getElementById('aboutRole');
+    if (roleEl && profile.role) roleEl.value = profile.role;
+    const agencyEl = document.getElementById('aboutAgency');
+    if (agencyEl && profile.agency) agencyEl.value = profile.agency;
+    const locationEl = document.getElementById('aboutLocation');
+    if (locationEl && profile.location) locationEl.value = profile.location;
+    const awardsEl = document.getElementById('aboutAwards');
+    if (awardsEl && profile.awards) awardsEl.value = profile.awards;
+    const emailEl = document.getElementById('aboutEmail');
+    if (emailEl && profile.email) emailEl.value = profile.email;
+    const linkedinEl = document.getElementById('aboutLinkedin');
+    if (linkedinEl && profile.links?.[0]?.url) linkedinEl.value = profile.links[0].url;
+  }
+  aboutModal.classList.remove('hidden');
+  document.body.classList.add('builder-modal-open');
+  document.getElementById('aboutBio')?.focus();
+}
+
+function closeAboutModal() {
+  aboutModal?.classList.add('hidden');
+  document.body.classList.remove('builder-modal-open');
+  aboutForm?.classList.remove('hidden');
+  aboutBuilding?.classList.add('hidden');
+  aboutFormError?.classList.add('hidden');
+  aboutFormError && (aboutFormError.textContent = '');
+  aboutSubmit && (aboutSubmit.disabled = false);
+}
+
+function setAboutError(msg) {
+  if (!aboutFormError) return;
+  aboutFormError.textContent = msg;
+  aboutFormError.classList.toggle('hidden', !msg);
+}
+
+aboutModalClose?.addEventListener('click', closeAboutModal);
+aboutModal?.addEventListener('click', event => {
+  if (event.target === aboutModal) closeAboutModal();
+});
+
+aboutForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentJobId) { setAboutError('Load a portfolio first.'); return; }
+
+  const name = document.getElementById('aboutName')?.value.trim() || '';
+  const role = document.getElementById('aboutRole')?.value.trim() || '';
+  const agency = document.getElementById('aboutAgency')?.value.trim() || '';
+  const location = document.getElementById('aboutLocation')?.value.trim() || '';
+  const bio = document.getElementById('aboutBio')?.value.trim() || '';
+  const email = document.getElementById('aboutEmail')?.value.trim() || '';
+  const awards = document.getElementById('aboutAwards')?.value.trim() || '';
+  const linkedinUrl = document.getElementById('aboutLinkedin')?.value.trim() || '';
+
+  if (!bio && !linkedinUrl) {
+    setAboutError('Add a bio or your LinkedIn URL so AI has something to work with.');
+    return;
+  }
+
+  setAboutError('');
+  aboutSubmit.disabled = true;
+  aboutForm.classList.add('hidden');
+  aboutBuilding.classList.remove('hidden');
+  if (aboutBuildingMsg) aboutBuildingMsg.textContent = linkedinUrl ? 'Fetching LinkedIn profile…' : 'AI is writing your bio…';
+  track('about_page_build_start');
+
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await window.KillerWorkAuth.authHeaders()) };
+    const res = await fetch(`/api/about-page/${encodeURIComponent(currentJobId)}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name, role, agency, location, bio, email, awards, linkedinUrl })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    closeAboutModal();
+    track('about_page_build_done');
+    // Reload portfolio to update the tile
+    await loadLatestPortfolio(currentJobId);
+  } catch (err) {
+    aboutForm.classList.remove('hidden');
+    aboutBuilding.classList.add('hidden');
+    aboutSubmit.disabled = false;
+    setAboutError(err.message || 'Could not build the about page. Try again.');
+  }
+});
