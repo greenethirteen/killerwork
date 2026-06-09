@@ -63,6 +63,23 @@ app.get('/gtm-noscript.html', (req, res) => {
   if (!/^GTM-[A-Z0-9]+$/i.test(containerId)) return res.status(204).end();
   res.redirect(302, `https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(containerId)}`);
 });
+// Firebase Auth requires /__/auth/* to be served on the authDomain.
+// Since authDomain resolves to the request hostname (e.g. killa.work), proxy
+// these routes to Firebase Hosting where they are natively served.
+app.get('/__/auth/*', async (req, res) => {
+  if (!firebaseProjectId) return res.status(503).end();
+  const target = `https://${firebaseProjectId}.firebaseapp.com${req.url}`;
+  try {
+    const upstream = await fetch(target);
+    const ct = upstream.headers.get('content-type') || 'text/html';
+    res.status(upstream.status)
+      .setHeader('Content-Type', ct)
+      .setHeader('Cache-Control', 'no-cache');
+    res.end(Buffer.from(await upstream.arrayBuffer()));
+  } catch {
+    res.status(502).end();
+  }
+});
 app.use('/', express.static(path.join(root, 'public'), {
   setHeaders: (res, filePath) => {
     if (/\.(?:js|css|png|jpe?g|webp|avif|svg)$/i.test(filePath)) {
