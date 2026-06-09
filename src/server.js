@@ -1055,11 +1055,14 @@ async function listSitePages(id) {
       const slug = isHome ? 'home' : file.path.replace(/\/index\.html?$/i, '').replace(/^work\//, '');
       const project = manifest?.projects?.find(item => item.slug === slug);
       const fallback = slug.split('/').pop().replace(/^behance-\d+-/i, '').replace(/[-_]+/g, ' ');
+      const rawThumb = project?.thumbnail?.thumbSrc || project?.thumbnail?.src || project?.images?.[0]?.thumbSrc || project?.images?.[0]?.src || '';
+      const thumbnail = rawThumb ? (/^https?:\/\//i.test(rawThumb) ? rawThumb : `/generated/${id}/site/${rawThumb}`) : '';
       return {
         slug,
         path: file.path,
         title: isHome ? 'Home' : file.path === 'about.html' ? 'About' : project?.title || fallback,
-        preview: `/generated/${id}/site/${file.path}`
+        preview: `/generated/${id}/site/${file.path}`,
+        thumbnail
       };
     });
 }

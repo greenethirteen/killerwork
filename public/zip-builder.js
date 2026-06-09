@@ -109,7 +109,7 @@ async function pollJob() {
     setBuildProgress(100, 'Your portfolio is ready to preview, edit, publish, or download.');
     buildTitle.textContent = 'Portfolio ready';
     previewLink.href = job.links.preview;
-    editLink.href = `/ai-editor.html?job=${encodeURIComponent(job.id)}`;
+    editLink.href = `/pixel-editor.html?job=${encodeURIComponent(job.id)}`;
     downloadLink.href = job.links.zip;
     buildActions.classList.remove('hidden');
     publishControl.show();

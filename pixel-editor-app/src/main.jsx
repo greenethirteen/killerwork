@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Home, Save, Loader2, Monitor, Smartphone, ExternalLink,
   Undo2, Redo2, MousePointer, Pencil, Layers, Upload,
-  X, ChevronRight, AlignLeft, AlignCenter, AlignRight, Italic
+  X, AlignLeft, AlignCenter, AlignRight, Italic
 } from 'lucide-react';
 
 const params = new URLSearchParams(window.location.search);
@@ -719,10 +719,10 @@ function VisualEditor() {
         <a href="/manage.html" title="Manage" style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32, borderRadius:6, color:'#666', textDecoration:'none', background:'transparent' }}><Home size={15}/></a>
         <div style={{ width:1, height:22, background:'#222' }} />
         <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-          <div style={{ width:22, height:22, background:'linear-gradient(135deg,#ff5200,#ff8c00)', borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>K</div>
+          <img src="/logos/killa-work-logo.png" alt="KillaWork" style={{ height:22, width:'auto', objectFit:'contain' }} />
           <div style={{ lineHeight:1.2 }}>
-            <div style={{ fontSize:11, fontWeight:600, color:'#d0d0d0' }}>{site?.siteTitle || 'Portfolio'}</div>
-            <div style={{ fontSize:10, color:'#444' }}>Visual Editor</div>
+            <div style={{ fontSize:11, fontWeight:600, color:'#e0e0e0' }}>{site?.siteTitle || 'Portfolio'}</div>
+            <div style={{ fontSize:10, color:'#666' }}>Visual Editor</div>
           </div>
         </div>
         <div style={{ width:1, height:22, background:'#222' }} />
@@ -744,8 +744,8 @@ function VisualEditor() {
           ))}
         </div>
 
-        {mode === 'select' && <span style={{ fontSize:11, color:'#555', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click to select · Drag handles to resize · Delete key removes</span>}
-        {mode === 'text' && <span style={{ fontSize:11, color:'#555', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click any text to edit it directly</span>}
+        {mode === 'select' && <span style={{ fontSize:11, color:'#888', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click to select · Drag to move · Handles to resize · Delete removes</span>}
+        {mode === 'text' && <span style={{ fontSize:11, color:'#888', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click any text to edit · Hover for drag handle</span>}
 
         <div style={{ flex:1 }} />
 
@@ -791,40 +791,147 @@ function VisualEditor() {
       <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
 
         {/* ── Left panel ── */}
-        <div style={{ width:210, background:'#121214', borderRight:'1px solid #1a1a1e', display:'flex', flexDirection:'column', flexShrink:0, overflowY:'auto' }}>
-          <div style={{ padding:'10px 10px 6px', borderBottom:'1px solid #1a1a1e' }}>
-            <p style={{ fontSize:10, color:'#333', textTransform:'uppercase', letterSpacing:1.2, margin:'0 0 7px' }}>Pages</p>
-            {pages.map(pg => (
-              <button key={pg.path} onClick={() => openPage(pg.path)} className="kw-page-btn"
-                style={{ display:'flex', alignItems:'center', gap:7, width:'100%', padding:'6px 8px', borderRadius:6, border:'none', cursor:'pointer', textAlign:'left', marginBottom:2, transition:'all .1s',
-                  background: selectedPage === pg.path ? '#1e2230' : 'transparent',
-                  color: selectedPage === pg.path ? '#4a90d9' : '#777',
-                  fontWeight: selectedPage === pg.path ? 600 : 400, fontSize:12 }}>
-                <ChevronRight size={11} style={{ opacity: selectedPage === pg.path ? 1 : .25 }}/>
-                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pageLabel(pg.path)}</span>
-              </button>
+        <div style={{ width:272, background:'#111116', borderRight:'1px solid #1f1f26', display:'flex', flexDirection:'column', flexShrink:0, overflowY:'auto' }}>
+
+          {/* Page thumbnails */}
+          <div style={{ padding:'12px 12px 8px', borderBottom:'1px solid #1f1f26' }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4, margin:'0 0 10px' }}>Pages</p>
+
+            {/* Home + About: full-width cards */}
+            {pages.filter(pg => pg.path === 'index.html' || pg.path === 'about.html').map(pg => (
+              <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} wide />
             ))}
+
+            {/* Project pages: 2-column grid */}
+            {pages.filter(pg => pg.path !== 'index.html' && pg.path !== 'about.html').length > 0 && (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5, marginTop:5 }}>
+                {pages.filter(pg => pg.path !== 'index.html' && pg.path !== 'about.html').map(pg => (
+                  <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} />
+                ))}
+              </div>
+            )}
           </div>
 
-          {site?.outline?.length > 0 && (
-            <div style={{ padding:'8px 10px', borderBottom:'1px solid #1a1a1e' }}>
-              <p style={{ fontSize:10, color:'#333', textTransform:'uppercase', letterSpacing:1.2, margin:'0 0 6px' }}>On this page</p>
-              {site.outline.map((h, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'baseline', gap:5, padding:'2px 5px', borderRadius:4, marginBottom:1 }}>
-                  <span style={{ fontSize:9, color:'#2e2e3a', fontWeight:700, textTransform:'uppercase', flexShrink:0, minWidth:16 }}>{h.tag}</span>
-                  <span style={{ fontSize:11, color:'#555', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.text}</span>
+          {/* Properties panel (merged) */}
+          <div style={{ flex:1, padding:12, overflowY:'auto' }}>
+            {!selInfo ? (
+              <div>
+                <p style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4, margin:'0 0 12px' }}>Properties</p>
+                <div style={{ background:'#18181e', borderRadius:9, padding:'12px 12px', fontSize:12, color:'#888', lineHeight:1.7 }}>
+                  <p style={{ margin:'0 0 7px', color:'#bbb', fontWeight:500 }}>How to edit</p>
+                  <p style={{ margin:'0 0 5px' }}><span style={{ color:'#ff6a20', fontWeight:600 }}>Select mode</span> — click anything to move, resize, or delete it</p>
+                  <p style={{ margin:'0 0 5px' }}><span style={{ color:'#5aa3f0', fontWeight:600 }}>Text edit</span> — click any text to type directly</p>
+                  <p style={{ margin:0, color:'#666' }}>Save button glows orange when you have unsaved changes</p>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+                  <div>
+                    <p style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4, margin:'0 0 2px' }}>
+                      {selInfo.type === 'image' ? 'Image' : selInfo.type === 'text' ? 'Text' : 'Element'}
+                    </p>
+                    <code style={{ fontSize:10, color:'#666' }}>&lt;{selInfo.tagName}&gt;</code>
+                  </div>
+                  <button onClick={() => setSelInfo(null)} style={{ background:'none', border:'none', color:'#555', cursor:'pointer', padding:4 }}><X size={13}/></button>
+                </div>
 
-          <div style={{ padding:10, marginTop:'auto' }}>
-            <div style={{ background:'#18181c', borderRadius:8, padding:10, fontSize:11, color:'#444', lineHeight:1.65 }}>
-              <strong style={{ color:'#666', display:'block', marginBottom:5 }}>Controls</strong>
-              <p style={{ margin:'0 0 3px' }}><span style={{ color:'#ff5200' }}>Select</span> → resize, move, delete</p>
-              <p style={{ margin:'0 0 3px' }}><span style={{ color:'#4a90d9' }}>Text edit</span> → click any text</p>
-              <p style={{ margin:0 }}>Save glows 🔥 when unsaved</p>
-            </div>
+                {selInfo.type === 'text' && (
+                  <>
+                    <Sec label="Typography">
+                      <Row label="Size">
+                        <div style={{ display:'flex', gap:5 }}>
+                          <input type="number" defaultValue={selInfo.styles?.fontSize || 16} min={6} max={240}
+                            onChange={e => {
+                              const doc = iframeRef.current?.contentDocument;
+                              const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
+                              if (el) { el.style.fontSize = e.target.value + 'px'; setIsDirty(true); }
+                            }} style={numStyle} />
+                          <span style={{ fontSize:11, color:'#666', alignSelf:'center' }}>px</span>
+                        </div>
+                      </Row>
+                      <Row label="Weight">
+                        <select defaultValue={selInfo.styles?.fontWeight || '400'}
+                          onChange={e => {
+                            const doc = iframeRef.current?.contentDocument;
+                            const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
+                            if (el) { el.style.fontWeight = e.target.value; setIsDirty(true); }
+                          }} style={selStyle}>
+                          {['100','200','300','400','500','600','700','800','900'].map(w => <option key={w}>{w}</option>)}
+                        </select>
+                      </Row>
+                      <Row label="Align">
+                        <div style={{ display:'flex', gap:4 }}>
+                          {[['left',<AlignLeft size={12}/>],['center',<AlignCenter size={12}/>],['right',<AlignRight size={12}/>]].map(([v, icon]) => (
+                            <button key={v} onClick={() => {
+                              const doc = iframeRef.current?.contentDocument;
+                              const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
+                              if (el) { el.style.textAlign = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, textAlign:v}} : p); }
+                            }} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'5px 0', borderRadius:5, border:'none', cursor:'pointer',
+                              background: selInfo.styles?.textAlign === v ? '#ff5200' : '#1e1e26', color: selInfo.styles?.textAlign === v ? '#fff' : '#888' }}>
+                              {icon}
+                            </button>
+                          ))}
+                          <button onClick={() => {
+                            const doc = iframeRef.current?.contentDocument;
+                            const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
+                            if (el) { el.style.fontStyle = el.style.fontStyle === 'italic' ? 'normal' : 'italic'; setIsDirty(true); }
+                          }} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'5px 0', borderRadius:5, border:'none', cursor:'pointer', background:'#1e1e26', color:'#888' }}>
+                            <Italic size={12}/>
+                          </button>
+                        </div>
+                      </Row>
+                    </Sec>
+                    <Sec label="Color">
+                      <ColorPick label="Text" value={selInfo.styles?.color || '#000000'} onChange={v => {
+                        const doc = iframeRef.current?.contentDocument;
+                        const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
+                        if (el) { el.style.color = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, color:v}} : p); }
+                      }} />
+                    </Sec>
+                  </>
+                )}
+
+                {selInfo.type === 'image' && (
+                  <Sec label="Image">
+                    {selInfo.src && (
+                      <div style={{ borderRadius:7, overflow:'hidden', marginBottom:10, background:'#0a0a0e', border:'1px solid #1f1f26' }}>
+                        <img src={selInfo.src} alt="" style={{ width:'100%', height:100, objectFit:'cover', display:'block' }} />
+                      </div>
+                    )}
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display:'none' }} />
+                    <button onClick={() => fileInputRef.current?.click()} disabled={uploadingImg}
+                      style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:7, padding:'9px', borderRadius:7, border:'1px dashed #2a2a36', background:'#18181e', color:'#999', cursor:'pointer', fontSize:12 }}>
+                      {uploadingImg ? <Loader2 size={13} style={{ animation:'spin 1s linear infinite' }}/> : <Upload size={13}/>}
+                      {uploadingImg ? 'Uploading…' : 'Replace image'}
+                    </button>
+                  </Sec>
+                )}
+
+                {selInfo.type === 'section' && (
+                  <Sec label="Background">
+                    <ColorPick label="BG" value={selInfo.styles?.backgroundColor || '#ffffff'} onChange={v => {
+                      const doc = iframeRef.current?.contentDocument;
+                      const el = findElFromSelBox(doc);
+                      if (el) { el.style.backgroundColor = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, backgroundColor:v}} : p); }
+                    }} />
+                    {selInfo.styles?.color && (
+                      <ColorPick label="Text" value={selInfo.styles.color} onChange={v => {
+                        const doc = iframeRef.current?.contentDocument;
+                        const el = findElFromSelBox(doc);
+                        if (el) { el.style.color = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, color:v}} : p); }
+                      }} />
+                    )}
+                  </Sec>
+                )}
+
+                {isDirty && (
+                  <button onClick={savePage} style={{ width:'100%', marginTop:8, padding:'9px', background:'linear-gradient(135deg,#ff5200,#ff7a00)', border:'none', borderRadius:7, color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                    Save changes
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -843,140 +950,42 @@ function VisualEditor() {
             </div>
           </div>
         </div>
-
-        {/* ── Right panel ── */}
-        <div style={{ width:250, background:'#121214', borderLeft:'1px solid #1a1a1e', display:'flex', flexDirection:'column', flexShrink:0, overflowY:'auto' }}>
-          {!selInfo ? (
-            <div style={{ padding:20, textAlign:'center', marginTop:50, color:'#333' }}>
-              <Layers size={28} style={{ display:'block', margin:'0 auto 10px', opacity:.4 }} />
-              <p style={{ fontSize:12, lineHeight:1.6, color:'#444' }}>
-                {mode === 'browse' ? 'Use Select or Text Edit mode to edit your portfolio'
-                  : mode === 'select' ? 'Click any image, section, or element to select it'
-                  : 'Click any text on the page to edit it'}
-              </p>
-            </div>
-          ) : (
-            <div style={{ padding:14 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-                <div>
-                  <p style={{ fontSize:9, color:'#333', textTransform:'uppercase', letterSpacing:1.2, margin:'0 0 2px' }}>
-                    {selInfo.type === 'image' ? 'Image element' : selInfo.type === 'text' ? 'Text element' : 'Section / Element'}
-                  </p>
-                  <code style={{ fontSize:11, color:'#666' }}>&lt;{selInfo.tagName}&gt;</code>
-                </div>
-                <button onClick={() => setSelInfo(null)} style={{ background:'none', border:'none', color:'#444', cursor:'pointer' }}><X size={13}/></button>
-              </div>
-
-              {/* Text controls */}
-              {selInfo.type === 'text' && (
-                <>
-                  <Sec label="Typography">
-                    <Row label="Size">
-                      <div style={{ display:'flex', gap:5 }}>
-                        <input type="number" defaultValue={selInfo.styles?.fontSize || 16} min={6} max={240}
-                          onChange={e => {
-                            const doc = iframeRef.current?.contentDocument;
-                            const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
-                            if (el) { el.style.fontSize = e.target.value + 'px'; setIsDirty(true); }
-                          }}
-                          style={numStyle} />
-                        <span style={{ fontSize:11, color:'#444', alignSelf:'center' }}>px</span>
-                      </div>
-                    </Row>
-                    <Row label="Weight">
-                      <select defaultValue={selInfo.styles?.fontWeight || '400'}
-                        onChange={e => {
-                          const doc = iframeRef.current?.contentDocument;
-                          const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
-                          if (el) { el.style.fontWeight = e.target.value; setIsDirty(true); }
-                        }} style={selStyle}>
-                        {['100','200','300','400','500','600','700','800','900'].map(w => <option key={w}>{w}</option>)}
-                      </select>
-                    </Row>
-                    <Row label="Align">
-                      <div style={{ display:'flex', gap:4 }}>
-                        {[['left',<AlignLeft size={12}/>],['center',<AlignCenter size={12}/>],['right',<AlignRight size={12}/>]].map(([v, icon]) => (
-                          <button key={v} onClick={() => {
-                            const doc = iframeRef.current?.contentDocument;
-                            const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
-                            if (el) { el.style.textAlign = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, textAlign:v}} : p); }
-                          }} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'5px 0', borderRadius:5, border:'none', cursor:'pointer',
-                            background: selInfo.styles?.textAlign === v ? '#ff5200' : '#1a1a1e', color: selInfo.styles?.textAlign === v ? '#fff' : '#666' }}>
-                            {icon}
-                          </button>
-                        ))}
-                        <button onClick={() => {
-                          const doc = iframeRef.current?.contentDocument;
-                          const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
-                          if (el) { el.style.fontStyle = el.style.fontStyle === 'italic' ? 'normal' : 'italic'; setIsDirty(true); }
-                        }} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'5px 0', borderRadius:5, border:'none', cursor:'pointer', background:'#1a1a1e', color:'#666' }}>
-                          <Italic size={12}/>
-                        </button>
-                      </div>
-                    </Row>
-                  </Sec>
-                  <Sec label="Color">
-                    <ColorPick label="Text" value={selInfo.styles?.color || '#000000'} onChange={v => {
-                      const doc = iframeRef.current?.contentDocument;
-                      const el = doc?.activeElement?.closest('[contenteditable]') || doc?.querySelector('[contenteditable]:focus');
-                      if (el) { el.style.color = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, color:v}} : p); }
-                    }} />
-                  </Sec>
-                </>
-              )}
-
-              {/* Image controls */}
-              {selInfo.type === 'image' && (
-                <Sec label="Image">
-                  {selInfo.src && (
-                    <div style={{ borderRadius:7, overflow:'hidden', marginBottom:10, background:'#0a0a0c', border:'1px solid #1a1a1e' }}>
-                      <img src={selInfo.src} alt="" style={{ width:'100%', height:110, objectFit:'cover', display:'block' }} />
-                    </div>
-                  )}
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display:'none' }} />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={uploadingImg}
-                    style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:7, padding:'9px', borderRadius:7, border:'1px dashed #2a2a2e', background:'#18181c', color:'#777', cursor:'pointer', fontSize:12 }}>
-                    {uploadingImg ? <Loader2 size={13} style={{ animation:'spin 1s linear infinite' }}/> : <Upload size={13}/>}
-                    {uploadingImg ? 'Uploading…' : 'Replace image'}
-                  </button>
-                </Sec>
-              )}
-
-              {/* Section controls */}
-              {selInfo.type === 'section' && (
-                <Sec label="Background">
-                  <ColorPick label="BG" value={selInfo.styles?.backgroundColor || '#ffffff'} onChange={v => {
-                    const doc = iframeRef.current?.contentDocument;
-                    const el = findElFromSelBox(doc);
-                    if (el) { el.style.backgroundColor = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, backgroundColor:v}} : p); }
-                  }} />
-                  {selInfo.styles?.color && (
-                    <ColorPick label="Text" value={selInfo.styles.color} onChange={v => {
-                      const doc = iframeRef.current?.contentDocument;
-                      const el = findElFromSelBox(doc);
-                      if (el) { el.style.color = v; setIsDirty(true); setSelInfo(p => p ? {...p, styles:{...p.styles, color:v}} : p); }
-                    }} />
-                  )}
-                </Sec>
-              )}
-
-              {isDirty && (
-                <button onClick={savePage} style={{ width:'100%', marginTop:8, padding:'8px', background:'linear-gradient(135deg,#ff5200,#ff7a00)', border:'none', borderRadius:7, color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                  Save changes
-                </button>
-              )}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
 }
 
+function PageCard({ pg, active, onClick, wide = false }) {
+  const title = pg.title || pageLabel(pg.path);
+  return (
+    <button onClick={onClick} style={{
+      display:'block', width:'100%', padding:0, border:'none', cursor:'pointer',
+      borderRadius:7, overflow:'hidden', marginBottom: wide ? 6 : 0,
+      outline: active ? '2px solid #ff5200' : '2px solid transparent',
+      background: active ? '#1c1c26' : '#17171e',
+      transition:'outline .12s, background .12s',
+    }}>
+      <div style={{ width:'100%', aspectRatio: wide ? '16/7' : '4/3', background:'#0a0a0e', overflow:'hidden', position:'relative' }}>
+        {pg.thumbnail
+          ? <img src={pg.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} onError={e => { e.target.style.display='none'; }} />
+          : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, opacity:.25 }}>
+              {pg.path === 'index.html' ? '🏠' : pg.path === 'about.html' ? '👤' : '📄'}
+            </div>
+        }
+      </div>
+      <div style={{ padding: wide ? '5px 8px' : '4px 6px', textAlign:'left' }}>
+        <span style={{ fontSize: wide ? 11 : 10, color: active ? '#ff8040' : '#bbb', fontWeight: active ? 600 : 400, display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.3 }}>
+          {title}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function Sec({ label, children }) {
   return (
-    <div style={{ marginBottom:18 }}>
-      <p style={{ fontSize:9, color:'#333', textTransform:'uppercase', letterSpacing:1.2, margin:'0 0 9px' }}>{label}</p>
+    <div style={{ marginBottom:16 }}>
+      <p style={{ fontSize:9, fontWeight:700, color:'#777', textTransform:'uppercase', letterSpacing:1.3, margin:'0 0 8px' }}>{label}</p>
       {children}
     </div>
   );
@@ -984,7 +993,7 @@ function Sec({ label, children }) {
 function Row({ label, children }) {
   return (
     <div style={{ display:'flex', alignItems:'center', marginBottom:7, gap:8 }}>
-      <span style={{ fontSize:11, color:'#555', width:48, flexShrink:0 }}>{label}</span>
+      <span style={{ fontSize:11, color:'#888', width:48, flexShrink:0 }}>{label}</span>
       <div style={{ flex:1 }}>{children}</div>
     </div>
   );
@@ -993,19 +1002,19 @@ function ColorPick({ label, value, onChange }) {
   return (
     <Row label={label}>
       <div style={{ display:'flex', gap:7, alignItems:'center' }}>
-        <div style={{ width:26, height:26, borderRadius:5, background:value||'#fff', border:'1px solid #2a2a2e', position:'relative', overflow:'hidden', flexShrink:0 }}>
+        <div style={{ width:26, height:26, borderRadius:5, background:value||'#fff', border:'1px solid #2a2a36', position:'relative', overflow:'hidden', flexShrink:0 }}>
           <input type="color" value={value||'#ffffff'} onChange={e => onChange(e.target.value)}
             style={{ position:'absolute', inset:0, width:'200%', height:'200%', opacity:0, cursor:'pointer' }} />
         </div>
         <input type="text" value={value||''} onChange={e => onChange(e.target.value)} placeholder="#000000"
-          style={{ flex:1, background:'#1a1a1e', border:'1px solid #222', borderRadius:5, color:'#aaa', padding:'3px 7px', fontSize:11, outline:'none', fontFamily:'monospace' }} />
+          style={{ flex:1, background:'#1e1e26', border:'1px solid #2a2a36', borderRadius:5, color:'#ccc', padding:'3px 7px', fontSize:11, outline:'none', fontFamily:'monospace' }} />
       </div>
     </Row>
   );
 }
 
-const numStyle = { width:'100%', background:'#1a1a1e', border:'1px solid #222', borderRadius:5, color:'#ccc', padding:'3px 7px', fontSize:12, outline:'none', boxSizing:'border-box' };
-const selStyle = { width:'100%', background:'#1a1a1e', border:'1px solid #222', borderRadius:5, color:'#ccc', padding:'3px 7px', fontSize:12, outline:'none' };
+const numStyle = { width:'100%', background:'#1e1e26', border:'1px solid #2a2a36', borderRadius:5, color:'#ddd', padding:'3px 7px', fontSize:12, outline:'none', boxSizing:'border-box' };
+const selStyle = { width:'100%', background:'#1e1e26', border:'1px solid #2a2a36', borderRadius:5, color:'#ddd', padding:'3px 7px', fontSize:12, outline:'none' };
 
 async function bootstrap() {
   try { await loadAuth(); } catch {}
