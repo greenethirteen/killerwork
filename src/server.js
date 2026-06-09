@@ -727,6 +727,147 @@ app.post('/api/portfolio-studio/build', requireFirebaseAuth, zipUpload.single('z
   }
 });
 
+app.post('/api/ai-studio/build', requireFirebaseAuth, zipUpload.single('zip'), async (req, res) => {
+  const file = req.file; // optional — null when portfolioUrl provided instead
+  const portfolioUrl = String(req.body?.portfolioUrl || '').trim();
+  const linkedinUrl = String(req.body?.linkedinUrl || '').trim();
+  const name = String(req.body?.name || '').trim();
+  const jobTitle = String(req.body?.jobTitle || '').trim();
+  const style = String(req.body?.style || 'straightforward').trim();
+  const prompt = String(req.body?.prompt || '').trim().slice(0, 4000);
+
+  if (!file && !portfolioUrl) {
+    return res.status(400).json({ error: 'Either upload a ZIP file or enter a portfolio URL.' });
+  }
+  if (!prompt) {
+    if (file) await fs.remove(file.path).catch(() => {});
+    return res.status(400).json({ error: 'Describe the portfolio you want to build.' });
+  }
+
+  const id = `${Date.now()}-${hash(`${req.user.uid}:${name}:${jobTitle}:${style}:${prompt}:${portfolioUrl}:${file?.size || 0}`)}`;
+  const outDir = jobDir(id);
+  const job = { id, url: portfolioUrl || 'ai-studio', aiCleanup: true, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  jobs.set(id, job);
+  res.json({ id });
+
+  const stages = ['Reading upload', 'Scraping portfolio', 'Fetching LinkedIn', 'ZIP analyzed', 'AI planning site', 'Creating code project', 'Portfolio code ready', 'Validating output', 'Validation passed', 'Validation warnings', 'ZIP ready'];
+  const updatePercent = stage => {
+    const idx = stages.findIndex(s => stage.startsWith(s));
+    if (idx >= 0) job.percent = Math.max(job.percent, Math.round(((idx + 1) / stages.length) * 100));
+  };
+
+  let tempScrapDir = null;
+
+  try {
+    let resolvedName = name;
+    let resolvedJobTitle = jobTitle;
+    let linkedinAbout = '';
+
+    // Try LinkedIn extraction (best-effort, never fatal)
+    if (linkedinUrl && /linkedin\.com/i.test(linkedinUrl)) {
+      try {
+        job.progress.push({ stage: 'Fetching LinkedIn', detail: 'Extracting profile info...', at: new Date().toISOString() });
+        updatePercent('Fetching LinkedIn');
+        const { scrapeLinkedInMeta } = await import('./portfolioScraper.js');
+        const li = await scrapeLinkedInMeta(linkedinUrl);
+        if (li) {
+          if (!resolvedName && li.name) resolvedName = li.name;
+          if (!resolvedJobTitle && li.jobTitle) resolvedJobTitle = li.jobTitle;
+          if (li.about) linkedinAbout = li.about;
+          job.progress.push({ stage: 'Fetching LinkedIn', detail: resolvedName ? `Got profile: ${resolvedName}` : 'Profile extracted', at: new Date().toISOString() });
+        }
+      } catch { /* graceful */ }
+    }
+
+    let zipPath = file?.path || null;
+
+    // Scrape portfolio URL if provided (and no ZIP, or in addition to ZIP)
+    if (!zipPath && portfolioUrl && /^https?:\/\//i.test(portfolioUrl)) {
+      job.progress.push({ stage: 'Scraping portfolio', detail: `Loading ${new URL(portfolioUrl).hostname}...`, at: new Date().toISOString() });
+      updatePercent('Scraping portfolio');
+
+      const { scrapePortfolioAssets } = await import('./portfolioScraper.js');
+      tempScrapDir = path.join(tmpUploadsDir, `aisc-${id}`);
+      await fs.ensureDir(tempScrapDir);
+
+      const scraped = await scrapePortfolioAssets({
+        url: portfolioUrl,
+        workDir: tempScrapDir,
+        onProgress: (stage, detail) => {
+          job.progress.push({ stage, detail, at: new Date().toISOString() });
+          updatePercent(stage);
+        }
+      });
+
+      // Pack scraped assets into a ZIP for the studio builder
+      if (scraped.projects.length) {
+        const { default: AdmZip } = await import('adm-zip');
+        const zip = new AdmZip();
+        for (const project of scraped.projects) {
+          for (const asset of project.assets) {
+            const buf = await fs.readFile(asset.rawPath);
+            const ext = path.extname(asset.rawPath);
+            zip.addFile(`${project.slug}/${asset.originalName.slice(0, 60)}${ext}`, buf);
+          }
+        }
+        const synthZip = path.join(tempScrapDir, 'scraped.zip');
+        zip.writeZip(synthZip);
+        zipPath = synthZip;
+        job.progress.push({ stage: 'Scraping portfolio', detail: `Collected ${scraped.projects.length} project group(s)`, at: new Date().toISOString() });
+      }
+    }
+
+    if (!zipPath) throw new Error('No content could be collected. Please upload a ZIP file or check the portfolio URL.');
+
+    const enrichedPrompt = linkedinAbout
+      ? `${prompt}\n\nAbout (from LinkedIn): ${linkedinAbout.slice(0, 480)}`
+      : prompt;
+
+    const result = await runPortfolioStudioBuild({
+      zipPath,
+      outDir,
+      name: resolvedName,
+      jobTitle: resolvedJobTitle,
+      linkedin: linkedinUrl,
+      style,
+      prompt: enrichedPrompt,
+      onProgress: event => {
+        updatePercent(event.stage);
+        job.progress.push(event);
+        if (job.progress.length > 300) job.progress.shift();
+      }
+    });
+
+    attachOwner(result.manifest, req.user);
+    await fs.writeJson(path.join(outDir, 'manifest.json'), result.manifest, { spaces: 2 });
+    await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), result.manifest, { spaces: 2 });
+    job.progress.push({ stage: 'Validating output', detail: 'Checking generated links and local assets', at: new Date().toISOString() });
+    updatePercent('Validating output');
+    const validation = await validateSite(result.siteDir);
+    job.progress.push({ stage: validation.ok ? 'Validation passed' : 'Validation warnings', detail: validation.ok ? 'No missing local assets found' : `${validation.errors.length} issue(s) found`, at: new Date().toISOString() });
+    updatePercent(validation.ok ? 'Validation passed' : 'Validation warnings');
+    await zipDir(result.siteDir, path.join(outDir, 'site.zip'));
+    job.progress.push({ stage: 'ZIP ready', detail: 'Portfolio package created', at: new Date().toISOString() });
+    updatePercent('ZIP ready');
+
+    job.status = 'done';
+    job.percent = 100;
+    job.links = {
+      preview: `/generated/${id}/site/index.html`,
+      manifest: `/generated/${id}/manifest.json`,
+      validation: `/generated/${id}/reports/validation.json`,
+      zip: `/api/download/${id}`
+    };
+  } catch (error) {
+    job.status = 'error';
+    job.error = error.stack || error.message;
+    job.progress.push({ stage: 'Build failed', detail: error.message, at: new Date().toISOString() });
+  } finally {
+    if (file) await fs.remove(file.path).catch(() => {});
+    if (tempScrapDir) await fs.remove(tempScrapDir).catch(() => {});
+  }
+});
+
 app.post('/api/zip-builder/analyze', requireFirebaseAuth, zipUpload.single('zip'), async (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'Upload one ZIP file.' });

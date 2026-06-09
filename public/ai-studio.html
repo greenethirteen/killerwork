@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260604-clarity-direct"></script>
+  <title>AI Portfolio Studio — KillaWork™</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/ui.css?v=20260609-ai-studio" />
+  <style>
+    /* ── AI Studio overrides & new components ─────────────────────────────── */
+    .ai-studio-page { height: 100vh; overflow: hidden; background: #f6f5f2; color: #202124; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+    /* Source tabs */
+    .as-source-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+    .as-source-tab { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 10px; border: 1.5px solid #dedbd4; border-radius: 9px; background: #fbfaf8; color: #62666d; font-size: 13px; font-weight: 850; cursor: pointer; transition: border-color .12s, background .12s, color .12s; }
+    .as-source-tab svg { flex-shrink: 0; }
+    .as-source-tab.active { border-color: #1d7af2; background: #eef5ff; color: #1855b8; box-shadow: 0 0 0 2px rgba(29,122,242,.1); }
+    .as-source-tab:hover:not(.active) { background: #f3f2ef; border-color: #c9c6bf; }
+
+    /* Source panel */
+    .as-source-panel { margin-bottom: 10px; }
+    .as-source-panel.hidden { display: none; }
+
+    /* URL field in source panel */
+    .as-url-field { display: grid; gap: 4px; }
+    .as-url-field label { color: #6d7179; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .06em; }
+    .as-url-field input { width: 100%; height: 38px; border: 1px solid #dedbd4; border-radius: 8px; background: #fbfaf8; color: #202124; padding: 0 10px; font-size: 14px; outline: none; box-sizing: border-box; }
+    .as-url-field input:focus { border-color: #1d7af2; box-shadow: 0 0 0 2px rgba(29,122,242,.12); }
+    .as-url-hint { margin-top: 4px; color: #9097a0; font-size: 12px; line-height: 1.35; }
+
+    /* Divider */
+    .as-divider { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: #9097a0; font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+    .as-divider::before, .as-divider::after { content: ''; flex: 1; height: 1px; background: #ece9e2; }
+
+    /* Style cards */
+    .as-style-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .as-style-card { position: relative; display: grid; gap: 0; cursor: pointer; }
+    .as-style-card input { position: absolute; opacity: 0; pointer-events: none; }
+    .as-style-card-inner { border: 1.5px solid #dedbd4; border-radius: 10px; overflow: hidden; background: #fbfaf8; transition: border-color .12s, box-shadow .12s; }
+    .as-style-card input:checked ~ .as-style-card-inner { border-color: #1d7af2; box-shadow: 0 0 0 2px rgba(29,122,242,.12); }
+    .as-style-card:hover:not(:has(input:checked)) .as-style-card-inner { border-color: #b3b0a9; }
+    .as-style-preview { width: 100%; height: 84px; display: block; overflow: hidden; }
+    .as-style-meta { padding: 7px 10px 9px; }
+    .as-style-meta b { display: block; font-size: 13px; font-weight: 900; color: #202124; }
+    .as-style-meta small { display: block; margin-top: 2px; color: #6d7179; font-size: 11.5px; line-height: 1.25; }
+    .as-style-card input:checked ~ .as-style-card-inner .as-style-meta b { color: #1855b8; }
+
+    /* Bold animated preview */
+    .as-preview-bold { background: #0a0a0a; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 8px 10px; gap: 4px; }
+    .as-preview-bold-bar { height: 3px; background: #ff5c1a; border-radius: 2px; }
+    .as-preview-bold-bar:first-child { width: 80%; }
+    .as-preview-bold-bar:nth-child(2) { width: 55%; background: #ff5c1a; opacity: .6; }
+    .as-preview-bold-line { height: 2px; border-radius: 1px; background: rgba(255,255,255,.18); }
+    .as-preview-bold-line:nth-child(3) { width: 90%; margin-top: 6px; }
+    .as-preview-bold-line:nth-child(4) { width: 70%; }
+    .as-preview-bold-dot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: #ff5c1a; box-shadow: 0 0 6px #ff5c1a; }
+
+    /* Classic clean preview */
+    .as-preview-clean { background: #fff; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+    .as-preview-clean-header { height: 2px; width: 40%; background: #202124; border-radius: 1px; }
+    .as-preview-clean-nav { display: flex; gap: 4px; }
+    .as-preview-clean-nav span { height: 2px; width: 18px; background: #c0bdb5; border-radius: 1px; }
+    .as-preview-clean-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 4px; flex: 1; }
+    .as-preview-clean-thumb { background: #f0eeea; border-radius: 3px; height: 26px; }
+    .as-preview-clean-thumb:first-child { background: #d9d6cf; }
+
+    /* Submit button */
+    .as-submit-row { padding-top: 8px; border-top: 1px solid #ece9e2; }
+    .as-submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 42px; border: 0; border-radius: 10px; background: #111; color: #fff; font-size: 14px; font-weight: 950; cursor: pointer; transition: background .12s, opacity .12s; letter-spacing: .01em; }
+    .as-submit-btn:hover { background: #1d7af2; }
+    .as-submit-btn:disabled { opacity: .55; cursor: not-allowed; background: #111; }
+    .as-submit-btn svg { flex-shrink: 0; }
+
+    /* Welcome panel inside feed */
+    .as-welcome { padding: 18px; }
+    .as-welcome-title { font-size: 20px; font-weight: 950; letter-spacing: -.01em; margin: 0 0 6px; }
+    .as-welcome-sub { color: #6d7179; font-size: 14px; line-height: 1.45; margin: 0 0 14px; }
+    .as-welcome-caps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .as-cap { border: 1px solid #e0ddd6; border-radius: 9px; padding: 10px 12px; background: #fff; box-shadow: 0 4px 12px rgba(20,24,30,.04); }
+    .as-cap-icon { font-size: 16px; margin-bottom: 5px; }
+    .as-cap b { display: block; font-size: 13px; margin-bottom: 2px; }
+    .as-cap small { color: #6d7179; font-size: 12px; line-height: 1.3; }
+
+    /* Section label inside composer */
+    .as-section-label { display: block; color: #6d7179; font-size: 10.5px; font-weight: 950; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+
+    /* Empty state text */
+    .as-empty-headline { font-size: clamp(32px,5vw,72px); line-height: .95; letter-spacing: -.02em; font-weight: 950; }
+    .as-empty-sub { max-width: 420px; margin: 12px 0 0; color: rgba(247,242,234,.55); font-size: 16px; line-height: 1.4; }
+
+    /* Mobile */
+    @media (max-width: 1000px) {
+      .ai-studio-page { height: auto; overflow: auto; }
+      .as-welcome-caps { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="ai-studio-page zip-studio-page">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+
+  <main class="studio-shell" data-clarity-mask="true">
+
+    <!-- ── Sidebar rail ──────────────────────────────────────────────────── -->
+    <aside class="studio-rail" aria-label="Workspace navigation">
+      <a href="/" class="studio-rail-mark" title="KillaWork home">K</a>
+      <span class="studio-rail-dot active"></span>
+      <span class="studio-rail-dot"></span>
+      <span class="studio-rail-dot"></span>
+    </aside>
+
+    <!-- ── Agent panel ───────────────────────────────────────────────────── -->
+    <section class="studio-agent" aria-label="AI portfolio builder">
+      <header class="studio-agent-head">
+        <div>
+          <a class="studio-back" href="/">KillaWork™</a>
+          <h1>AI Portfolio Studio</h1>
+        </div>
+        <div class="studio-auth">
+          <a data-manage-latest class="hidden" href="/manage.html">Manage</a>
+          <span data-user-badge class="user-badge hidden"></span>
+          <a data-auth-link class="top-signin" href="#">Sign in</a>
+          <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <!-- Build log / welcome feed -->
+      <div id="asFeed" class="studio-feed" aria-live="polite">
+        <div class="as-welcome">
+          <p class="as-welcome-title">Build your portfolio.</p>
+          <p class="as-welcome-sub">Add your work as a ZIP or paste your existing portfolio URL. Choose a style, describe what you want, and the AI does the rest.</p>
+          <div class="as-welcome-caps">
+            <div class="as-cap">
+              <div class="as-cap-icon">📦</div>
+              <b>Upload a ZIP</b>
+              <small>Drag in your campaign folders. AI reads every asset.</small>
+            </div>
+            <div class="as-cap">
+              <div class="as-cap-icon">🔗</div>
+              <b>Import from URL</b>
+              <small>Paste your existing portfolio and AI rebuilds it fresh.</small>
+            </div>
+            <div class="as-cap">
+              <div class="as-cap-icon">⚡</div>
+              <b>LinkedIn enriched</b>
+              <small>Add your LinkedIn and AI fills in your bio &amp; title automatically.</small>
+            </div>
+            <div class="as-cap">
+              <div class="as-cap-icon">✦</div>
+              <b>Two bold styles</b>
+              <small>Animated &amp; cinematic, or clean &amp; grid-based — you pick.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Composer form -->
+      <form id="asForm" class="studio-composer" novalidate>
+
+        <!-- 1. Source: ZIP or Portfolio URL -->
+        <span class="as-section-label">1 — Add your work</span>
+        <div class="as-source-tabs" role="tablist" aria-label="Work source">
+          <button type="button" class="as-source-tab active" data-tab="zip" role="tab" aria-selected="true" aria-controls="asTabZip">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload ZIP
+          </button>
+          <button type="button" class="as-source-tab" data-tab="url" role="tab" aria-selected="false" aria-controls="asTabUrl">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Portfolio URL
+          </button>
+        </div>
+
+        <!-- ZIP panel -->
+        <div class="as-source-panel" id="asTabZip" role="tabpanel">
+          <div class="studio-file-row" style="border-top:0;padding-top:0;">
+            <label class="studio-file-button">
+              <input id="asZip" type="file" accept=".zip,application/zip" />
+              <span id="asZipLabel">Choose ZIP</span>
+            </label>
+            <small id="asZipName" style="color:#9097a0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">No file selected</small>
+          </div>
+        </div>
+
+        <!-- Portfolio URL panel -->
+        <div class="as-source-panel hidden" id="asTabUrl" role="tabpanel">
+          <div class="as-url-field">
+            <label for="asPortfolioUrl">Your existing portfolio URL</label>
+            <input id="asPortfolioUrl" type="url" placeholder="https://yourportfolio.com" autocomplete="url" />
+            <p class="as-url-hint">AI will import your projects &amp; campaign work and rebuild them in the new style.</p>
+          </div>
+        </div>
+
+        <!-- 2. Style picker -->
+        <div class="as-divider">Choose style</div>
+        <div class="as-style-cards" role="radiogroup" aria-label="Portfolio style">
+
+          <label class="as-style-card" title="Animated Bold — kinetic, cinematic, full-bleed">
+            <input type="radio" name="asStyle" value="parallax" checked />
+            <div class="as-style-card-inner">
+              <div class="as-style-preview">
+                <div class="as-preview-bold">
+                  <div class="as-preview-bold-dot"></div>
+                  <div class="as-preview-bold-bar"></div>
+                  <div class="as-preview-bold-bar"></div>
+                  <div class="as-preview-bold-line"></div>
+                  <div class="as-preview-bold-line"></div>
+                </div>
+              </div>
+              <div class="as-style-meta">
+                <b>Animated Bold</b>
+                <small>Cinematic, scroll-driven, full-bleed</small>
+              </div>
+            </div>
+          </label>
+
+          <label class="as-style-card" title="Classic Clean — professional grid layout">
+            <input type="radio" name="asStyle" value="straightforward" />
+            <div class="as-style-card-inner">
+              <div class="as-style-preview">
+                <div class="as-preview-clean">
+                  <div class="as-preview-clean-header"></div>
+                  <div class="as-preview-clean-nav">
+                    <span></span><span></span><span></span>
+                  </div>
+                  <div class="as-preview-clean-grid">
+                    <div class="as-preview-clean-thumb"></div>
+                    <div class="as-preview-clean-thumb"></div>
+                    <div class="as-preview-clean-thumb"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="as-style-meta">
+                <b>Classic Clean</b>
+                <small>Grid-based, professional, work-first</small>
+              </div>
+            </div>
+          </label>
+
+        </div>
+
+        <!-- 3. Identity -->
+        <div class="as-divider">Your details</div>
+        <div class="studio-identity-row">
+          <label>
+            <span>Name</span>
+            <input id="asName" autocomplete="name" placeholder="Jane Doe" />
+          </label>
+          <label>
+            <span>Job title</span>
+            <input id="asTitle" autocomplete="organization-title" placeholder="Creative Director" />
+          </label>
+          <label>
+            <span>LinkedIn <span style="font-weight:600;opacity:.7">(optional — auto-fills bio)</span></span>
+            <input id="asLinkedin" type="url" autocomplete="url" placeholder="https://linkedin.com/in/janedoe" />
+          </label>
+        </div>
+
+        <!-- 4. Prompt -->
+        <div class="as-divider">Describe it</div>
+        <textarea id="asPrompt" class="studio-composer textarea" style="min-height:80px;max-height:160px;resize:vertical;border:0;padding:4px 2px;font:inherit;font-size:14px;line-height:1.45;outline:none;width:100%;box-sizing:border-box;background:#fff;color:#202124;" placeholder="Bold senior creative portfolio for automotive and fashion clients. Make the hero section punch hard, use dark backgrounds and sharp typography. Show campaigns with full-bleed imagery." required></textarea>
+
+        <!-- Build button -->
+        <div class="as-submit-row">
+          <button id="asSubmit" class="as-submit-btn" type="submit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Build My Portfolio
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- ── Preview workspace ─────────────────────────────────────────────── -->
+    <section class="studio-workspace" aria-label="Portfolio preview">
+      <header class="studio-topbar">
+        <div class="studio-tabs">
+          <span class="studio-tab active">Preview</span>
+        </div>
+        <div class="studio-actions">
+          <a id="asOpenEditor" class="studio-icon-link disabled" target="_blank" rel="noreferrer" title="Open code studio">Code</a>
+          <a id="asDownload" class="studio-icon-link disabled" title="Download ZIP">ZIP</a>
+          <div id="asPublishControl" class="publish-control studio-publish-control hidden" data-publish-domain="killa.work">
+            <button type="button" data-publish-toggle>Publish</button>
+            <div class="publish-panel hidden" data-publish-panel>
+              <form data-publish-form>
+                <label>
+                  <span>Portfolio URL</span>
+                  <div class="publish-url-field">
+                    <input data-publish-input type="text" placeholder="your-name" autocomplete="off" />
+                    <b>.killa.work</b>
+                  </div>
+                </label>
+                <button data-publish-submit type="submit">Publish</button>
+              </form>
+              <p class="publish-result hidden" data-publish-result></p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="studio-browser">
+        <div class="studio-browser-bar">
+          <span></span><span></span><span></span>
+          <b id="asAddress">portfolio preview</b>
+        </div>
+        <div id="asPreviewEmpty" class="studio-preview-empty">
+          <strong class="as-empty-headline">YOUR<br>PORTFOLIO<br>BUILT.</strong>
+          <p class="as-empty-sub">Fill in your details on the left and hit Build. The AI will generate a custom site and load the preview here.</p>
+        </div>
+        <iframe id="asPreview" class="hidden" title="Generated portfolio preview" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import('/auth.js?v=20260603-ads-base2').then(() => import('/ai-studio.js?v=20260609-ai-studio'));
+  </script>
+</body>
+</html>
