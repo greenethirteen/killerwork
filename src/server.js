@@ -129,20 +129,16 @@ function requestHostname(req) {
   return host.replace(/:\d+$/, '').toLowerCase();
 }
 
-function firebaseAuthDomain(req) {
-  const configuredDomain = process.env.FIREBASE_AUTH_DOMAIN || '';
-  const hostname = requestHostname(req);
+function firebaseAuthDomain() {
   const defaultFirebaseDomain = firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : '';
-  if (configuredDomain && configuredDomain !== defaultFirebaseDomain) return configuredDomain;
-  if (hostname && !['localhost', '127.0.0.1'].includes(hostname)) return hostname;
-  return configuredDomain || defaultFirebaseDomain;
+  return process.env.FIREBASE_AUTH_DOMAIN || defaultFirebaseDomain;
 }
 
 function firebaseWebConfig(req) {
   const projectId = process.env.FIREBASE_PROJECT_ID || firebaseProjectId;
   return {
     apiKey: process.env.FIREBASE_WEB_API_KEY || '',
-    authDomain: firebaseAuthDomain(req),
+    authDomain: firebaseAuthDomain(),
     projectId,
     appId: process.env.FIREBASE_WEB_APP_ID || '',
     measurementId: process.env.FIREBASE_MEASUREMENT_ID || ''
