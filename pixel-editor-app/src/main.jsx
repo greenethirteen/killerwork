@@ -384,9 +384,77 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
     el.classList.add('kw-text-active');
   });
 
+  if (getComputedStyle(doc.body).position === 'static') doc.body.style.position = 'relative';
+
+  // ── Floating drag handle for text blocks ─────────────────────────────────
+  const moveHandle = doc.createElement('div');
+  moveHandle.id = 'kw-text-move';
+  moveHandle.style.cssText = 'display:none;position:absolute;background:#ff5200;color:#fff;border-radius:5px;padding:3px 8px;font-size:11px;font-family:Inter,system-ui,sans-serif;cursor:move;pointer-events:all;z-index:2147483647;user-select:none;white-space:nowrap;line-height:1.6;';
+  moveHandle.textContent = '⊹ drag';
+  doc.body.appendChild(moveHandle);
+
+  let hoverTarget = null;
+
+  function positionMoveHandle(el) {
+    const r = el.getBoundingClientRect();
+    const sy = win.scrollY || 0, sx = win.scrollX || 0;
+    moveHandle.style.top  = (r.top  + sy - 28) + 'px';
+    moveHandle.style.left = (r.left + sx) + 'px';
+    moveHandle.style.display = 'block';
+  }
+
+  function mouseoverHandler(e) {
+    const el = e.target.closest('[contenteditable]');
+    if (!el) return;
+    hoverTarget = el;
+    positionMoveHandle(el);
+  }
+
+  function mouseoutHandler(e) {
+    const to = e.relatedTarget;
+    if (to && (to === moveHandle || moveHandle.contains(to) || to.closest('[contenteditable]'))) return;
+    moveHandle.style.display = 'none';
+    hoverTarget = null;
+  }
+
+  moveHandle.addEventListener('mousedown', (e) => {
+    const el = hoverTarget;
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const curTransform = el.style.transform || '';
+    const tm = curTransform.match(/translate\(\s*([-\d.]+)px,\s*([-\d.]+)px\s*\)/);
+    const baseTx = tm ? parseFloat(tm[1]) : 0;
+    const baseTy = tm ? parseFloat(tm[2]) : 0;
+    const baseNoTranslate = curTransform.replace(/translate\([^)]+\)/g, '').trim();
+    const startX = e.clientX, startY = e.clientY;
+    let moved = false;
+
+    function onDragMove(me) {
+      const dx = me.clientX - startX, dy = me.clientY - startY;
+      if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      moved = true;
+      const tx = baseTx + dx, ty = baseTy + dy;
+      el.style.transform = (baseNoTranslate ? baseNoTranslate + ' ' : '') + `translate(${tx}px, ${ty}px)`;
+      positionMoveHandle(el);
+    }
+    function onDragUp() {
+      doc.removeEventListener('mousemove', onDragMove);
+      doc.removeEventListener('mouseup', onDragUp);
+      if (moved) onDirty();
+    }
+    doc.addEventListener('mousemove', onDragMove);
+    doc.addEventListener('mouseup', onDragUp);
+  });
+
+  doc.addEventListener('mouseover', mouseoverHandler);
+  doc.addEventListener('mouseout', mouseoutHandler);
+
   let activeEl = null;
 
   function clickHandler(e) {
+    if (e.target === moveHandle) return;
     const el = e.target.closest('[contenteditable]');
     if (!el) {
       activeEl = null;
@@ -421,6 +489,9 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
     doc.removeEventListener('click', clickHandler, true);
     doc.removeEventListener('input', inputHandler, true);
     doc.removeEventListener('keydown', keyHandler);
+    doc.removeEventListener('mouseover', mouseoverHandler);
+    doc.removeEventListener('mouseout', mouseoutHandler);
+    moveHandle.remove();
     made.forEach(el => {
       el.removeAttribute('contenteditable');
       el.classList.remove('kw-text-active');
