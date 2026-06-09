@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KillaWork™ Visual Editor</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <script>
+    const p = new URLSearchParams(location.search);
+    location.replace(`/pixel-editor-app/${p.toString() ? '?' + p.toString() : ''}`);
+  </script>
+</head>
+<body>
+  <a href="/pixel-editor-app/">Open KillaWork™ Visual Editor</a>
+</body>
+</html>

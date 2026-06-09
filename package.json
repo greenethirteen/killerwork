@@ -7,6 +7,7 @@
     "web": "node src/server.js",
     "start": "node src/server.js",
     "build:editor": "vite build --config editor-app/vite.config.js",
+    "build:pixel-editor": "vite build --config pixel-editor-app/vite.config.js",
     "import": "node src/cli.js import",
     "validate": "node src/cli.js validate"
   },

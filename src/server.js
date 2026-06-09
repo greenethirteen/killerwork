@@ -2722,4 +2722,221 @@ app.put('/api/editor/:id/pages/:slug', requireFirebaseAuth, async (req, res) => 
   res.json({ ok: true, validation, page: publicProject(project), preview: `/generated/${id}/site/work/${project.slug}/index.html` });
 });
 
+// ── Pixel / Visual Editor ─────────────────────────────────────────────────────
+
+function generatePixelEditorDefaults(id, manifest) {
+  const identity = resolvePortfolioIdentity(manifest);
+  const ownerName = identity.ownerName || manifest.siteTitle || 'My Portfolio';
+  const intro = identity.homeIntro || '';
+  let counter = 1;
+  const nextId = () => `el_${counter++}`;
+  const elements = [];
+
+  elements.push({
+    id: nextId(), type: 'text',
+    x: 60, y: 80, w: 680, h: 70,
+    content: ownerName,
+    fontSize: 52, fontFamily: 'Inter', color: '#1a1a1a',
+    fontWeight: '700', fontStyle: 'normal',
+    textAlign: 'left', opacity: 1, zIndex: 1, letterSpacing: -2
+  });
+
+  if (intro) {
+    elements.push({
+      id: nextId(), type: 'text',
+      x: 60, y: 162, w: 560, h: 40,
+      content: intro,
+      fontSize: 17, fontFamily: 'Inter', color: '#666666',
+      fontWeight: '400', fontStyle: 'normal',
+      textAlign: 'left', opacity: 1, zIndex: 2, letterSpacing: 0
+    });
+  }
+
+  elements.push({
+    id: nextId(), type: 'rect',
+    x: 60, y: intro ? 220 : 168, w: 48, h: 4,
+    color: '#ff5200', opacity: 1, zIndex: 3, borderRadius: 2
+  });
+
+  const projects = (manifest.projects || []).slice(0, 6);
+  const gridStartY = intro ? 255 : 200;
+  const cols = 3;
+  const imgW = 218;
+  const imgH = 148;
+  const hGap = 22;
+
+  projects.forEach((project, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = 60 + col * (imgW + hGap);
+    const y = gridStartY + row * (imgH + 48);
+    const z = 10 + i * 2;
+
+    let src = project.thumbnail?.thumbSrc || project.thumbnail?.src || '';
+    if (src && !src.startsWith('http')) src = `/generated/${id}/site/${src}`;
+
+    if (src) {
+      elements.push({
+        id: nextId(), type: 'image',
+        x, y, w: imgW, h: imgH,
+        src, opacity: 1, zIndex: z, objectFit: 'cover', borderRadius: 4
+      });
+    }
+
+    elements.push({
+      id: nextId(), type: 'text',
+      x, y: y + imgH + 8, w: imgW, h: 26,
+      content: project.title || `Project ${i + 1}`,
+      fontSize: 12, fontFamily: 'Inter', color: '#333333',
+      fontWeight: '600', fontStyle: 'normal',
+      textAlign: 'left', opacity: 1, zIndex: z + 1, letterSpacing: 0.5
+    });
+  });
+
+  return elements;
+}
+
+function generateHtmlFromPixelElements(elements, { canvasColor = '#f8f7f4', pageW = 800, ownerName = '', hasAbout = false } = {}) {
+  const maxBottom = elements.reduce((mx, el) => Math.max(mx, (el.y || 0) + (el.h || 0)), 600);
+  const pageH = Math.max(maxBottom + 80, 600);
+
+  function escA(s) { return String(s || '').replace(/[&"'<>]/g, c => ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c])); }
+  function escH(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  const sorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const elHtml = sorted.map(el => {
+    const base = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;opacity:${el.opacity};z-index:${Math.round(el.zIndex || 1)};box-sizing:border-box;`;
+    if (el.type === 'text') {
+      return `<div style="${base}font-size:${el.fontSize}px;font-family:'${escA(el.fontFamily)}',sans-serif;color:${escA(el.color)};font-weight:${el.fontWeight};font-style:${el.fontStyle};text-align:${el.textAlign};letter-spacing:${el.letterSpacing ?? 0}px;line-height:1.2;white-space:pre-wrap;overflow:hidden;">${escH(el.content)}</div>`;
+    }
+    if (el.type === 'rect') return `<div style="${base}background:${escA(el.color)};border-radius:${el.borderRadius ?? 0}px;"></div>`;
+    if (el.type === 'circle') return `<div style="${base}background:${escA(el.color)};border-radius:50%;"></div>`;
+    if (el.type === 'line') return `<div style="${base}display:flex;align-items:center;"><div style="width:100%;height:${el.thickness ?? 2}px;background:${escA(el.color)};border-radius:2px;"></div></div>`;
+    if (el.type === 'image') return `<div style="${base}overflow:hidden;border-radius:${el.borderRadius ?? 0}px;"><img src="${escA(el.src)}" alt="" style="width:100%;height:100%;object-fit:${el.objectFit ?? 'cover'};display:block;" loading="lazy"></div>`;
+    return '';
+  }).filter(Boolean).join('\n    ');
+
+  const aboutLink = hasAbout ? `<a href="about.html" style="color:#888;font-size:13px;text-decoration:none;font-weight:500;">About</a>` : '';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escH(ownerName || 'Portfolio')}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,400&family=Montserrat:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:${canvasColor};font-family:Inter,system-ui,sans-serif;min-height:100vh}
+    .kw-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid rgba(0,0,0,.07);position:sticky;top:0;z-index:1000}
+    .kw-nav-brand{font-weight:700;font-size:15px;color:#1a1a1a;text-decoration:none;letter-spacing:-.3px}
+    .kw-nav-links{display:flex;align-items:center;gap:24px}
+    .kw-canvas-wrap{width:${pageW}px;max-width:100%;margin:0 auto}
+    .kw-canvas{position:relative;width:${pageW}px;min-height:${pageH}px}
+    @media(max-width:${pageW}px){.kw-canvas-wrap,.kw-canvas{width:100%;min-height:auto}}
+  </style>
+</head>
+<body>
+  <nav class="kw-nav">
+    <a class="kw-nav-brand" href="index.html">${escH(ownerName || 'Portfolio')}</a>
+    <div class="kw-nav-links">${aboutLink}</div>
+  </nav>
+  <div class="kw-canvas-wrap">
+    <div class="kw-canvas">
+    ${elHtml}
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+app.get('/api/pixel-editor/:id/state', requireFirebaseAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    const identity = resolvePortfolioIdentity(manifest);
+
+    // Collect portfolio images for the photos panel
+    const images = [];
+    const seen = new Set();
+    for (const project of (manifest.projects || [])) {
+      const raw = project.thumbnail?.thumbSrc || project.thumbnail?.src || '';
+      if (raw) {
+        const src = raw.startsWith('http') ? raw : `/generated/${id}/site/${raw}`;
+        if (!seen.has(src)) { seen.add(src); images.push({ src, label: project.title || 'Project' }); }
+      }
+      for (const img of (project.images || []).slice(0, 2)) {
+        const raw2 = img.thumbSrc || img.src || '';
+        if (raw2) {
+          const src2 = raw2.startsWith('http') ? raw2 : `/generated/${id}/site/${raw2}`;
+          if (!seen.has(src2)) { seen.add(src2); images.push({ src: src2, label: project.title || 'Image' }); }
+        }
+      }
+    }
+
+    const saved = manifest.pixelEditorState;
+    res.json({
+      id,
+      siteTitle: identity.ownerName || manifest.siteTitle || 'Portfolio',
+      ownerName: identity.ownerName || '',
+      preview: `/generated/${id}/site/index.html`,
+      elements: saved?.elements || generatePixelEditorDefaults(id, manifest),
+      canvasColor: saved?.canvasColor || '#f8f7f4',
+      images
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Could not load editor state.' });
+  }
+});
+
+app.put('/api/pixel-editor/:id/state', requireFirebaseAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    const { elements, canvasColor } = req.body || {};
+    manifest.pixelEditorState = {
+      elements: Array.isArray(elements) ? elements : [],
+      canvasColor: canvasColor || '#f8f7f4',
+      savedAt: new Date().toISOString()
+    };
+    await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Could not save editor state.' });
+  }
+});
+
+app.post('/api/pixel-editor/:id/publish', requireFirebaseAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    const { elements, canvasColor } = req.body || {};
+    const identity = resolvePortfolioIdentity(manifest);
+    const ownerName = identity.ownerName || manifest.siteTitle || 'Portfolio';
+    const hasAbout = !!(manifest.aboutProfile?.paragraphs?.length || manifest.sourceAbout?.html);
+
+    manifest.pixelEditorState = {
+      elements: Array.isArray(elements) ? elements : [],
+      canvasColor: canvasColor || '#f8f7f4',
+      savedAt: new Date().toISOString()
+    };
+
+    const html = generateHtmlFromPixelElements(Array.isArray(elements) ? elements : [], {
+      canvasColor: canvasColor || '#f8f7f4',
+      pageW: 800,
+      ownerName,
+      hasAbout
+    });
+
+    await fs.writeFile(path.join(siteDir(id), 'index.html'), html, 'utf8');
+    await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+    await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
+
+    res.json({ ok: true, preview: `/generated/${id}/site/index.html` });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Could not publish.' });
+  }
+});
+
 app.listen(PORT, () => console.log(`KillaWork™ Importer running on http://localhost:${PORT}`));
