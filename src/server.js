@@ -21,6 +21,53 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8787;
 const jobs = new Map();
 const zipBuilderSessions = new Map();
+
+// Per-portfolio async lock — serialises read-modify-write cycles (fix #6)
+const portfolioLocks = new Map();
+async function withPortfolioLock(id, fn) {
+  const prior = portfolioLocks.get(id) || Promise.resolve();
+  let release;
+  const next = new Promise(res => { release = res; });
+  portfolioLocks.set(id, next);
+  try {
+    await prior;
+    return await fn();
+  } finally {
+    release();
+    if (portfolioLocks.get(id) === next) portfolioLocks.delete(id);
+  }
+}
+
+// Per-user build concurrency limiter — max 2 concurrent builds per user (fix #10)
+const activeBuildsByUser = new Map();
+function acquireBuildSlot(uid) {
+  const count = activeBuildsByUser.get(uid) || 0;
+  if (count >= 2) return false;
+  activeBuildsByUser.set(uid, count + 1);
+  return true;
+}
+function releaseBuildSlot(uid) {
+  const count = activeBuildsByUser.get(uid) || 1;
+  const next = count - 1;
+  if (next <= 0) activeBuildsByUser.delete(uid);
+  else activeBuildsByUser.set(uid, next);
+}
+
+// CSS value validators — prevent injection into <style> blocks and inline styles (fix #1/#2)
+const CSS_COLOR_RE = /^(?:#[0-9a-fA-F]{3,8}|rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*[\d.]+)?\s*\)|hsla?\(\s*[\d.]+(?:deg|turn|rad)?\s*,\s*[\d.]+%\s*,\s*[\d.]+%(?:\s*,\s*[\d.]+)?\s*\)|[a-zA-Z]{2,30}|transparent)$/;
+function safeCssColor(value, fallback = '') {
+  const v = String(value || '').trim();
+  return CSS_COLOR_RE.test(v) ? v : fallback;
+}
+function safeFontFamily(value) {
+  const v = String(value || '').trim();
+  return /^[a-zA-Z0-9 ,_\-+]{1,120}$/.test(v) ? v : 'Inter';
+}
+
+// Schedule job eviction 30 min after reaching a terminal state (fix #8)
+function finaliseJob(job) {
+  setTimeout(() => jobs.delete(job.id), 30 * 60 * 1000);
+}
 const generatedRoot = process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH
   ? path.resolve(process.env.GENERATED_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH)
   : path.join(root, 'generated');
@@ -244,7 +291,8 @@ function attachOwner(manifest, user) {
 }
 
 function canAccessPortfolio(manifest, user) {
-  return !manifest.ownerUid || manifest.ownerUid === user.uid;
+  if (!manifest.ownerUid) return true; // legacy un-owned portfolio; callers must backfill ownerUid
+  return manifest.ownerUid === user.uid;
 }
 
 function publicHost() {
@@ -533,9 +581,10 @@ app.get('/api/me', async (req, res) => {
 });
 
 app.post('/api/import', requireFirebaseAuth, async (req, res) => {
+  if (!acquireBuildSlot(req.user.uid)) return res.status(429).json({ error: 'You already have 2 builds running. Wait for one to finish.' });
   const url = String(req.body?.url || '').trim();
   const aiCleanup = !!req.body?.aiCleanup;
-  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Enter a valid http/https URL.' });
+  if (!/^https?:\/\//i.test(url)) { releaseBuildSlot(req.user.uid); return res.status(400).json({ error: 'Enter a valid http/https URL.' }); }
   const id = `${Date.now()}-${hash(url)}`;
   const outDir = jobDir(id);
   const job = { id, url, aiCleanup, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
@@ -559,6 +608,7 @@ app.post('/api/import', requireFirebaseAuth, async (req, res) => {
     attachOwner(result.manifest, req.user);
     await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
+    finaliseJob(job);
     job.percent = 100;
     job.links = {
       preview: `/generated/${id}/site/index.html`,
@@ -571,16 +621,20 @@ app.post('/api/import', requireFirebaseAuth, async (req, res) => {
     };
   } catch (e) {
     job.status = 'error';
+    finaliseJob(job);
     job.error = e.stack || e.message;
     job.progress.push({ stage: 'Import failed', detail: e.message, at: new Date().toISOString() });
+  } finally {
+    releaseBuildSlot(req.user.uid);
   }
 });
 
 app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), async (req, res) => {
+  if (!acquireBuildSlot(req.user.uid)) return res.status(429).json({ error: 'You already have 2 builds running. Wait for one to finish.' });
   const title = String(req.body?.title || '').trim();
   const aiCleanup = !!req.body?.aiCleanup;
   const files = req.files || [];
-  if (!files.length) return res.status(400).json({ error: 'Upload at least one image, video, or PDF.' });
+  if (!files.length) { releaseBuildSlot(req.user.uid); return res.status(400).json({ error: 'Upload at least one image, video, or PDF.' }); }
   const id = `${Date.now()}-${hash(`${title}:${files.map(f => f.originalname).join('|')}`)}`;
   const outDir = jobDir(id);
   const job = { id, url: 'uploaded-files', aiCleanup, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
@@ -602,6 +656,7 @@ app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), as
     attachOwner(result.manifest, req.user);
     await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
+    finaliseJob(job);
     job.percent = 100;
     job.links = {
       preview: `/generated/${id}/site/index.html`,
@@ -614,13 +669,17 @@ app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), as
     };
   } catch (e) {
     job.status = 'error';
+    finaliseJob(job);
     job.error = e.stack || e.message;
     job.progress.push({ stage: 'Build failed', detail: e.message, at: new Date().toISOString() });
     await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+  } finally {
+    releaseBuildSlot(req.user.uid);
   }
 });
 
 app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, res) => {
+  if (!acquireBuildSlot(req.user.uid)) return res.status(429).json({ error: 'You already have 2 builds running. Wait for one to finish.' });
   const title = String(req.body?.title || '').trim();
   const subtitle = String(req.body?.subtitle || '').trim();
   let campaigns = [];
@@ -654,6 +713,7 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
     attachOwner(result.manifest, req.user);
     await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
+    finaliseJob(job);
     job.percent = 100;
     job.links = {
       preview: `/generated/${id}/site/index.html`,
@@ -666,9 +726,12 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
     };
   } catch (e) {
     job.status = 'error';
+    finaliseJob(job);
     job.error = e.stack || e.message;
     job.progress.push({ stage: 'Build failed', detail: e.message, at: new Date().toISOString() });
     await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
+  } finally {
+    releaseBuildSlot(req.user.uid);
   }
 });
 
@@ -724,6 +787,7 @@ app.post('/api/portfolio-studio/build', requireFirebaseAuth, zipUpload.single('z
     job.progress.push({ stage: 'ZIP ready', detail: 'Portfolio package created', at: new Date().toISOString() });
     updatePercent('ZIP ready');
     job.status = 'done';
+    finaliseJob(job);
     job.percent = 100;
     job.links = {
       preview: `/generated/${id}/site/index.html`,
@@ -733,6 +797,7 @@ app.post('/api/portfolio-studio/build', requireFirebaseAuth, zipUpload.single('z
     };
   } catch (error) {
     job.status = 'error';
+    finaliseJob(job);
     job.error = error.stack || error.message;
     job.progress.push({ stage: 'Build failed', detail: error.message, at: new Date().toISOString() });
   } finally {
@@ -864,6 +929,7 @@ app.post('/api/ai-studio/build', requireFirebaseAuth, zipUpload.single('zip'), a
     updatePercent('ZIP ready');
 
     job.status = 'done';
+    finaliseJob(job);
     job.percent = 100;
     job.links = {
       preview: `/generated/${id}/site/index.html`,
@@ -873,6 +939,7 @@ app.post('/api/ai-studio/build', requireFirebaseAuth, zipUpload.single('zip'), a
     };
   } catch (error) {
     job.status = 'error';
+    finaliseJob(job);
     job.error = error.stack || error.message;
     job.progress.push({ stage: 'Build failed', detail: error.message, at: new Date().toISOString() });
   } finally {
@@ -956,6 +1023,7 @@ app.post('/api/zip-builder/build', requireFirebaseAuth, async (req, res) => {
     attachOwner(result.manifest, req.user);
     await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
+    finaliseJob(job);
     job.percent = 100;
     job.links = {
       preview: `/generated/${id}/site/index.html`,
@@ -965,6 +1033,7 @@ app.post('/api/zip-builder/build', requireFirebaseAuth, async (req, res) => {
     };
   } catch (error) {
     job.status = 'error';
+    finaliseJob(job);
     job.error = error.stack || error.message;
     job.progress.push({ stage: 'Build failed', detail: error.message, at: new Date().toISOString() });
     await Promise.all(files.map(file => fs.remove(file.path).catch(() => {})));
@@ -991,7 +1060,18 @@ app.get('/api/download/:id', requireFirebaseAuth, requireActiveSubscription, asy
 });
 
 function jobDir(id) {
-  return path.join(generatedRoot, id);
+  if (!id || !/^[a-zA-Z0-9_\-]{1,120}$/.test(String(id))) {
+    const err = new Error('Invalid portfolio id.');
+    err.status = 400;
+    throw err;
+  }
+  const resolved = path.join(generatedRoot, id);
+  if (resolved !== generatedRoot && !resolved.startsWith(generatedRoot + path.sep)) {
+    const err = new Error('Invalid portfolio id.');
+    err.status = 400;
+    throw err;
+  }
+  return resolved;
 }
 
 function siteDir(id) {
@@ -1113,8 +1193,14 @@ async function restoreEditorSnapshot(id, direction = 'undo') {
   const current = `${Date.now()}-current`;
   await fs.copy(siteDir(id), path.join(snapshots, current));
   history[to] = [...(history[to] || []), current].slice(-20);
-  await fs.emptyDir(siteDir(id));
-  await fs.copy(path.join(snapshots, snapshot), siteDir(id));
+  // Atomic-ish restore: copy to a temp dir first, then swap — avoids an empty siteDir window
+  const tmpRestore = path.join(jobDir(id), 'site-restore-tmp');
+  await fs.remove(tmpRestore).catch(() => {});
+  await fs.copy(path.join(snapshots, snapshot), tmpRestore);
+  const oldSite = path.join(jobDir(id), 'site-old-tmp');
+  await fs.rename(siteDir(id), oldSite);
+  await fs.rename(tmpRestore, siteDir(id));
+  await fs.remove(oldSite).catch(() => {});
   await fs.writeJson(historyFile, history, { spaces: 2 });
   await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
   return { restored: snapshot, undoCount: history.undo?.length || 0, redoCount: history.redo?.length || 0 };
@@ -1663,13 +1749,15 @@ async function userPortfolioList(user) {
 }
 
 async function saveManifestAndRebuild(id, manifest) {
-  const outDir = jobDir(id);
-  await fs.writeJson(path.join(outDir, 'manifest.json'), manifest, { spaces: 2 });
-  await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), manifest, { spaces: 2 });
-  const siteDir = await generateSite(manifest, outDir);
-  const validation = await validateSite(siteDir);
-  await zipDir(siteDir, path.join(outDir, 'site.zip'));
-  return validation;
+  return withPortfolioLock(id, async () => {
+    const outDir = jobDir(id);
+    await fs.writeJson(path.join(outDir, 'manifest.json'), manifest, { spaces: 2 });
+    await fs.writeJson(path.join(outDir, 'manifest.cleaned.json'), manifest, { spaces: 2 });
+    const sDir = await generateSite(manifest, outDir);
+    const validation = await validateSite(sDir);
+    await zipDir(sDir, path.join(outDir, 'site.zip'));
+    return validation;
+  });
 }
 
 app.get('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
@@ -1952,6 +2040,12 @@ async function requireEditablePortfolio(id, user) {
     const err = new Error('Portfolio not found.');
     err.status = 404;
     throw err;
+  }
+  if (!manifest.ownerUid) {
+    // Backfill: first authenticated user to write claims ownership
+    manifest.ownerUid = user.uid;
+    manifest.owner = { uid: user.uid };
+    await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
   }
   if (!canAccessPortfolio(manifest, user)) {
     const err = new Error('Not your portfolio.');
@@ -2813,6 +2907,7 @@ function generatePixelEditorDefaults(id, manifest) {
 }
 
 function generateHtmlFromPixelElements(elements, { canvasColor = '#f8f7f4', pageW = 800, ownerName = '', hasAbout = false } = {}) {
+  canvasColor = safeCssColor(canvasColor, '#f8f7f4');
   const maxBottom = elements.reduce((mx, el) => Math.max(mx, (el.y || 0) + (el.h || 0)), 600);
   const pageH = Math.max(maxBottom + 80, 600);
 
@@ -2823,11 +2918,11 @@ function generateHtmlFromPixelElements(elements, { canvasColor = '#f8f7f4', page
   const elHtml = sorted.map(el => {
     const base = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;opacity:${el.opacity};z-index:${Math.round(el.zIndex || 1)};box-sizing:border-box;`;
     if (el.type === 'text') {
-      return `<div style="${base}font-size:${el.fontSize}px;font-family:'${escA(el.fontFamily)}',sans-serif;color:${escA(el.color)};font-weight:${el.fontWeight};font-style:${el.fontStyle};text-align:${el.textAlign};letter-spacing:${el.letterSpacing ?? 0}px;line-height:1.2;white-space:pre-wrap;overflow:hidden;">${escH(el.content)}</div>`;
+      return `<div style="${base}font-size:${el.fontSize}px;font-family:'${safeFontFamily(el.fontFamily)}',sans-serif;color:${safeCssColor(el.color, '#111111')};font-weight:${el.fontWeight};font-style:${el.fontStyle};text-align:${el.textAlign};letter-spacing:${el.letterSpacing ?? 0}px;line-height:1.2;white-space:pre-wrap;overflow:hidden;">${escH(el.content)}</div>`;
     }
-    if (el.type === 'rect') return `<div style="${base}background:${escA(el.color)};border-radius:${el.borderRadius ?? 0}px;"></div>`;
-    if (el.type === 'circle') return `<div style="${base}background:${escA(el.color)};border-radius:50%;"></div>`;
-    if (el.type === 'line') return `<div style="${base}display:flex;align-items:center;"><div style="width:100%;height:${el.thickness ?? 2}px;background:${escA(el.color)};border-radius:2px;"></div></div>`;
+    if (el.type === 'rect') return `<div style="${base}background:${safeCssColor(el.color, '#cccccc')};border-radius:${el.borderRadius ?? 0}px;"></div>`;
+    if (el.type === 'circle') return `<div style="${base}background:${safeCssColor(el.color, '#cccccc')};border-radius:50%;"></div>`;
+    if (el.type === 'line') return `<div style="${base}display:flex;align-items:center;"><div style="width:100%;height:${el.thickness ?? 2}px;background:${safeCssColor(el.color, '#cccccc')};border-radius:2px;"></div></div>`;
     if (el.type === 'image') return `<div style="${base}overflow:hidden;border-radius:${el.borderRadius ?? 0}px;"><img src="${escA(el.src)}" alt="" style="width:100%;height:100%;object-fit:${el.objectFit ?? 'cover'};display:block;" loading="lazy"></div>`;
     return '';
   }).filter(Boolean).join('\n    ');

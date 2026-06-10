@@ -66,6 +66,13 @@ function htmlEscape(s = '') {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Validates that a value is a safe CSS color before injecting into style blocks (fix #5)
+const _CSS_COLOR_RE = /^(?:#[0-9a-fA-F]{3,8}|rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*[\d.]+)?\s*\)|hsla?\(\s*[\d.]+(?:deg|turn|rad)?\s*,\s*[\d.]+%\s*,\s*[\d.]+%(?:\s*,\s*[\d.]+)?\s*\)|[a-zA-Z]{2,30}|transparent)$/;
+function safeCssColor(value, fallback = '') {
+  const v = String(value || '').trim();
+  return _CSS_COLOR_RE.test(v) ? v : fallback;
+}
+
 function styleTag(css = '') {
   const safeCss = String(css || '').replace(/<\/style/gi, '<\\/style');
   return safeCss ? `<style>${safeCss}</style>` : '';
@@ -2547,9 +2554,9 @@ function renderHomePage(manifest, cards) {
   const browserTitle = manifest.sourcePlatform === 'website' && sourceHome.title ? sourceHome.title : ownerTitle;
   if (sourceHome.html && !manifest.homeOverride) {
     const pageVars = [
-      sourceHome.backgroundColor ? `--bg:${sourceHome.backgroundColor}` : '',
-      sourceHome.textColor ? `--fg:${sourceHome.textColor}` : '',
-      sourceHome.textColor ? `--muted:${sourceHome.textColor}` : ''
+      sourceHome.backgroundColor ? `--bg:${safeCssColor(sourceHome.backgroundColor)}` : '',
+      sourceHome.textColor ? `--fg:${safeCssColor(sourceHome.textColor)}` : '',
+      sourceHome.textColor ? `--muted:${safeCssColor(sourceHome.textColor)}` : ''
     ].filter(Boolean).join(';');
     const wrapperStyle = sourceHome.style ? ` style="${htmlEscape(sourceHome.style)}"` : '';
     const html = rewriteCrossOriginSvgSprites(appendManagedImportedCards(rewriteHomeLinks(sourceHome.html, manifest.projects, manifest.sourceUrl), manifest.projects));
@@ -2670,9 +2677,9 @@ export async function generateSite(manifest, outDir, progress) {
     const isSourceReplica = !!(cloneHtml || p.sourceCloneHtml);
     if (cloneHtml) {
       const pageVars = [
-        p.pageStyle?.backgroundColor ? `--bg:${p.pageStyle.backgroundColor}` : '',
-        p.pageStyle?.textColor ? `--fg:${p.pageStyle.textColor}` : '',
-        p.pageStyle?.textColor ? `--muted:${p.pageStyle.textColor}` : ''
+        p.pageStyle?.backgroundColor ? `--bg:${safeCssColor(p.pageStyle.backgroundColor)}` : '',
+        p.pageStyle?.textColor ? `--fg:${safeCssColor(p.pageStyle.textColor)}` : '',
+        p.pageStyle?.textColor ? `--muted:${safeCssColor(p.pageStyle.textColor)}` : ''
       ].filter(Boolean).join(';');
       const title = p.sourcePageTitle || `${p.title} — ${manifest.ownerName}`;
       const rewrittenClone = rewriteCrossOriginSvgSprites(rewriteProjectCloneLinks(cloneHtml, manifest.projects, manifest.sourceUrl));
@@ -2699,9 +2706,9 @@ export async function generateSite(manifest, outDir, progress) {
       ? highContrastTextColor(p.pageStyle?.backgroundColor, p.pageStyle?.textColor)
       : p.pageStyle?.textColor;
     const pageVars = [
-      p.pageStyle?.backgroundColor ? `--bg:${p.pageStyle.backgroundColor}` : '',
-      textColor ? `--fg:${textColor}` : '',
-      textColor ? `--muted:${textColor}` : ''
+      p.pageStyle?.backgroundColor ? `--bg:${safeCssColor(p.pageStyle.backgroundColor)}` : '',
+      textColor ? `--fg:${safeCssColor(textColor)}` : '',
+      textColor ? `--muted:${safeCssColor(textColor)}` : ''
     ].filter(Boolean).join(';');
     const layoutClass = p.aiLayout ? ` ai-layout-${String(p.aiLayout).replace(/[^a-z-]/g, '')}` : '';
     const mainStyle = p.pageStyle?.contentWidth ? ` style="max-width:${Math.max(760, Math.round(p.pageStyle.contentWidth))}px"` : '';

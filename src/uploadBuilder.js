@@ -107,6 +107,7 @@ Schema:
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(60_000),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
@@ -183,6 +184,7 @@ Schema:
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(60_000),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`

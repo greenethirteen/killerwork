@@ -108,6 +108,7 @@ Rules:
       try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
+          signal: AbortSignal.timeout(60_000),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
@@ -273,6 +274,7 @@ Rules:
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(60_000),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
@@ -411,6 +413,7 @@ Rules:
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(60_000),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
@@ -538,6 +541,7 @@ Rules:
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(60_000),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
@@ -668,6 +672,7 @@ Truth rules:
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(60_000),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
@@ -729,6 +734,7 @@ Return this schema:
   progress?.('AI cleanup', `${project.title}`);
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(60_000),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
