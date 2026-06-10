@@ -433,6 +433,7 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
     if (made.has(el)) return;
     if (!el.textContent.trim()) return;
     if (['img','video'].some(t => el.querySelector(t))) return;
+    if (el.querySelector('[contenteditable]')) return; // skip wrapper if children already editable
     made.add(el);
     el.setAttribute('contenteditable', 'plaintext-only');
     el.classList.add('kw-text-active');
