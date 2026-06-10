@@ -564,6 +564,7 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
   }
 
   let hoverTarget = null;
+  let hoverClearTimer = null;
 
   function positionMoveHandle(el) {
     const r = el.getBoundingClientRect();
@@ -576,6 +577,7 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
   }
 
   function mouseoverHandler(e) {
+    clearTimeout(hoverClearTimer);
     const el = e.target.closest('[contenteditable]');
     if (!el) return;
     hoverTarget = el;
@@ -585,8 +587,11 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
   function mouseoutHandler(e) {
     const to = e.relatedTarget;
     if (to && (to === moveHandle || moveHandle.contains(to) || to.closest('[contenteditable]'))) return;
-    moveHandle.style.display = 'none';
-    hoverTarget = null;
+    clearTimeout(hoverClearTimer);
+    hoverClearTimer = setTimeout(() => {
+      moveHandle.style.display = 'none';
+      hoverTarget = null;
+    }, 150);
   }
 
   moveHandle.addEventListener('mousedown', (e) => {
@@ -604,6 +609,7 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
     let moved = false;
 
     function onDragMove(me) {
+      clearTimeout(hoverClearTimer);
       const dx = me.clientX - startX, dy = me.clientY - startY;
       if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
       moved = true;
@@ -662,6 +668,7 @@ function setupTextMode(frame, { onSelect, onDeselect, onDirty }) {
   doc.addEventListener('keydown', keyHandler);
 
   return () => {
+    clearTimeout(hoverClearTimer);
     doc.removeEventListener('click', clickHandler, true);
     doc.removeEventListener('input', inputHandler, true);
     doc.removeEventListener('keydown', keyHandler);
