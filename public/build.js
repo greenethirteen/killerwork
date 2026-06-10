@@ -204,7 +204,7 @@ function projectTile(project, jobId) {
     <span class="built-project-thumb-loader" aria-hidden="true"></span>
     <div class="tile-project-actions">
       <a class="tile-action-btn" href="${escapeHtml(previewHref)}" target="_blank" rel="noreferrer" aria-label="Preview ${escapeHtml(projectTitle)}">Preview</a>
-      <a class="tile-action-btn" href="/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent(`work/${project.slug}/index.html`)}" target="_blank" rel="noreferrer" aria-label="Edit ${escapeHtml(projectTitle)}">Edit</a>
+      <a class="tile-action-btn" href="/pixel-editor.html?job=${encodeURIComponent(jobId)}" target="_blank" rel="noreferrer" aria-label="Edit ${escapeHtml(projectTitle)}">Edit</a>
       <button class="tile-action-btn" type="button" data-delete-project="${escapeHtml(project.slug)}" aria-label="Delete ${escapeHtml(projectTitle)}">Delete page</button>
     </div>
     <strong contenteditable="true" spellcheck="false" data-edit-title="${escapeHtml(project.slug)}" data-last-title="${escapeHtml(projectTitle)}">${escapeHtml(projectTitle)}</strong>
@@ -273,7 +273,7 @@ function aboutTile(portfolio) {
   tile.className = `portfolio-tile about-page-tile ${hasAbout ? 'about-page-tile--built' : ''}`;
   const jobId = portfolio?.id || '';
   const previewHref = `/generated/${encodeURIComponent(jobId)}/site/about.html`;
-  const editorHref = `/ai-editor.html?job=${encodeURIComponent(jobId)}&path=${encodeURIComponent('about.html')}`;
+  const editorHref = `/pixel-editor.html?job=${encodeURIComponent(jobId)}`;
 
   if (hasAbout) {
     tile.dataset.href = previewHref;
@@ -531,6 +531,7 @@ document.querySelectorAll('[data-close-builder]').forEach(element => element.add
 document.querySelectorAll('[data-open-builder]').forEach(button => {
   button.addEventListener('click', openBuilder);
 });
+document.getElementById('addCampaignBtn')?.addEventListener('click', () => addCampaignCard());
 previewPortfolioButton?.addEventListener('click', event => {
   if (!latestPortfolio?.preview) event.preventDefault();
 });

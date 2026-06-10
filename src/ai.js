@@ -93,20 +93,18 @@ export async function cleanupCampaignBuilderManifestWithAI(manifest, { progress,
     let cleaned = fallback;
     if (enabled && process.env.OPENAI_API_KEY && fallback.description) {
       progress?.('AI checking portfolio text', project.title || 'campaign');
-      const system = `You clean structured text for an advertising portfolio campaign page.
+      const system = `You write polished copy for an advertising portfolio campaign page.
 Return JSON only:
 { "title": "", "metadata": [""], "description": "" }
 
 Rules:
-- Keep the campaign title concise.
-- Keep brand, agency, and role as separate short metadata lines only when present.
-- Rewrite the user's optional notes into concise, polished portfolio body copy. Improve clarity and grammar without changing the meaning.
-- Description is narrative copy only. Never place the title, brand, agency, role, field labels, or metadata in the description.
-- If the notes contain only title, brand, agency, or role data, return an empty description.
-- Remove exact duplicates and repeated fragments.
-- Never concatenate fields into one line.
-- Never repeat the title inside metadata or description.
-- Preserve the meaning of quotes and factual claims. Do not invent awards, clients, agencies, roles, or claims.`;
+- "title": Concise campaign name. Use "Campaign — Brand" format when both are known. Never exceed 8 words. Never include a colon.
+- "metadata": Short standalone credential lines. One entry per field: brand, agency, role. Never combine into one line. Never include the title in metadata.
+- "description": 1–3 sentences of sharp, factual narrative from the user's notes. Write in a confident creative voice ("The brief was...", "We created...", "This campaign..."). Fix all grammar and remove filler. Return "" if the notes are empty or just repeat the field data without meaningful creative context.
+  - Never include field label words (brand, agency, role, campaign) in the description.
+  - Never repeat the title, brand name, agency name, or role verbatim.
+  - Do not invent facts, awards, or claims not in the input.
+- Remove all duplicate lines and label prefixes like "Brand:", "Agency:", "Role:".`;
       try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',

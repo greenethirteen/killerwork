@@ -113,7 +113,8 @@
       <div class="builder-flow-top">
         <button id="builderBack" class="builder-back" type="button" aria-label="Close create page">×</button>
         <div>
-          <h1 id="builderTitle">Create Page</h1>
+          <h1 id="builderTitle">Add a campaign page</h1>
+          <p>Upload your work files and campaign details — AI builds a sharp, polished portfolio page.</p>
         </div>
       </div>
 
@@ -139,6 +140,7 @@
         <section class="builder-panel builder-upload-panel">
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
+            <button class="add-campaign-btn" type="button" id="addCampaignBtn">+ Add another campaign</button>
             <button id="buildCampaigns" class="build-submit" type="submit">Create Page</button>
           </div>
         </section>
@@ -153,32 +155,37 @@
         <button class="mini-button danger remove-campaign" type="button">Remove</button>
       </div>
       <label class="asset-drop">
-        <strong>Drag & drop your files here</strong>
-        <small>Images, video, audio/radio spots, decks, and PDFs</small>
+        <div class="asset-drop-body">
+          <div class="asset-drop-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          </div>
+          <strong>Drop files here or click to browse</strong>
+          <small>Images · Videos · PDFs · Audio · Case study decks</small>
+        </div>
         <input data-field="files" type="file" multiple accept="image/*,video/*,audio/*,application/pdf" required>
         <span data-file-summary>No files selected</span>
       </label>
       <div class="builder-form-grid">
         <label class="builder-field">
-          <span>Brand</span>
-          <input data-field="brand" placeholder="Headfast">
+          <span>Campaign name</span>
+          <input data-field="title" placeholder="e.g. Real Beauty — Dove">
         </label>
         <label class="builder-field">
-          <span>Campaign name</span>
-          <input data-field="title" placeholder="Rub It Away">
+          <span>Brand</span>
+          <input data-field="brand" placeholder="e.g. Dove">
         </label>
         <label class="builder-field">
           <span>Ad agency</span>
-          <input data-field="agency" placeholder="Ogilvy">
+          <input data-field="agency" placeholder="e.g. Ogilvy">
         </label>
         <label class="builder-field">
           <span>Your role</span>
-          <input data-field="role" placeholder="Creative Director">
+          <input data-field="role" placeholder="e.g. Creative Director">
         </label>
       </div>
-      <label class="builder-field">
-        <span>Description or notes</span>
-        <textarea data-field="notes" placeholder="Optional. Add only the text you want on the page."></textarea>
+      <label class="builder-field builder-notes-field">
+        <span>Notes for AI <span class="field-opt">(optional)</span></span>
+        <textarea data-field="notes" placeholder="Campaign strategy, key insight, results, awards — the more context you give, the better the AI copy."></textarea>
       </label>
     </article>
   </template>
@@ -248,7 +255,7 @@
   </div>
 
   <script type="module">
-    import('/auth.js?v=20260603-ads-base2').then(() => import('/build.js?v=20260609-pixel-edit'));
+    import('/auth.js?v=20260603-ads-base2').then(() => import('/build.js?v=20260610-campaign-v2'));
   </script>
 </body>
 </html>

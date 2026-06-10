@@ -94,14 +94,14 @@ Prefer clean advertising portfolio metadata over long commentary.
 
 Schema:
 {
-  "title": "short work title",
-  "campaign": "campaign name if visible or filename implies it",
+  "title": "short work title — 3–6 words, e.g. 'Think Different' or 'Snickers Hunger Bars'",
+  "campaign": "campaign name if visible or implied by filename",
   "client": "brand/client if visible",
   "agency": "agency if visible",
-  "medium": "Print | Film | Outdoor | Social | Design | Case Board | PDF | Video | Other",
-  "visibleText": ["exact visible text fragments"],
-  "captionLines": ["short lines suitable below the work"],
-  "description": "one grounded sentence about the idea/execution",
+  "medium": "Print | Film | Outdoor | Social | Digital | Case Board | Radio | Design | PDF | Video | Other",
+  "visibleText": ["exact headline or body copy visible in the work, max 4 fragments"],
+  "captionLines": ["2 short lines: first is campaign/client context, second is medium — e.g. 'Dove | Real Beauty' and 'Print Campaign'"],
+  "description": "one sharp sentence describing the advertising idea or execution visible in the work — what makes it interesting",
   "confidence": 0.0
 }`;
 
