@@ -630,3 +630,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .clicks-us .button{justify-self:start;margin-top:4px}
 @media(max-width:900px){.pixel-feature-row{grid-template-columns:1fr 1fr}.clicks-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.pixel-editor-showcase,.clicks-compare{padding:18px}.pixel-feature-row{grid-template-columns:1fr}.pixel-demo-canvas{padding:24px 16px 36px}.pd-modes span{display:none}.pd-selected{width:84%}.pd-textrow{width:84%}.pd-toolbar span:last-child{display:none}}
+
+/* Publish section after removing the 3-step row: single column, centered demo */
+.publish-howto{grid-template-columns:1fr}
+.publish-howto .publish-panel-demo{width:min(520px,100%);margin:0 auto}
