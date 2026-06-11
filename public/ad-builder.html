@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260604-clarity-direct"></script>
+  <title>AI Ad Portfolio Builder — KillaWork™</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/ui.css?v=20260611-ad-builder" />
+  <style>
+    .adb-shell{max-width:880px;margin:0 auto;padding:24px 20px 80px}
+    .adb-hero{text-align:center;margin:42px 0 36px}
+    .adb-hero .section-tab{display:inline-block;margin-bottom:14px}
+    .adb-hero h1{font-size:clamp(34px,5.4vw,58px);letter-spacing:-.045em;line-height:1;margin:0 0 14px}
+    .adb-hero p{color:rgba(255,255,255,.62);font-size:17px;line-height:1.55;max-width:560px;margin:0 auto}
+    .adb-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 26px}
+    .adb-step{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 16px 14px;text-align:left}
+    .adb-step b{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;background:#ff5200;color:#fff;font-size:12px;margin-bottom:10px}
+    .adb-step strong{display:block;font-size:14px;margin-bottom:4px}
+    .adb-step span{color:rgba(255,255,255,.55);font-size:12.5px;line-height:1.45}
+    .adb-form{display:grid;gap:14px}
+    .adb-name-field{display:grid;gap:6px}
+    .adb-name-field span{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.55)}
+    .adb-name-field input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:13px 16px;color:#fff;font-size:15px;outline:none}
+    .adb-name-field input:focus{border-color:#ff5200}
+    .adb-drop{position:relative;display:grid;place-items:center;gap:4px;border:2px dashed rgba(255,255,255,.18);border-radius:18px;background:rgba(255,255,255,.025);padding:46px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+    .adb-drop:hover,.adb-drop.dragover{border-color:#ff5200;background:rgba(255,82,0,.05)}
+    .adb-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .adb-drop-icon{font-size:30px;margin-bottom:6px}
+    .adb-drop strong{font-size:16px}
+    .adb-drop small{color:rgba(255,255,255,.5);font-size:13px}
+    .adb-drop .adb-zip-name{margin-top:8px;color:#ff8040;font-size:13px;font-weight:600;word-break:break-all}
+    .adb-submit{justify-self:center;min-width:240px}
+    .adb-progress{margin-top:34px}
+    .adb-result-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px}
+    .adb-preview-frame{width:100%;height:540px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:#0b0b0f;margin-top:24px}
+    @media(max-width:680px){.adb-steps{grid-template-columns:1fr}.adb-preview-frame{height:420px}}
+  </style>
+</head>
+<body class="build-page">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <main class="adb-shell" data-clarity-mask="true">
+    <nav class="topbar landing-topbar" aria-label="KillaWork">
+      <a class="logo" href="/">
+        <picture>
+          <source type="image/avif" srcset="/logos/killa-work-logo-320.avif 320w, /logos/killa-work-logo-640.avif 640w" sizes="(max-width:600px) 320px, 640px">
+          <source type="image/webp" srcset="/logos/killa-work-logo-320.webp 320w, /logos/killa-work-logo-640.webp 640w" sizes="(max-width:600px) 320px, 640px">
+          <img class="logo-image" src="/logos/killa-work-logo-640.webp" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="async" fetchpriority="high" />
+        </picture>
+        <span class="logo-text">KillaWork™</span>
+      </a>
+      <div class="topnav-actions">
+        <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
+        <span data-user-badge class="user-badge hidden"></span>
+        <a data-auth-link class="top-signin" href="#">Sign in</a>
+        <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
+      </div>
+    </nav>
+
+    <header class="adb-hero">
+      <span class="section-tab">AI Ad Portfolio Builder</span>
+      <h1>One ZIP in.<br>A full portfolio out.</h1>
+      <p>Drop in a single ZIP with everything — print ads, social posts, ad films, case study videos. AI scans every piece, groups it into campaigns, and builds a portfolio with a page for each one.</p>
+    </header>
+
+    <div class="adb-steps" aria-hidden="true">
+      <div class="adb-step"><b>1</b><strong>Zip up your work</strong><span>Folders per campaign help, but aren't required — the AI figures it out.</span></div>
+      <div class="adb-step"><b>2</b><strong>AI scans every ad</strong><span>Each image is analyzed for client, campaign, medium and headline.</span></div>
+      <div class="adb-step"><b>3</b><strong>Portfolio, done</strong><span>A grid home page plus one polished page per campaign. Fully editable.</span></div>
+    </div>
+
+    <form id="adbForm" class="adb-form">
+      <label class="adb-name-field">
+        <span>Your name <i style="opacity:.5;font-style:normal;text-transform:none">(optional — used as the site title)</i></span>
+        <input id="adbTitle" type="text" autocomplete="name" placeholder="Jane Doe" />
+      </label>
+      <label class="adb-drop" id="adbDrop">
+        <input id="adbZip" type="file" accept=".zip,application/zip" required />
+        <div class="adb-drop-icon">🗂️</div>
+        <strong>Drop your ZIP here or click to browse</strong>
+        <small>Images · Videos · Audio · PDFs — up to 250MB</small>
+        <span class="adb-zip-name" id="adbZipName"></span>
+      </label>
+      <button id="adbSubmit" class="button hot adb-submit" type="submit">Build my portfolio</button>
+    </form>
+
+    <section id="adbProgress" class="glass progress-panel adb-progress hidden" aria-live="polite">
+      <div class="panel-top">
+        <div><span class="status-pill" id="adbStatusPill">Working</span><h2 id="adbStageTitle">Starting build</h2><p id="adbStageDetail">Uploading your ZIP.</p></div>
+        <div class="percent" id="adbPercentText">0%</div>
+      </div>
+      <div class="progress-track"><div id="adbProgressBar" class="progress-bar"></div></div>
+    </section>
+
+    <section id="adbResult" class="hidden">
+      <div class="adb-result-actions">
+        <a id="adbPreviewLink" class="button hot" target="_blank" rel="noreferrer" href="#">Open live preview</a>
+        <a id="adbEditLink" class="button secondary" target="_blank" rel="noreferrer" href="#">Edit in pixel editor</a>
+        <a class="button secondary" href="/manage.html">Manage &amp; publish</a>
+      </div>
+      <iframe id="adbPreviewFrame" class="adb-preview-frame" title="Generated portfolio preview"></iframe>
+    </section>
+  </main>
+
+  <script type="module">
+    import('/auth.js?v=20260603-ads-base2').then(() => import('/ad-builder.js?v=20260611-ad-builder'));
+  </script>
+</body>
+</html>

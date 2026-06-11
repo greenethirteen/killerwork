@@ -1302,7 +1302,7 @@ function VisualEditor() {
           </div>
 
           {/* Templates panel — Behance and builder sites only */}
-          {(site?.sourcePlatform === 'behance' || site?.sourceUrl === 'campaign-builder') && (
+          {(site?.sourcePlatform === 'behance' || ['campaign-builder', 'uploaded-files'].includes(site?.sourceUrl)) && (
             <div style={{ borderBottom:'1px solid #1f1f26' }}>
               <button onClick={() => setTemplatesOpen(o => !o)}
                 style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 10px 8px', background:'none', border:'none', cursor:'pointer', color:'#bbb' }}>

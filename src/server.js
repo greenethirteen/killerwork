@@ -684,6 +684,94 @@ app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), as
   }
 });
 
+app.post('/api/ad-zip-build', requireFirebaseAuth, zipUpload.single('zip'), async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'Upload one ZIP file.' });
+  if (!acquireBuildSlot(req.user.uid)) {
+    await fs.remove(file.path).catch(() => {});
+    return res.status(429).json({ error: 'You already have 2 builds running. Wait for one to finish.' });
+  }
+  const title = String(req.body?.title || '').trim();
+  const id = `${Date.now()}-${hash(`${req.user.uid}:${title}:${file.originalname}:${file.size}`)}`;
+  const outDir = jobDir(id);
+  const job = { id, url: 'ad-zip-builder', aiCleanup: true, ownerUid: req.user.uid, status: 'running', progress: [], percent: 2, createdAt: new Date().toISOString(), links: null, error: null };
+  jobs.set(id, job);
+  res.json({ id });
+
+  const stages = ['Reading ZIP', 'Saving uploaded assets', 'Analyzing uploaded work', 'AI analyzing asset', 'AI organizing portfolio', 'Raw manifest saved', 'Building static portfolio', 'Generated static site', 'Validating output', 'Validation passed', 'Validation warnings', 'ZIP ready'];
+  const updatePercent = (stage) => {
+    const idx = stages.findIndex(s => stage.startsWith(s));
+    if (idx >= 0) job.percent = Math.max(job.percent, Math.round(((idx + 1) / stages.length) * 100));
+  };
+  const pushProgress = (evt) => {
+    updatePercent(evt.stage);
+    job.progress.push(evt);
+    if (job.progress.length > 300) job.progress.shift();
+  };
+
+  const extractDir = path.join(tmpUploadsDir, `adzip-${id}`);
+  const extractedFiles = [];
+  try {
+    pushProgress({ stage: 'Reading ZIP', detail: file.originalname, at: new Date().toISOString() });
+    const { default: AdmZip } = await import('adm-zip');
+    const mime = (await import('mime-types')).default;
+    const zip = new AdmZip(file.path);
+    const MEDIA_EXT = /\.(png|jpe?g|webp|gif|avif|mp4|webm|mov|m4v|mp3|m4a|wav|aac|pdf)$/i;
+    const MAX_FILES = 250;
+    for (const entry of zip.getEntries()) {
+      if (entry.isDirectory) continue;
+      const entryName = entry.entryName.replace(/\\/g, '/');
+      if (entryName.includes('__MACOSX/') || path.basename(entryName).startsWith('.')) continue;
+      if (!MEDIA_EXT.test(entryName)) continue;
+      if (extractedFiles.length >= MAX_FILES) {
+        pushProgress({ stage: 'Reading ZIP', detail: `Stopping at ${MAX_FILES} media files`, at: new Date().toISOString() });
+        break;
+      }
+      const outPath = path.join(extractDir, `${extractedFiles.length}-${safeSlug(path.basename(entryName)) || 'asset'}`);
+      await fs.outputFile(outPath, entry.getData());
+      const stat = await fs.stat(outPath);
+      extractedFiles.push({
+        // Keep the folder path in originalname — folder names are strong campaign-grouping
+        // signals for the AI organizer (e.g. "Nike Just Do It/print-01.jpg")
+        originalname: entryName.split('/').filter(Boolean).slice(-2).join('/'),
+        fieldname: 'zip',
+        path: outPath,
+        mimetype: mime.lookup(entryName) || 'application/octet-stream',
+        size: stat.size
+      });
+    }
+    if (!extractedFiles.length) throw new Error('No images, videos, audio files, or PDFs found in the ZIP.');
+    pushProgress({ stage: 'Reading ZIP', detail: `${extractedFiles.length} media file(s) found`, at: new Date().toISOString() });
+
+    const result = await runUploadBuild({ files: extractedFiles, outDir, title, aiCleanup: true, onProgress: pushProgress });
+    result.manifest.buildMode = 'ad-zip-builder';
+    attachOwner(result.manifest, req.user);
+    await saveManifestAndRebuild(id, result.manifest);
+    job.status = 'done';
+    finaliseJob(job);
+    job.percent = 100;
+    job.links = {
+      preview: `/generated/${id}/site/index.html`,
+      review: `/generated/${id}/site/import-review.html`,
+      manifest: `/generated/${id}/manifest.json`,
+      rawManifest: `/generated/${id}/manifest.raw.json`,
+      cleanedManifest: `/generated/${id}/manifest.cleaned.json`,
+      validation: `/generated/${id}/reports/validation.json`,
+      zip: `/api/download/${id}`
+    };
+  } catch (e) {
+    job.status = 'error';
+    finaliseJob(job);
+    job.error = e.stack || e.message;
+    job.progress.push({ stage: 'Build failed', detail: e.message, at: new Date().toISOString() });
+    await Promise.all(extractedFiles.map(f => fs.remove(f.path).catch(() => {})));
+  } finally {
+    releaseBuildSlot(req.user.uid);
+    await fs.remove(file.path).catch(() => {});
+    await fs.remove(extractDir).catch(() => {});
+  }
+});
+
 app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, res) => {
   if (!acquireBuildSlot(req.user.uid)) return res.status(429).json({ error: 'You already have 2 builds running. Wait for one to finish.' });
   const title = String(req.body?.title || '').trim();
@@ -2294,7 +2382,7 @@ app.post('/api/code-editor/:id/template', requireFirebaseAuth, async (req, res) 
   try {
     const id = req.params.id;
     const manifest = await requireEditablePortfolio(id, req.user);
-    if (manifest.sourcePlatform !== 'behance' && manifest.sourceUrl !== 'campaign-builder') {
+    if (manifest.sourcePlatform !== 'behance' && !['campaign-builder', 'uploaded-files'].includes(manifest.sourceUrl)) {
       return res.status(400).json({ error: 'Templates are only available for Behance and builder sites.' });
     }
     const ALLOWED = ['default', 'editorial', 'bold', 'neo'];
