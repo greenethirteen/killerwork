@@ -106,9 +106,11 @@ bindProtectedZipLink(downloadLink, (text, tone = '') => {
 
 if (switcher && panels.length) {
   const dualToggles = [...document.querySelectorAll('[data-dual-toggle]')];
+  const dualToggleWrap = document.querySelector('.dual-mobile-toggle');
   const setActivePanel = panelName => {
     if (!panelName) return;
     switcher.dataset.activePanel = panelName;
+    dualToggleWrap?.setAttribute('data-active', panelName);
     dualToggles.forEach(button => {
       const active = button.dataset.dualToggle === panelName;
       button.classList.toggle('active', active);
