@@ -6,6 +6,44 @@ import { generateSite, validateSite, zipDir } from './importer.js';
 import { hash, safeSlug } from './utils.js';
 
 const IMAGE_ANALYSIS_LIMIT = 8 * 1024 * 1024;
+// Anthropic caps images at 5MB; stay under it
+const ANTHROPIC_IMAGE_LIMIT = 4.5 * 1024 * 1024;
+const ANTHROPIC_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
+function aiProvider() {
+  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
+  if (process.env.OPENAI_API_KEY) return 'openai';
+  return null;
+}
+
+async function claudeJson({ system, userContent, maxTokens = 1024, timeoutMs = 60_000 }) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      system,
+      messages: [
+        { role: 'user', content: userContent },
+        // Prefilled "{" forces the reply to continue as raw JSON
+        { role: 'assistant', content: '{' }
+      ]
+    })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Anthropic API error ${res.status}: ${txt.slice(0, 500)}`);
+  }
+  const body = await res.json();
+  const text = (body.content || []).filter(block => block.type === 'text').map(block => block.text).join('');
+  return jsonFromText('{' + text);
+}
 
 function envTrue(v) {
   return ['1', 'true', 'yes', 'on'].includes(String(v || '').toLowerCase());
@@ -75,12 +113,17 @@ function fallbackAnalysis(asset) {
 }
 
 async function analyzeImageAsset(asset, progress) {
-  if (!process.env.OPENAI_API_KEY || !envTrue(process.env.AI_UPLOAD_ANALYSIS ?? 'true')) return fallbackAnalysis(asset);
-  if (asset.size > IMAGE_ANALYSIS_LIMIT) {
+  const provider = aiProvider();
+  if (!provider || !envTrue(process.env.AI_UPLOAD_ANALYSIS ?? 'true')) return fallbackAnalysis(asset);
+  const sizeLimit = provider === 'anthropic' ? ANTHROPIC_IMAGE_LIMIT : IMAGE_ANALYSIS_LIMIT;
+  if (asset.size > sizeLimit) {
     return {
       ...fallbackAnalysis(asset),
-      description: `Image was larger than ${Math.round(IMAGE_ANALYSIS_LIMIT / 1024 / 1024)}MB, so AI visual analysis was skipped.`
+      description: `Image was larger than ${(sizeLimit / 1024 / 1024).toFixed(1)}MB, so AI visual analysis was skipped.`
     };
+  }
+  if (provider === 'anthropic' && !ANTHROPIC_MEDIA_TYPES.has(asset.mime)) {
+    return fallbackAnalysis(asset);
   }
 
   progress?.('AI analyzing asset', asset.originalName);
@@ -104,6 +147,17 @@ Schema:
   "description": "one sharp sentence describing the advertising idea or execution visible in the work — what makes it interesting",
   "confidence": 0.0
 }`;
+
+  if (provider === 'anthropic') {
+    return normalizeAnalysis(asset, await claudeJson({
+      system: prompt,
+      userContent: [
+        { type: 'text', text: `Filename: ${asset.originalName}` },
+        { type: 'image', source: { type: 'base64', media_type: asset.mime, data } }
+      ],
+      maxTokens: 1024
+    }));
+  }
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -143,7 +197,8 @@ async function groupAssetsWithAI(assets, progress) {
     captionLines: asset.analysis.captionLines?.length ? asset.analysis.captionLines : [asset.analysis.title, asset.analysis.medium].filter(Boolean),
     description: asset.analysis.description || ''
   }));
-  if (!process.env.OPENAI_API_KEY || !envTrue(process.env.AI_UPLOAD_ANALYSIS ?? 'true')) return fallback;
+  const provider = aiProvider();
+  if (!provider || !envTrue(process.env.AI_UPLOAD_ANALYSIS ?? 'true')) return fallback;
 
   progress?.('AI organizing portfolio', `${assets.length} uploaded asset(s)`);
   const payload = assets.map((asset, index) => ({
@@ -181,6 +236,17 @@ Schema:
     }
   ]
 }`;
+
+  if (provider === 'anthropic') {
+    const parsed = await claudeJson({
+      system: prompt,
+      userContent: JSON.stringify(payload),
+      maxTokens: 8192,
+      timeoutMs: 120_000
+    });
+    const projects = Array.isArray(parsed.projects) ? parsed.projects : fallback;
+    return { ownerName: cleanText(parsed.ownerName), siteTitle: cleanText(parsed.siteTitle), projects };
+  }
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
