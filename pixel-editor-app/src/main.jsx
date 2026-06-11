@@ -1166,13 +1166,13 @@ function VisualEditor() {
 
       {/* ── Topbar ── */}
       <div style={{ display:'flex', alignItems:'center', height:50, background:'#18181c', borderBottom:'1px solid #222', padding:'0 10px', gap:6, flexShrink:0, zIndex:100 }}>
-        <a href="/manage.html" title="Manage" style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32, borderRadius:6, color:'#666', textDecoration:'none', background:'transparent' }}><Home size={15}/></a>
+        <a href="/manage.html" title="Manage" style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32, borderRadius:6, color:'#aaa', textDecoration:'none', background:'transparent' }}><Home size={15}/></a>
         <div style={{ width:1, height:22, background:'#222' }} />
         <div style={{ display:'flex', alignItems:'center', gap:7 }}>
           <img src="/logos/killa-work-logo.png" alt="KillaWork" style={{ height:22, width:'auto', objectFit:'contain' }} />
           <div style={{ lineHeight:1.2 }}>
             <div style={{ fontSize:11, fontWeight:600, color:'#e0e0e0' }}>{site?.siteTitle || 'Portfolio'}</div>
-            <div style={{ fontSize:10, color:'#666' }}>Visual Editor</div>
+            <div style={{ fontSize:10, color:'#999' }}>Visual Editor</div>
           </div>
         </div>
         <div style={{ width:1, height:22, background:'#222' }} />
@@ -1187,7 +1187,7 @@ function VisualEditor() {
             <button key={m.id} onClick={() => activateMode(m.id)}
               style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:6, border:'none', cursor:'pointer', fontSize:11, fontWeight:500,
                 background: mode === m.id ? '#ff5200' : 'transparent',
-                color: mode === m.id ? '#fff' : '#666',
+                color: mode === m.id ? '#fff' : '#aaa',
               }}>
               {m.icon} <span>{m.label}</span>
             </button>
@@ -1197,8 +1197,8 @@ function VisualEditor() {
         {/* Insert menu */}
         <div style={{ position:'relative' }}>
           <button onClick={() => setInsertOpen(o => !o)}
-            style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:6, border:'1px dashed #333', cursor:'pointer', fontSize:11, fontWeight:500,
-              background: insertOpen ? '#1e1e26' : 'transparent', color:'#999' }}>
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:6, border:'1px dashed #444', cursor:'pointer', fontSize:11, fontWeight:500,
+              background: insertOpen ? '#1e1e26' : 'transparent', color:'#bbb' }}>
             ＋ Insert
           </button>
           {insertOpen && (
@@ -1215,8 +1215,8 @@ function VisualEditor() {
         </div>
         <input ref={insertImgRef} type="file" accept="image/*" onChange={handleInsertImage} style={{ display:'none' }} />
 
-        {mode === 'select' && <span style={{ fontSize:11, color:'#888', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click · Drag to snap · ⇧ resize keeps ratio · ⌘D duplicate</span>}
-        {mode === 'text' && <span style={{ fontSize:11, color:'#888', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click text to edit · Toolbar appears above · Hover for drag</span>}
+        {mode === 'select' && <span style={{ fontSize:11, color:'#bbb', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click · Drag to snap · ⇧ resize keeps ratio · ⌘D duplicate</span>}
+        {mode === 'text' && <span style={{ fontSize:11, color:'#bbb', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click text to edit · Toolbar appears above · Hover for drag</span>}
 
         <div style={{ flex:1 }} />
 
@@ -1225,7 +1225,7 @@ function VisualEditor() {
           {[['desktop', <Monitor size={13}/>], ['mobile', <Smartphone size={13}/>]].map(([id, icon]) => (
             <button key={id} onClick={() => setDevice(id)} title={id}
               style={{ display:'flex', alignItems:'center', justifyContent:'center', width:26, height:26, borderRadius:5, border:'none', cursor:'pointer',
-                background: device === id ? '#2a2a2e' : 'transparent', color: device === id ? '#fff' : '#555' }}>
+                background: device === id ? '#2a2a2e' : 'transparent', color: device === id ? '#fff' : '#aaa' }}>
               {icon}
             </button>
           ))}
@@ -1233,11 +1233,11 @@ function VisualEditor() {
 
         {/* Undo / Redo */}
         <button onClick={() => snapshotAction('undo')} disabled={(!history.undoCount && !localUndoCount) || saving} title="Undo (⌘Z)"
-          style={{ display:'flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'none', cursor: (history.undoCount || localUndoCount) ? 'pointer' : 'default', background:'transparent', color: (history.undoCount || localUndoCount) ? '#777' : '#333' }}>
+          style={{ display:'flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'none', cursor: (history.undoCount || localUndoCount) ? 'pointer' : 'default', background:'transparent', color: (history.undoCount || localUndoCount) ? '#bbb' : '#444' }}>
           <Undo2 size={13}/>
         </button>
         <button onClick={() => snapshotAction('redo')} disabled={(!history.redoCount && !localRedoCount) || saving} title="Redo (⌘⇧Z)"
-          style={{ display:'flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'none', cursor: (history.redoCount || localRedoCount) ? 'pointer' : 'default', background:'transparent', color: (history.redoCount || localRedoCount) ? '#777' : '#333' }}>
+          style={{ display:'flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'none', cursor: (history.redoCount || localRedoCount) ? 'pointer' : 'default', background:'transparent', color: (history.redoCount || localRedoCount) ? '#bbb' : '#444' }}>
           <Redo2 size={13}/>
         </button>
 
@@ -1251,14 +1251,14 @@ function VisualEditor() {
         <button onClick={savePage} disabled={saving}
           style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:7, border:'none', cursor: saving ? 'default' : 'pointer', fontSize:12, fontWeight:600,
             background: isDirty ? 'linear-gradient(135deg,#ff5200,#ff7a00)' : '#1e1e22',
-            color: isDirty ? '#fff' : '#555',
+            color: isDirty ? '#fff' : '#aaa',
             boxShadow: isDirty ? '0 0 14px rgba(255,82,0,.4)' : 'none',
             transition:'all .25s' }}>
           <Save size={12}/> {isDirty ? 'Save changes' : 'Saved'}
         </button>
 
         <a href={`/generated/${JOB_ID}/site/${selectedPage}`} target="_blank" rel="noreferrer"
-          style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 10px', borderRadius:7, background:'#1e1e22', color:'#777', fontSize:11, textDecoration:'none' }}>
+          style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 10px', borderRadius:7, background:'#1e1e22', color:'#aaa', fontSize:11, textDecoration:'none' }}>
           <ExternalLink size={11}/> Preview
         </a>
       </div>
@@ -1454,14 +1454,18 @@ function VisualEditor() {
         </div>
 
         {/* ── Iframe ── */}
-        <div style={{ flex:1, background:'#0a0a0c', display:'flex', flexDirection:'column', alignItems:'center', overflow:'auto' }}>
+        <div style={{ flex:1, background:'#141418', display:'flex', flexDirection:'column', alignItems:'center', overflow:'auto' }}>
           <div style={{ flex:1, width:'100%', display:'flex', justifyContent:'center', alignItems:'flex-start',
-            padding: device === 'mobile' ? '20px 0' : 0 }}>
+            padding: device === 'mobile' ? '20px 0' : '10px' }}>
             <div style={{
               width: device === 'mobile' ? 390 : '100%',
-              height: device === 'mobile' ? 844 : '100%',
+              height: device === 'mobile' ? 844 : 'calc(100% - 0px)',
               flex: device !== 'mobile' ? 1 : undefined,
-              ...(device === 'mobile' ? { boxShadow:'0 0 0 10px #1e1e22, 0 20px 60px rgba(0,0,0,.8)', borderRadius:36, overflow:'hidden' } : {})
+              borderRadius: device === 'mobile' ? 36 : 6,
+              overflow: 'hidden',
+              boxShadow: device === 'mobile'
+                ? '0 0 0 10px #1e1e22, 0 20px 60px rgba(0,0,0,.8)'
+                : '0 0 0 1px rgba(255,255,255,0.1), 0 4px 32px rgba(0,0,0,0.5)',
             }}>
               <iframe ref={iframeRef} src={iframeSrc} title="Portfolio preview" onLoad={handleIframeLoad}
                 style={{ width:'100%', height:'100%', border:'none', display:'block' }} />
