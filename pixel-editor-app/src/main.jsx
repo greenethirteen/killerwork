@@ -874,6 +874,8 @@ function VisualEditor() {
       localUndoStack.current = []; localRedoStack.current = [];
       setLocalUndoCount(0); setLocalRedoCount(0);
       setIsDirty(false);
+      // Replace any cached copy of styles.css so the iframe reload picks up the new template
+      await fetch(`/generated/${encodeURIComponent(JOB_ID)}/site/styles.css`, { cache: 'reload' }).catch(() => {});
       setPreviewKey(k => k + 1);
       setStatus('Template applied!');
     } catch (err) { setStatus('Template failed: ' + err.message); }

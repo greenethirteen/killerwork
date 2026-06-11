@@ -322,6 +322,12 @@ function setGeneratedStaticHeaders(res, filePath) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return;
   }
+  // styles.css is rewritten in place when the user switches templates — it must
+  // revalidate on every load or the old template keeps showing for up to an hour
+  if (/[\\/]styles\.css$/i.test(normalized)) {
+    res.setHeader('Cache-Control', 'no-cache');
+    return;
+  }
   if (/\.(?:css|js|png|jpe?g|webp|gif|ico|svg|mp4|webm|mov|m4a|mp3|wav|pdf)$/i.test(normalized)) {
     res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
     return;
@@ -2296,6 +2302,7 @@ app.post('/api/code-editor/:id/template', requireFirebaseAuth, async (req, res) 
     if (!ALLOWED.includes(templateName)) return res.status(400).json({ error: 'Unknown template.' });
     manifest.portfolioTemplate = templateName;
     await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+    await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
     const baseCss = await fs.readFile(path.join(root, 'public', 'portfolio.css'), 'utf8');
     let css = baseCss;
     if (templateName !== 'default') {
