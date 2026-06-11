@@ -60,14 +60,17 @@ if (pricing) {
 
 function syncImportCopyHeight() {
   if (!importCopyFlip || !importCopySlides.length) return;
-  const activeSlide = importCopySlides
-    .map(slide => ({ slide, opacity: Number(getComputedStyle(slide).opacity) || 0 }))
-    .filter(entry => entry.opacity > 0.05)
-    .sort((a, b) => b.opacity - a.opacity)[0]?.slide || importCopySlides[0];
-  const slideTop = activeSlide.getBoundingClientRect().top;
-  const lastChild = activeSlide.lastElementChild;
-  const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + activeSlide.scrollHeight;
-  importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(contentBottom - slideTop)}px`);
+  // Size the flip container to the TALLEST slide, not the active one — slides
+  // are absolutely positioned, so a taller rotating slide would otherwise
+  // overflow onto the badge/form below, and the card height would jump
+  // on every rotation.
+  const heights = importCopySlides.map(slide => {
+    const slideTop = slide.getBoundingClientRect().top;
+    const lastChild = slide.lastElementChild;
+    const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + slide.scrollHeight;
+    return contentBottom - slideTop;
+  });
+  importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(Math.max(...heights))}px`);
 }
 
 if (importCopyFlip && importCopySlides.length) {
