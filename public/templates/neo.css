@@ -1,60 +1,68 @@
-/* KillaWork Template: Neo — Deep dark with amber warmth
-   Appended to portfolio.css at build time */
+/* KillaWork Template: Neo — dark luxe, violet/cyan electric accents
+   Appended after portfolio.css; later rules win at equal specificity.
+   Content colors use var(--fg)/var(--muted) so project pages with their own
+   inline page colors stay readable; only chrome is hardcoded. */
 
-:root{--bg:#05050a;--fg:#ede8e0;--muted:#7a7268;--line:rgba(200,160,70,.1);--card:#0e0d18}
-body{font-family:Inter,'DM Sans',system-ui,sans-serif}
+:root{--bg:#07070d;--fg:#f4f3f8;--muted:#8b88a0;--line:rgba(255,255,255,.08);--card:#10101a}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(1100px 700px at 85% -10%,rgba(124,92,255,.16),transparent 60%),radial-gradient(900px 600px at -5% 110%,rgba(0,212,255,.1),transparent 55%),#07070d;background-attachment:fixed;color:var(--fg)}
 
-/* Header — frosted glass, amber brand */
-.site-header{background:rgba(5,5,10,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(200,160,70,.1);box-shadow:none}
-.site-header .brand{color:#f5a623}
-.site-header nav a{color:rgba(237,232,224,.45)}
-.behance-site .site-header .brand,.behance-project .site-header .brand{color:#f5a623}
-.killawork-generated-header{background:rgba(5,5,10,.88);backdrop-filter:blur(18px)}
-.source-import-header{background:rgba(5,5,10,.88);backdrop-filter:blur(18px);border-bottom-color:rgba(200,160,70,.1);box-shadow:none}
-.source-import-header>a{color:#f5a623}
+/* Header — frosted, gradient brand */
+.site-header{background:rgba(7,7,13,.72);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.07);box-shadow:none}
+.site-header .brand{background:linear-gradient(92deg,#a78bff 0%,#5ee6ff 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a78bff}
+.site-header nav a{color:rgba(244,243,248,.55);font-size:12.5px;font-weight:600}
+.site-header nav a:hover{color:#fff}
+.killawork-generated-header{background:rgba(7,7,13,.72);backdrop-filter:blur(20px)}
+.ai-edit-link{border:1px solid rgba(167,139,255,.35)!important;color:#a78bff!important}
+.source-import-header{background:rgba(7,7,13,.72);backdrop-filter:blur(20px);border-bottom-color:rgba(255,255,255,.07);box-shadow:none}
+.source-import-header>a{background:linear-gradient(92deg,#a78bff,#5ee6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a78bff}
 
-/* Cards — warm glow on hover, medium radius */
-.work-card{border-radius:18px;border:1px solid rgba(200,160,70,.07);background:var(--card);transition:border-color .28s,box-shadow .28s}
-.work-card img{border-radius:0}
-.work-card:hover{border-color:rgba(245,166,35,.22);box-shadow:0 0 28px rgba(245,166,35,.07)}
-.work-card:hover img{filter:brightness(.64)}
-.work-card span{color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.55)}
-.work-card:after{background:linear-gradient(180deg,transparent 35%,rgba(5,5,10,.68))}
-.work-card-placeholder{background:linear-gradient(135deg,#0e0d18,#0a0916)}
+/* Home heading — gradient sweep on the name */
+.home h1{background:linear-gradient(100deg,#f4f3f8 30%,#a78bff 75%,#5ee6ff 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--fg)}
+.home .intro{color:var(--muted)}
 
-/* Behance cards — same neo style */
-.behance-home .work-card{border-radius:0;border:none;background:#0e0d18;box-shadow:none}
-.behance-home .work-card:hover{box-shadow:none;border-color:transparent}
-.behance-home .work-card span{text-shadow:0 2px 18px rgba(0,0,0,.55);color:#fff}
-.behance-home .work-card:hover img{filter:brightness(.62) blur(0)}
+/* Grid — glassy cards, hover lift + glow */
+.work-grid{gap:26px;margin-top:48px}
+.work-card{border-radius:20px;border:1px solid rgba(255,255,255,.07);background:#10101a;overflow:hidden;transition:transform .35s cubic-bezier(.2,.7,.2,1),border-color .3s ease,box-shadow .35s ease}
+.work-card:hover{transform:translateY(-6px);border-color:rgba(167,139,255,.5);box-shadow:0 22px 50px rgba(0,0,0,.6),0 0 44px rgba(124,92,255,.16)}
+.work-card:after{background:linear-gradient(180deg,transparent 38%,rgba(7,7,13,.82));opacity:1;transition:none}
+.work-card img{border-radius:0;transition:transform .5s cubic-bezier(.2,.7,.2,1),filter .35s ease}
+.work-card span{inset:auto 20px 18px 20px;display:block;place-items:unset;padding:0;opacity:1;transform:none;transition:none;background:transparent;backdrop-filter:none;border-radius:0;color:#fff;font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1.15;text-align:left;text-shadow:0 2px 16px rgba(0,0,0,.65);text-wrap:balance}
+.work-card:hover img{transform:scale(1.045);filter:brightness(.78)}
+.work-card:hover span{opacity:1;transform:none}
+.work-card:hover:after{opacity:1}
+.work-card-placeholder{background:linear-gradient(135deg,#141422,#0c0c16);color:#454358}
 
-/* Media — warm borders, subtle glow radius */
-.media img,.media video,.media iframe{border:1px solid rgba(200,160,70,.07);border-radius:16px;background:#0e0d18}
-.media-stack{gap:24px}
-.media.audio{background:#0e0d18;border:1px solid var(--line);border-radius:16px}
-.media.gallery{border-radius:16px;background:#0e0d18;border-color:rgba(200,160,70,.08)}
+/* Behance square grid — same glass treatment */
+.behance-home .work-card{border-radius:20px;border:1px solid rgba(255,255,255,.07);background:#10101a;transition:transform .35s cubic-bezier(.2,.7,.2,1),border-color .3s ease,box-shadow .35s ease}
+.behance-home .work-card:hover{transform:translateY(-6px);border-color:rgba(167,139,255,.5);box-shadow:0 22px 50px rgba(0,0,0,.6),0 0 44px rgba(124,92,255,.16)}
+.behance-home .work-card:after{background:linear-gradient(180deg,transparent 38%,rgba(7,7,13,.82));opacity:1;transition:none}
+.behance-home .work-card span{inset:auto 20px 18px 20px;display:block;place-items:unset;padding:0;opacity:1;transform:none;transition:none;background:transparent;color:#fff;font-size:clamp(16px,1.9vw,22px);font-weight:700;letter-spacing:-.02em;line-height:1.15;text-align:left;text-shadow:0 2px 16px rgba(0,0,0,.65)}
+.behance-home .work-card:hover img{transform:scale(1.045);filter:brightness(.78) blur(0)}
+.behance-home .work-card:hover span{opacity:1;transform:none}
+.behance-home .work-card:hover:after{opacity:1}
 
-/* About portrait — warm tint */
-.about-portrait{filter:sepia(.14) brightness(.92);background:#0e0d18}
-
-/* Campaign builder brand — amber subtitle */
-.campaign-builder-brand strong{color:var(--fg)}
-.campaign-builder-brand span{color:#f5a623}
-
-/* Typography — slightly airy */
-.home h1{letter-spacing:-.07em}
-.project-header h1{letter-spacing:-.07em}
-
-/* Text colors */
-.copy-blocks{color:var(--fg)}
-.section-subheading{color:rgba(237,232,224,.7)}
-.section-body{color:rgba(237,232,224,.76)}
+/* Project pages */
+.media img,.media video,.media iframe{border:1px solid rgba(255,255,255,.07);border-radius:16px;background:#10101a}
+.media-stack{gap:26px}
+.media.audio{background:#10101a;border:1px solid var(--line);border-radius:16px}
+.media.gallery{background:#10101a;border:1px solid rgba(255,255,255,.07);border-radius:16px}
+.gallery-nav{background:rgba(16,16,26,.8);border-color:rgba(167,139,255,.3)}
 .media-caption{color:var(--muted)}
-.about-story{color:rgba(237,232,224,.82)}
-.campaign-builder-project .source-description{color:rgba(237,232,224,.76)}
 .project-meta{color:var(--muted)}
 .project-meta div:first-child{color:var(--fg)}
-.behance-project .project-meta,.behance-project .project-meta div:first-child{color:var(--fg)}
-.behance-project .campaign-title-split small{color:#f5a623}
-.section-eyebrow{color:#f5a623;letter-spacing:.1em}
-.ai-edit-link{border-color:rgba(245,166,35,.2)!important;color:#f5a623!important}
+.project-meta:before{background:linear-gradient(90deg,#a78bff,#5ee6ff);height:2px;border-radius:2px}
+.section-eyebrow{background:linear-gradient(92deg,#a78bff,#5ee6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a78bff;letter-spacing:.12em}
+.section-subheading,.section-body,.copy-blocks,.about-story{color:var(--fg)}
+.video-needs-review{border-color:var(--line);color:var(--muted)}
+.campaign-builder-project .source-description{color:var(--fg)}
+.behance-project .campaign-title-split small{color:#a78bff}
+.source-note{color:var(--muted)}
+
+/* About — clean portrait with soft glow frame */
+.about-portrait{filter:none;background:#10101a;border-radius:18px;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 18px 50px rgba(0,0,0,.5)}
+.about-kicker{background:linear-gradient(92deg,#a78bff,#5ee6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a78bff}
+.about-contact a{border-bottom-color:rgba(167,139,255,.45)}
+
+/* Campaign builder chrome */
+.campaign-builder-brand strong{color:var(--fg)}
+.campaign-builder-brand span{background:linear-gradient(92deg,#a78bff,#5ee6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a78bff}

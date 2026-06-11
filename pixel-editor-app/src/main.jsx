@@ -804,6 +804,9 @@ function VisualEditor() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState('default');
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [addingPage, setAddingPage] = useState(false);
+  const [newPageName, setNewPageName] = useState('');
+  const [creatingPage, setCreatingPage] = useState(false);
 
   const iframeRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -880,6 +883,54 @@ function VisualEditor() {
       setStatus('Template applied!');
     } catch (err) { setStatus('Template failed: ' + err.message); }
     finally { setApplyingTemplate(false); }
+  }
+
+  async function createPage() {
+    const name = newPageName.trim();
+    if (!name || creatingPage) return;
+    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'page';
+    const pagePath = `${slug}.html`;
+    if (pages.some(p => p.path === pagePath)) { setStatus('A page with that name already exists.'); return; }
+    setCreatingPage(true);
+    try {
+      // Clone the site header from the home page so the new page matches the site
+      let headerHtml = '';
+      try {
+        const home = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file?path=index.html`);
+        const m = String(home.content || '').match(/<header[^>]*class="[^"]*(?:site-header|campaign-builder-site-header|source-import-header)[^"]*"[\s\S]*?<\/header>/i);
+        if (m) headerHtml = m[0];
+      } catch {}
+      const navLink = `<a href="${pagePath}">${esc(name)}</a>`;
+      // The new page's own nav should include itself too
+      if (headerHtml && /<\/nav>/i.test(headerHtml) && !headerHtml.includes(`href="${pagePath}"`)) {
+        headerHtml = headerHtml.replace(/<\/nav>/i, `${navLink}</nav>`);
+      }
+      const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} — ${esc(site?.siteTitle || 'Portfolio')}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body>${headerHtml}<main class="project-page"><h1>${esc(name)}</h1><p style="font-size:17px;line-height:1.65;max-width:640px;">This page is empty. Use ＋ Insert to add headings, text, buttons and images — or switch to Select mode to arrange things.</p></main></body></html>`;
+      await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file`, {
+        method: 'PUT',
+        body: JSON.stringify({ path: pagePath, content: html })
+      });
+      // Link the new page from the nav of the other root-level pages
+      for (const pg of pages.filter(p => !p.path.includes('/'))) {
+        try {
+          const f = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file?path=${encodeURIComponent(pg.path)}`);
+          if (!/<\/nav>/i.test(f.content || '') || (f.content || '').includes(`href="${pagePath}"`)) continue;
+          await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file`, {
+            method: 'PUT',
+            body: JSON.stringify({ path: pg.path, content: f.content.replace(/<\/nav>/i, `${navLink}</nav>`) })
+          });
+        } catch {}
+      }
+      const data = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/site`);
+      setPages((data.pages || []).filter(p => p.path !== 'import-review.html'));
+      setHistory(data.history || history);
+      setAddingPage(false);
+      setNewPageName('');
+      setStatus('Page created!');
+      openPage(pagePath);
+    } catch (err) { setStatus('Could not create page: ' + err.message); }
+    finally { setCreatingPage(false); }
   }
 
   function captureSnapshot() {
@@ -1299,6 +1350,31 @@ function VisualEditor() {
             {pages.map(pg => (
               <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} />
             ))}
+            {!addingPage ? (
+              <button onClick={() => setAddingPage(true)} title="Add a page"
+                style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', aspectRatio:'16/5', marginBottom:5, background:'transparent', border:'2px dashed #2a2a36', borderRadius:7, color:'#666', cursor:'pointer', fontSize:12, fontWeight:600, transition:'border-color .15s, color .15s' }}
+                onMouseOver={e => { e.currentTarget.style.borderColor = '#ff5200'; e.currentTarget.style.color = '#ff8040'; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = '#2a2a36'; e.currentTarget.style.color = '#666'; }}>
+                <span style={{ fontSize:17, lineHeight:1 }}>＋</span> Add page
+              </button>
+            ) : (
+              <div style={{ background:'#17171e', border:'1px solid #2a2a36', borderRadius:7, padding:8, marginBottom:5 }}>
+                <input autoFocus value={newPageName} onChange={e => setNewPageName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') createPage(); if (e.key === 'Escape') { setAddingPage(false); setNewPageName(''); } }}
+                  placeholder="Page name, e.g. Contact" disabled={creatingPage}
+                  style={{ width:'100%', boxSizing:'border-box', background:'#0e0e13', border:'1px solid #2a2a36', borderRadius:5, padding:'7px 9px', color:'#eee', fontSize:12, outline:'none', marginBottom:6 }} />
+                <div style={{ display:'flex', gap:5 }}>
+                  <button onClick={createPage} disabled={creatingPage || !newPageName.trim()}
+                    style={{ flex:1, padding:'6px 0', background: newPageName.trim() ? '#ff5200' : '#2a2a36', border:'none', borderRadius:5, color:'#fff', fontSize:11, fontWeight:600, cursor: newPageName.trim() ? 'pointer' : 'default' }}>
+                    {creatingPage ? 'Creating…' : 'Create'}
+                  </button>
+                  <button onClick={() => { setAddingPage(false); setNewPageName(''); }} disabled={creatingPage}
+                    style={{ padding:'6px 12px', background:'transparent', border:'1px solid #2a2a36', borderRadius:5, color:'#888', fontSize:11, cursor:'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Templates panel — Behance and builder sites only */}
@@ -1312,53 +1388,20 @@ function VisualEditor() {
                 </span>
               </button>
               {templatesOpen && (
-                <div style={{ padding:'0 8px 12px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+                <div style={{ padding:'0 8px 12px', display:'grid', gap:5 }}>
                   {[
-                    { id:'default', name:'Minimal', desc:'Dark, clean grid',
-                      preview: <div style={{background:'#0b0b0f',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
-                        <div style={{height:6,background:'#050505',borderRadius:2}}/>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:3,flex:1}}>
-                          {[...Array(4)].map((_,i)=><div key={i} style={{background:'#15151c',borderRadius:4}}/>)}
-                        </div>
-                      </div>
-                    },
-                    { id:'editorial', name:'Editorial', desc:'Light, magazine',
-                      preview: <div style={{background:'#f5f4f0',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
-                        <div style={{height:6,background:'#ebe9e4',borderRadius:2}}/>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:2,flex:1}}>
-                          {[...Array(6)].map((_,i)=><div key={i} style={{display:'flex',flexDirection:'column',gap:1}}>
-                            <div style={{flex:1,background:'#d8d6d0',borderRadius:1}}/>
-                            <div style={{height:3,background:'#888',borderRadius:1}}/>
-                          </div>)}
-                        </div>
-                      </div>
-                    },
-                    { id:'bold', name:'Bold', desc:'High-contrast type',
-                      preview: <div style={{background:'#000',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
-                        <div style={{height:8,background:'#111',borderRadius:2}}/>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:3,flex:1}}>
-                          {[...Array(4)].map((_,i)=><div key={i} style={{background:'#0c0c0c',borderRadius:0,position:'relative',overflow:'hidden'}}>
-                            <div style={{position:'absolute',bottom:3,left:3,right:3,height:3,background:'rgba(255,255,255,.6)',borderRadius:1}}/>
-                          </div>)}
-                        </div>
-                      </div>
-                    },
-                    { id:'neo', name:'Neo', desc:'Dark + amber glow',
-                      preview: <div style={{background:'#05050a',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
-                        <div style={{height:6,background:'rgba(5,5,10,.9)',borderRadius:2,borderBottom:'1px solid rgba(200,160,70,.15)'}}/>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4,flex:1}}>
-                          {[...Array(4)].map((_,i)=><div key={i} style={{background:'#0e0d18',borderRadius:5,border:'1px solid rgba(245,166,35,.12)'}}/>)}
-                        </div>
-                      </div>
-                    },
+                    { id:'default', name:'Minimal', desc:'Dark · clean grid' },
+                    { id:'editorial', name:'Editorial', desc:'Light gallery · serif type' },
+                    { id:'bold', name:'Bold', desc:'Swiss · black on white' },
+                    { id:'neo', name:'Neo', desc:'Dark luxe · electric accents' },
                   ].map(t => (
                     <button key={t.id} onClick={() => applyTemplate(t.id)} disabled={applyingTemplate}
-                      style={{ display:'flex', flexDirection:'column', gap:5, padding:0, background:'none', border:`2px solid ${activeTemplate === t.id ? '#ff5200' : '#1f1f26'}`, borderRadius:8, cursor: applyingTemplate ? 'default' : 'pointer', overflow:'hidden', transition:'border-color .15s' }}>
-                      <div style={{ height:56, width:'100%' }}>{t.preview}</div>
-                      <div style={{ padding:'0 7px 7px', textAlign:'left' }}>
-                        <div style={{ fontSize:11, fontWeight:700, color: activeTemplate === t.id ? '#ff5200' : '#ccc' }}>{t.name}</div>
-                        <div style={{ fontSize:9, color:'#555', marginTop:1 }}>{t.desc}</div>
-                      </div>
+                      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', background: activeTemplate === t.id ? '#241410' : '#17171e', border:`1px solid ${activeTemplate === t.id ? '#ff5200' : '#23232c'}`, borderRadius:8, cursor: applyingTemplate ? 'default' : 'pointer', textAlign:'left', transition:'border-color .15s, background .15s' }}>
+                      <span>
+                        <span style={{ display:'block', fontSize:12, fontWeight:700, color: activeTemplate === t.id ? '#ff8040' : '#ddd' }}>{t.name}</span>
+                        <span style={{ display:'block', fontSize:10, color:'#777', marginTop:2 }}>{t.desc}</span>
+                      </span>
+                      {activeTemplate === t.id && <span style={{ color:'#ff5200', fontSize:14, fontWeight:700, flexShrink:0 }}>✓</span>}
                     </button>
                   ))}
                 </div>
@@ -1367,7 +1410,7 @@ function VisualEditor() {
           )}
 
           {/* Properties panel */}
-          <div style={{ flex:1, padding:10, overflowY:'auto' }}>
+          <div style={{ padding:'10px 10px 30px' }}>
             {!selInfo ? (
               <div>
                 <p style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4, margin:'0 0 12px' }}>Properties</p>
