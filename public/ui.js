@@ -73,6 +73,11 @@ function syncImportCopyHeight() {
   importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(Math.max(...heights))}px`);
 }
 
+const scrollHint = document.querySelector('[data-scroll-hint]');
+if (scrollHint) {
+  window.addEventListener('scroll', () => scrollHint.classList.add('is-hidden'), { passive: true, once: true });
+}
+
 if (importCopyFlip && importCopySlides.length) {
   requestAnimationFrame(syncImportCopyHeight);
   window.addEventListener('resize', syncImportCopyHeight);
