@@ -1761,14 +1761,24 @@ async function saveManifestAndRebuild(id, manifest) {
 }
 
 app.get('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
-  const manifest = await readManifest(req.params.id);
-  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
-  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
-  res.json(publicPortfolio(req.params.id, manifest));
+  try {
+    const manifest = await readManifest(req.params.id);
+    if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+    if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+    res.json(publicPortfolio(req.params.id, manifest));
+  } catch (err) {
+    console.error('GET /api/manage/:id failed', err);
+    res.status(500).json({ error: 'Could not load portfolio.' });
+  }
 });
 
 app.get('/api/portfolios', requireFirebaseAuth, async (req, res) => {
-  res.json({ portfolios: await userPortfolioList(req.user) });
+  try {
+    res.json({ portfolios: await userPortfolioList(req.user) });
+  } catch (err) {
+    console.error('GET /api/portfolios failed', err);
+    res.status(500).json({ error: 'Could not load your portfolios.' });
+  }
 });
 
 app.get('/api/billing/status', requireFirebaseAuth, async (req, res) => {
