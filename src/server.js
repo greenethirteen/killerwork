@@ -718,6 +718,11 @@ app.post('/api/ad-zip-build', requireFirebaseAuth, zipUpload.single('zip'), asyn
     const zip = new AdmZip(file.path);
     const MEDIA_EXT = /\.(png|jpe?g|webp|gif|avif|mp4|webm|mov|m4v|mp3|m4a|wav|aac|pdf)$/i;
     const MAX_FILES = 250;
+    // Zip-bomb guards: entry.getData() loads the whole uncompressed entry into
+    // memory, so cap per-entry and total expanded size before extracting
+    const MAX_ENTRY_BYTES = 200 * 1024 * 1024;
+    const MAX_TOTAL_BYTES = 1024 * 1024 * 1024;
+    let expandedBytes = 0;
     for (const entry of zip.getEntries()) {
       if (entry.isDirectory) continue;
       const entryName = entry.entryName.replace(/\\/g, '/');
@@ -727,6 +732,16 @@ app.post('/api/ad-zip-build', requireFirebaseAuth, zipUpload.single('zip'), asyn
         pushProgress({ stage: 'Reading ZIP', detail: `Stopping at ${MAX_FILES} media files`, at: new Date().toISOString() });
         break;
       }
+      const entrySize = Number(entry.header?.size || 0);
+      if (entrySize > MAX_ENTRY_BYTES) {
+        pushProgress({ stage: 'Reading ZIP', detail: `Skipped ${path.basename(entryName)} — larger than 200MB`, at: new Date().toISOString() });
+        continue;
+      }
+      if (expandedBytes + entrySize > MAX_TOTAL_BYTES) {
+        pushProgress({ stage: 'Reading ZIP', detail: 'Stopping — ZIP expands beyond the 1GB limit', at: new Date().toISOString() });
+        break;
+      }
+      expandedBytes += entrySize;
       const outPath = path.join(extractDir, `${extractedFiles.length}-${safeSlug(path.basename(entryName)) || 'asset'}`);
       await fs.outputFile(outPath, entry.getData());
       const stat = await fs.stat(outPath);
@@ -1277,6 +1292,23 @@ async function writeTextSiteFile(id, relativePath, content) {
   return relative;
 }
 
+// Remove snapshot dirs and manifest sidecars that history no longer references.
+// Every save/upload/add/delete copies the whole site here; without pruning the
+// volume fills up — history caps at 20 entries but old dirs were never deleted.
+async function pruneEditorSnapshots(id, history) {
+  try {
+    const snapshots = editorSnapshotsDir(id);
+    const keep = new Set([...(history.undo || []), ...(history.redo || [])]);
+    const entries = await fs.readdir(snapshots).catch(() => []);
+    await Promise.all(entries.map(entry => {
+      if (entry === 'history.json') return null;
+      const base = entry.replace(/\.manifest\.json$/, '');
+      if (keep.has(base)) return null;
+      return fs.remove(path.join(snapshots, entry)).catch(() => {});
+    }));
+  } catch {}
+}
+
 async function createEditorSnapshot(id) {
   const source = siteDir(id);
   if (!(await fs.pathExists(source))) throw new Error('Generated site files are missing.');
@@ -1296,6 +1328,7 @@ async function createEditorSnapshot(id) {
   history.undo = [...(history.undo || []), name].slice(-20);
   history.redo = [];
   await fs.writeJson(historyFile, history, { spaces: 2 });
+  await pruneEditorSnapshots(id, history);
   return name;
 }
 
@@ -1327,6 +1360,7 @@ async function restoreEditorSnapshot(id, direction = 'undo') {
     await fs.copy(sidecar, path.join(jobDir(id), 'manifest.cleaned.json'));
   }
   await fs.writeJson(historyFile, history, { spaces: 2 });
+  await pruneEditorSnapshots(id, history);
   await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
   return { restored: snapshot, undoCount: history.undo?.length || 0, redoCount: history.redo?.length || 0 };
 }
