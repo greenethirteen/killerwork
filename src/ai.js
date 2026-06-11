@@ -1,5 +1,76 @@
 import 'dotenv/config';
 
+function aiProvider() {
+  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
+  if (process.env.OPENAI_API_KEY) return 'openai';
+  return null;
+}
+
+export function activeAiModel() {
+  return aiProvider() === 'anthropic'
+    ? (process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001')
+    : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+}
+
+// Single JSON-returning chat call, provider-switched: Claude when
+// ANTHROPIC_API_KEY is set, otherwise OpenAI. Throws on HTTP errors.
+async function aiChatJson({ system, user, temperature = 0.15, maxTokens = 4096, timeoutMs = 60_000 }) {
+  const provider = aiProvider();
+  if (!provider) throw new Error('No AI API key configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.');
+  if (provider === 'anthropic') {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
+        max_tokens: maxTokens,
+        temperature: Math.min(1, temperature),
+        system,
+        messages: [
+          { role: 'user', content: user },
+          // Prefilled "{" forces the reply to continue as raw JSON
+          { role: 'assistant', content: '{' }
+        ]
+      })
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`Anthropic API error ${res.status}: ${txt.slice(0, 500)}`);
+    }
+    const body = await res.json();
+    const text = (body.content || []).filter(block => block.type === 'text').map(block => block.text).join('');
+    return jsonFromText('{' + text);
+  }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      temperature,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user }
+      ]
+    })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`OpenAI API error ${res.status}: ${txt.slice(0, 500)}`);
+  }
+  const data = await res.json();
+  return jsonFromText(data.choices?.[0]?.message?.content || '{}');
+}
+
 function envTrue(v) {
   return ['1','true','yes','on'].includes(String(v || '').toLowerCase());
 }
@@ -91,7 +162,7 @@ export async function cleanupCampaignBuilderManifestWithAI(manifest, { progress,
   for (const project of manifest.projects || []) {
     const fallback = fallbackCampaignBuilderText(project);
     let cleaned = fallback;
-    if (enabled && process.env.OPENAI_API_KEY && fallback.description) {
+    if (enabled && aiProvider() && fallback.description) {
       progress?.('AI checking portfolio text', project.title || 'campaign');
       const system = `You write polished copy for an advertising portfolio campaign page.
 Return JSON only:
@@ -106,29 +177,13 @@ Rules:
   - Do not invent facts, awards, or claims not in the input.
 - Remove all duplicate lines and label prefixes like "Brand:", "Agency:", "Role:".`;
       try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          signal: AbortSignal.timeout(60_000),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model,
-            temperature: 0.05,
-            response_format: { type: 'json_object' },
-            messages: [
-              { role: 'system', content: system },
-              { role: 'user', content: JSON.stringify({ title: project.title, fields: project.builderInput || {}, fallback }) }
-            ]
-          })
+        const result = await aiChatJson({
+          system,
+          user: JSON.stringify({ title: project.title, fields: project.builderInput || {}, fallback }),
+          temperature: 0.05,
+          maxTokens: 1024
         });
-        if (res.ok) {
-          const data = await res.json();
-          cleaned = normalizeCampaignBuilderText(jsonFromText(data.choices?.[0]?.message?.content || '{}'), project);
-        } else {
-          progress?.('AI portfolio text warning', `${project.title}: cleanup request failed`);
-        }
+        cleaned = normalizeCampaignBuilderText(result, project);
       } catch (e) {
         progress?.('AI portfolio text warning', `${project.title}: ${e.message}`);
       }
@@ -230,9 +285,9 @@ function normalizePageEdit(result = {}, prompt = '', page = {}) {
   return edit;
 }
 
-export async function planPageEditWithAI({ prompt, page, manifest }, { model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}) {
+export async function planPageEditWithAI({ prompt, page, manifest }) {
   const fallback = () => fallbackPageEdit(prompt, page);
-  if (!process.env.OPENAI_API_KEY) return fallback();
+  if (!aiProvider()) return fallback();
 
   const payload = {
     prompt,
@@ -272,26 +327,8 @@ Rules:
 - Keep message concise and specific.`;
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      signal: AbortSignal.timeout(60_000),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.15,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: JSON.stringify(payload) }
-        ]
-      })
-    });
-    if (!res.ok) return fallback();
-    const data = await res.json();
-    return normalizePageEdit(jsonFromText(data.choices?.[0]?.message?.content || '{}'), prompt, page);
+    const result = await aiChatJson({ system, user: JSON.stringify(payload), temperature: 0.15, maxTokens: 2048 });
+    return normalizePageEdit(result, prompt, page);
   } catch {
     return fallback();
   }
@@ -354,9 +391,9 @@ function fallbackOperations(prompt = '', page = {}) {
   };
 }
 
-export async function planPageOperationsWithAI({ prompt, page, manifest }, { model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}) {
+export async function planPageOperationsWithAI({ prompt, page, manifest }) {
   const fallback = () => fallbackOperations(prompt, page);
-  if (!process.env.OPENAI_API_KEY) return fallback();
+  if (!aiProvider()) return fallback();
 
   const payload = {
     prompt,
@@ -411,26 +448,8 @@ Rules:
 - Do not invent facts, awards, clients, or media.`;
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      signal: AbortSignal.timeout(60_000),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.12,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: JSON.stringify(payload) }
-        ]
-      })
-    });
-    if (!res.ok) return fallback();
-    const data = await res.json();
-    return normalizeOperations(jsonFromText(data.choices?.[0]?.message?.content || '{}'), prompt, page);
+    const result = await aiChatJson({ system, user: JSON.stringify(payload), temperature: 0.12, maxTokens: 2048 });
+    return normalizeOperations(result, prompt, page);
   } catch {
     return fallback();
   }
@@ -483,15 +502,14 @@ function fallbackSiteEditPlan(prompt = '', files = []) {
       operations: [{ op: sitewide ? 'replaceAll' : 'replace', path: firstFile.path, find: replaceMatch[1], replace: replaceMatch[2] }]
     };
   }
-  return { message: 'AI editing needs OPENAI_API_KEY for this request.', operations: [] };
+  return { message: 'AI editing needs an API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) for this request.', operations: [] };
 }
 
 export async function planSiteFileEditsWithAI(
-  { prompt, files = [], fileTree = [], uploadedAssets = [], pagePath = '' },
-  { model = process.env.OPENAI_MODEL || 'gpt-4o-mini' } = {}
+  { prompt, files = [], fileTree = [], uploadedAssets = [], pagePath = '' }
 ) {
   const fallback = () => fallbackSiteEditPlan(prompt, files);
-  if (!process.env.OPENAI_API_KEY) return fallback();
+  if (!aiProvider()) return fallback();
 
   const payload = {
     prompt,
@@ -539,26 +557,10 @@ Rules:
 - Do not return prose outside JSON.`;
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      signal: AbortSignal.timeout(60_000),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.08,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: JSON.stringify(payload) }
-        ]
-      })
-    });
-    if (!res.ok) return fallback();
-    const data = await res.json();
-    return normalizeSiteEditPlan(jsonFromText(data.choices?.[0]?.message?.content || '{}'), prompt);
+    // Operations can include complete rewritten files — give it a large
+    // output budget and a longer timeout
+    const result = await aiChatJson({ system, user: JSON.stringify(payload), temperature: 0.08, maxTokens: 16384, timeoutMs: 180_000 });
+    return normalizeSiteEditPlan(result, prompt);
   } catch {
     return fallback();
   }
@@ -622,8 +624,8 @@ function normalizeAboutBio(result, currentProfile = {}) {
   };
 }
 
-export async function rewriteAboutProfileWithAI(manifest, { model = process.env.OPENAI_MODEL || 'gpt-4o-mini', progress } = {}) {
-  if (!process.env.OPENAI_API_KEY || !manifest.aboutProfile) return manifest;
+export async function rewriteAboutProfileWithAI(manifest, { progress } = {}) {
+  if (!aiProvider() || !manifest.aboutProfile) return manifest;
   const profile = manifest.aboutProfile;
   const payload = {
     profile: {
@@ -670,38 +672,18 @@ Truth rules:
 
   progress?.('AI about bio', profile.name || manifest.ownerName || 'profile');
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      signal: AbortSignal.timeout(60_000),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        temperature: attempt ? 0.55 : 0.75,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: prompt },
-          { role: 'user', content: JSON.stringify(payload) },
-          ...(attempt ? [{ role: 'user', content: 'Rewrite again. The previous style was rejected for sounding generic or using banned portfolio cliches. Be sharper, plainer, drier, and more specific.' }] : [])
-        ]
-      })
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '');
-      throw new Error(`OpenAI API error ${res.status}: ${txt.slice(0, 500)}`);
-    }
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content || '{}';
-    const aboutProfile = normalizeAboutBio(jsonFromText(content), profile);
+    const user = JSON.stringify(payload) + (attempt
+      ? '\n\nRewrite again. The previous style was rejected for sounding generic or using banned portfolio cliches. Be sharper, plainer, drier, and more specific.'
+      : '');
+    const result = await aiChatJson({ system: prompt, user, temperature: attempt ? 0.55 : 0.75, maxTokens: 1024 });
+    const aboutProfile = normalizeAboutBio(result, profile);
     if (aboutProfile.aiBio || attempt === 1) return { ...manifest, aboutProfile };
   }
   return manifest;
 }
 
-export async function cleanupProjectWithAI(project, { model = process.env.OPENAI_MODEL || 'gpt-4o-mini', progress } = {}) {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY missing. Add it to .env or turn off AI cleanup.');
+export async function cleanupProjectWithAI(project, { progress } = {}) {
+  if (!aiProvider()) throw new Error('No AI API key configured (ANTHROPIC_API_KEY or OPENAI_API_KEY). Add one to .env or turn off AI cleanup.');
   const payload = compactProjectForAI(project);
   const prompt = `You are cleaning text from an imported advertising portfolio page. The static exporter keeps the original scraped media/text order. Your job is only to format existing text into clean metadata lines.
 
@@ -732,30 +714,8 @@ Return this schema:
 }`;
 
   progress?.('AI cleanup', `${project.title}`);
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    signal: AbortSignal.timeout(60_000),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.15,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: prompt },
-        { role: 'user', content: JSON.stringify(payload) }
-      ]
-    })
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`OpenAI API error ${res.status}: ${txt.slice(0, 500)}`);
-  }
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || '{}';
-  return normalizeCleaned(jsonFromText(content), project);
+  const result = await aiChatJson({ system: prompt, user: JSON.stringify(payload), temperature: 0.15, maxTokens: 8192 });
+  return normalizeCleaned(result, project);
 }
 
 export async function cleanupManifestWithAI(manifest, { enabled, progress } = {}) {
@@ -777,5 +737,5 @@ export async function cleanupManifestWithAI(manifest, { enabled, progress } = {}
       progress?.('AI cleanup warning', `${project.title}: ${e.message}`);
     }
   }
-  return { ...nextManifest, aiCleanup: true, aiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini', projects };
+  return { ...nextManifest, aiCleanup: true, aiModel: activeAiModel(), projects };
 }
