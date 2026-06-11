@@ -1738,7 +1738,8 @@ async function userPortfolioList(user) {
   const generatedDir = generatedRoot;
   if (!(await fs.pathExists(generatedDir))) return [];
   const entries = await fs.readdir(generatedDir);
-  const portfolios = await Promise.all(entries.map(async id => {
+  const validEntries = entries.filter(id => /^[a-zA-Z0-9_\-]{1,120}$/.test(id));
+  const portfolios = await Promise.all(validEntries.map(async id => {
     const manifest = await readManifest(id);
     if (!manifest || !canAccessPortfolio(manifest, user)) return null;
     return publicPortfolioListItem(id, manifest);
