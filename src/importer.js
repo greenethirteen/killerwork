@@ -2519,16 +2519,20 @@ function extraPageNavLinks(manifest, prefix = '') {
   return `${awards}${contact}`;
 }
 
+function aboutNavLink(manifest, prefix = '') {
+  return manifest.aboutPageHidden ? '' : `<a href="${prefix}about.html">About</a>`;
+}
+
 function renderCampaignBuilderHeader(manifest, prefix = '') {
   const title = manifest.homeTitle || manifest.ownerName || 'Portfolio';
   const intro = manifest.homeIntro ? `<span>${htmlEscape(manifest.homeIntro)}</span>` : '';
-  return `<header class="site-header campaign-builder-site-header"><a class="campaign-builder-brand" href="${prefix}index.html"><strong>${htmlEscape(title)}</strong>${intro}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a>${extraPageNavLinks(manifest, prefix)}</nav></header>`;
+  return `<header class="site-header campaign-builder-site-header"><a class="campaign-builder-brand" href="${prefix}index.html"><strong>${htmlEscape(title)}</strong>${intro}</a><nav><a href="${prefix}index.html">Work</a>${aboutNavLink(manifest, prefix)}${extraPageNavLinks(manifest, prefix)}</nav></header>`;
 }
 
 function renderStandardSiteHeader(manifest, prefix = '', includeReview = false) {
   const owner = manifest.ownerName || manifest.homeTitle || 'Portfolio';
   const reviewLink = includeReview ? `<a href="${prefix}import-review.html">Review</a>` : '';
-  return `<header class="site-header"><a class="brand" href="${prefix}index.html">${htmlEscape(owner)}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a>${extraPageNavLinks(manifest, prefix)}${reviewLink}</nav></header>`;
+  return `<header class="site-header"><a class="brand" href="${prefix}index.html">${htmlEscape(owner)}</a><nav><a href="${prefix}index.html">Work</a>${aboutNavLink(manifest, prefix)}${extraPageNavLinks(manifest, prefix)}${reviewLink}</nav></header>`;
 }
 
 export function renderContactPage(manifest) {
@@ -2717,7 +2721,7 @@ export async function generateSite(manifest, outDir, progress) {
 
   await fs.writeFile(path.join(siteDir, 'index.html'), renderHomePage(manifest, cards));
 
-  await fs.writeFile(path.join(siteDir, 'about.html'), renderAboutPage(manifest));
+  if (!manifest.aboutPageHidden) await fs.writeFile(path.join(siteDir, 'about.html'), renderAboutPage(manifest));
   if (manifest.contactPage) await fs.writeFile(path.join(siteDir, 'contact.html'), renderContactPage(manifest));
   if (manifest.awardsPage) await fs.writeFile(path.join(siteDir, 'awards.html'), renderAwardsPage(manifest));
 

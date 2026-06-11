@@ -4,7 +4,7 @@ import {
   Home, Save, Loader2, Monitor, Smartphone, ExternalLink,
   Undo2, Redo2, MousePointer, Pencil, Layers, Upload,
   X, AlignLeft, AlignCenter, AlignRight, Italic, Bold,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Trash2
 } from 'lucide-react';
 
 const params = new URLSearchParams(window.location.search);
@@ -916,6 +916,26 @@ function VisualEditor() {
     finally { setCreatingPage(false); }
   }
 
+  async function deletePage(pg) {
+    if (!window.confirm(`Delete the "${pg.title || pg.path}" page? You can undo this.`)) return;
+    try {
+      const data = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/delete-page`, {
+        method: 'POST',
+        body: JSON.stringify({ path: pg.path })
+      });
+      setPages((data.pages || []).filter(p => p.path !== 'import-review.html'));
+      setHistory(data.history || history);
+      // The delete snapshot lives server-side — clear local stacks so the next
+      // undo hits the server and restores the page
+      localUndoStack.current = []; localRedoStack.current = [];
+      setLocalUndoCount(0); setLocalRedoCount(0);
+      setIsDirty(false);
+      setStatus('Page deleted — undo to restore.');
+      if (selectedPage === pg.path) openPage('index.html');
+      else setPreviewKey(k => k + 1);
+    } catch (err) { setStatus('Delete failed: ' + err.message); }
+  }
+
   function captureSnapshot() {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
@@ -1099,6 +1119,13 @@ function VisualEditor() {
       setHistory({ undoCount: data.undoCount || 0, redoCount: data.redoCount || 0 });
       localUndoStack.current = []; localRedoStack.current = [];
       setLocalUndoCount(0); setLocalRedoCount(0);
+      // Page set may have changed (e.g. undoing a page delete) — refresh the sidebar
+      try {
+        const s = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/site`);
+        const pg = (s.pages || []).filter(p => p.path !== 'import-review.html');
+        setPages(pg.length ? pg : [{ path: 'index.html', title: 'Home' }]);
+        if (!pg.some(p => p.path === selectedPage)) setSelectedPage('index.html');
+      } catch {}
       setPreviewKey(k => k + 1);
       setSelInfo(null);
       setStatus(action === 'undo' ? 'Undone.' : 'Redone.');
@@ -1221,6 +1248,9 @@ function VisualEditor() {
         .kw-page-btn:hover{background:#1e2028!important;color:#ccc!important}
         .kw-menu-item:hover{background:#2a2a36!important;color:#fff!important}
         .kw-status-toast{animation:fadeIn .2s ease;}
+        .kw-page-card .kw-page-del{opacity:0;transition:opacity .12s}
+        .kw-page-card:hover .kw-page-del{opacity:1}
+        .kw-page-del:hover{background:#e74c3c!important;color:#fff!important;border-color:#e74c3c!important}
       `}</style>
 
       {/* ── Topbar ── */}
@@ -1331,7 +1361,7 @@ function VisualEditor() {
           <div style={{ padding:'10px 10px 6px', borderBottom:'1px solid #1f1f26' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4, margin:'0 0 8px' }}>Pages</p>
             {pages.map(pg => (
-              <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} />
+              <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} onDelete={deletePage} />
             ))}
             <button onClick={() => setAddPageOpen(true)} title="Add a page"
               style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', aspectRatio:'16/5', marginBottom:5, background:'transparent', border:'2px dashed #2a2a36', borderRadius:7, color:'#666', cursor:'pointer', fontSize:12, fontWeight:600, transition:'border-color .15s, color .15s' }}
@@ -1660,17 +1690,27 @@ function VisualEditor() {
 
 const SPECIAL_PAGE_ICONS = { 'index.html':'🏠', 'about.html':'👤', 'awards.html':'🏆', 'contact.html':'✉️' };
 
-function PageCard({ pg, active, onClick }) {
+function PageCard({ pg, active, onClick, onDelete }) {
   const title = pg.title || pageLabel(pg.path);
   const isSpecial = pg.path in SPECIAL_PAGE_ICONS;
   return (
-    <button onClick={onClick} style={{
+    <div onClick={onClick} role="button" tabIndex={0} className="kw-page-card"
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      style={{
+      position:'relative',
       display:'block', width:'100%', padding:0, border:'none', cursor:'pointer',
       borderRadius:7, overflow:'hidden', marginBottom:5,
       outline: active ? '2px solid #ff5200' : '2px solid transparent',
       background: active ? '#1c1c26' : '#17171e',
       transition:'outline .12s, background .12s',
     }}>
+      {pg.path !== 'index.html' && onDelete && (
+        <button className="kw-page-del" title={`Delete ${title} page`}
+          onClick={e => { e.stopPropagation(); onDelete(pg); }}
+          style={{ position:'absolute', top:6, right:6, zIndex:2, display:'flex', alignItems:'center', justifyContent:'center', width:22, height:22, background:'rgba(0,0,0,.7)', border:'1px solid rgba(255,255,255,.15)', borderRadius:6, color:'#ccc', cursor:'pointer', padding:0 }}>
+          <Trash2 size={11}/>
+        </button>
+      )}
       <div style={{ width:'100%', aspectRatio: isSpecial ? '16/7' : '16/9', background:'#0a0a0e', overflow:'hidden', position:'relative' }}>
         {pg.thumbnail
           ? <img src={pg.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} onError={e => { e.target.style.display='none'; }} />
@@ -1693,7 +1733,7 @@ function PageCard({ pg, active, onClick }) {
           </span>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 

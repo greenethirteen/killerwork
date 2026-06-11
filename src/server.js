@@ -1287,6 +1287,10 @@ async function createEditorSnapshot(id) {
   await fs.copy(source, target, {
     filter: src => !src.includes(`${path.sep}.editor-snapshots${path.sep}`)
   });
+  // Manifest sidecar — restoring a snapshot must also restore manifest state
+  // (page deletes/adds are manifest changes; site files alone would drift)
+  const manifestFile = path.join(jobDir(id), 'manifest.json');
+  if (await fs.pathExists(manifestFile)) await fs.copy(manifestFile, path.join(snapshots, `${name}.manifest.json`));
   const historyFile = path.join(snapshots, 'history.json');
   const history = await fs.readJson(historyFile).catch(() => ({ undo: [], redo: [] }));
   history.undo = [...(history.undo || []), name].slice(-20);
@@ -1305,6 +1309,8 @@ async function restoreEditorSnapshot(id, direction = 'undo') {
   if (!snapshot) return null;
   const current = `${Date.now()}-current`;
   await fs.copy(siteDir(id), path.join(snapshots, current));
+  const currentManifest = path.join(jobDir(id), 'manifest.json');
+  if (await fs.pathExists(currentManifest)) await fs.copy(currentManifest, path.join(snapshots, `${current}.manifest.json`));
   history[to] = [...(history[to] || []), current].slice(-20);
   // Atomic-ish restore: copy to a temp dir first, then swap — avoids an empty siteDir window
   const tmpRestore = path.join(jobDir(id), 'site-restore-tmp');
@@ -1314,6 +1320,12 @@ async function restoreEditorSnapshot(id, direction = 'undo') {
   await fs.rename(siteDir(id), oldSite);
   await fs.rename(tmpRestore, siteDir(id));
   await fs.remove(oldSite).catch(() => {});
+  // Restore the manifest sidecar when the snapshot has one (older snapshots may not)
+  const sidecar = path.join(snapshots, `${snapshot}.manifest.json`);
+  if (await fs.pathExists(sidecar)) {
+    await fs.copy(sidecar, path.join(jobDir(id), 'manifest.json'));
+    await fs.copy(sidecar, path.join(jobDir(id), 'manifest.cleaned.json'));
+  }
   await fs.writeJson(historyFile, history, { spaces: 2 });
   await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
   return { restored: snapshot, undoCount: history.undo?.length || 0, redoCount: history.redo?.length || 0 };
@@ -2441,6 +2453,49 @@ app.post('/api/code-editor/:id/add-page', requireFirebaseAuth, upload.array('fil
     console.error('POST /api/code-editor/:id/add-page failed', err);
     await Promise.all(files.map(f => fs.remove(f.path).catch(() => {})));
     res.status(err.status || 500).json({ error: err.message || 'Could not create the page.' });
+  }
+});
+
+app.post('/api/code-editor/:id/delete-page', requireFirebaseAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    const pagePath = String(req.body?.path || '').replace(/^\/+/, '');
+    if (!pagePath || pagePath === 'index.html') return res.status(400).json({ error: 'The home page cannot be deleted.' });
+
+    // Snapshot first (site files + manifest sidecar) so the delete is undoable
+    await createEditorSnapshot(id);
+
+    const workMatch = pagePath.match(/^work\/([^/]+)\/index\.html?$/i);
+    if (workMatch) {
+      const slug = workMatch[1];
+      const before = (manifest.projects || []).length;
+      manifest.projects = (manifest.projects || []).filter(p => p.slug !== slug);
+      if (manifest.projects.length === before) return res.status(404).json({ error: 'Project not found.' });
+      await saveManifestAndRebuild(id, manifest);
+    } else if (pagePath === 'about.html') {
+      manifest.aboutPageHidden = true;
+      await saveManifestAndRebuild(id, manifest);
+    } else if (pagePath === 'awards.html') {
+      delete manifest.awardsPage;
+      await saveManifestAndRebuild(id, manifest);
+    } else if (pagePath === 'contact.html') {
+      delete manifest.contactPage;
+      await saveManifestAndRebuild(id, manifest);
+    } else if (/^[^/]+\.html?$/i.test(pagePath)) {
+      // Loose root-level page (e.g. created outside the manifest) — just remove the file
+      const { target } = safeSitePath(id, pagePath);
+      if (!(await fs.pathExists(target))) return res.status(404).json({ error: 'Page not found.' });
+      await fs.remove(target);
+      await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
+    } else {
+      return res.status(400).json({ error: 'This page cannot be deleted.' });
+    }
+
+    res.json({ ok: true, pages: await listSitePages(id), history: await editorHistoryState(id) });
+  } catch (err) {
+    console.error('POST /api/code-editor/:id/delete-page failed', err);
+    res.status(err.status || 500).json({ error: err.message || 'Could not delete the page.' });
   }
 });
 
