@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260611-publish-fix" />
+  <link rel="stylesheet" href="/ui.css?v=20260612-conversion" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -72,6 +72,7 @@
         <span class="logo-text">KillaWork™</span>
       </a>
       <div class="topnav-actions">
+        <a class="top-pricing-link" href="#pricing">Pricing</a>
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
         <a data-auth-link class="top-signin" href="#">Sign up / Sign in</a>
@@ -100,9 +101,10 @@
           <form id="importForm" class="url-form">
             <input id="urlInput" type="url" placeholder="Type your portfolio URL" required data-clarity-mask="true" />
             <div class="import-action-row">
-              <button id="startBtn" type="submit">Import it</button>
+              <button id="startBtn" type="submit">Import free</button>
               <a class="button secondary see-action-button" href="/see-it-in-action.html" target="_blank" rel="noopener">Before &amp; After</a>
             </div>
+            <p class="hero-free-note">Free to import &amp; preview · no card needed · quick Google sign-in</p>
           </form>
         </div>
       </article>
@@ -114,7 +116,7 @@
           <span class="collapsed-note">Powered by AI</span>
           <p><span>Drop in the work and let AI build </span><span>your portfolio in minutes, not days.</span></p>
           <div class="dual-actions">
-            <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
+            <a id="buildUploadBtn" class="button hot" href="/build.html">Build from your work</a>
             <a id="adZipBuildBtn" class="button secondary" href="/ad-builder.html">AI build from ZIP</a>
           </div>
         </div>
@@ -184,7 +186,7 @@
 
     <section class="proof-strip" aria-label="Agency proof" data-nosnippet data-reveal>
       <div class="proof-copy">
-        <span>Trusted by creatives</span>
+        <span>Built for creatives at agencies like</span>
       </div>
       <div class="logo-marquee" aria-hidden="true">
         <div class="logo-track">
@@ -342,7 +344,7 @@
             <li><b>2</b>AI builds every page, caption, and layout</li>
             <li><b>3</b>Publish to your own .com</li>
           </ol>
-          <a class="button hot" href="#urlInput">Start free</a>
+          <a class="button hot" href="#urlInput">Import free</a>
         </article>
       </div>
     </section>
@@ -386,26 +388,6 @@
       </div>
     </section>
 
-    <section class="purchase-block" aria-label="Pricing and trust" data-nosnippet data-reveal>
-      <div class="section-kicker">Pricing</div>
-      <div class="pricing-layout">
-        <article class="pricing-card">
-          <div>
-            <span class="pricing-label">KillaWork™ Portfolio</span>
-            <h2>$5<span>/mo</span></h2>
-            <p>Import for free, preview your polished portfolio, then pay $5/month only when you are ready to publish.</p>
-          </div>
-          <a class="button hot" href="#urlInput">Import for free</a>
-        </article>
-        <div class="pricing-list">
-          <div data-reveal-item><b>Import existing portfolio</b><span>Pull in work pages, images, films, PDFs, titles, and project structure.</span></div>
-          <div data-reveal-item><b>Build from raw work</b><span>Upload campaign assets and let AI organize them into portfolio-ready pages.</span></div>
-          <div data-reveal-item><b>Edit, preview, export</b><span>Fix copy, review pages, share previews, manage projects, and download the site.</span></div>
-          <div data-reveal-item><b>Cancel anytime</b><span>Your work stays yours. Keep access to edits, previews, and exports.</span></div>
-        </div>
-      </div>
-    </section>
-
     <section class="before-after" aria-label="Before and after" data-nosnippet data-reveal>
       <div class="before-after-col">
         <span>Before</span>
@@ -416,6 +398,26 @@
         <span>After</span>
         <h2>Generated, editable, online.</h2>
         <p>Imported work, organized campaign pages, an editor, previews, and a downloadable portfolio.</p>
+      </div>
+    </section>
+
+    <section id="pricing" class="purchase-block" aria-label="Pricing and trust" data-nosnippet data-reveal>
+      <div class="section-kicker">Pricing</div>
+      <div class="pricing-layout">
+        <article class="pricing-card">
+          <div>
+            <span class="pricing-label">KillaWork™ Portfolio</span>
+            <h2>$5<span>/mo</span></h2>
+            <p>Import for free, preview your polished portfolio, then pay $5/month only when you are ready to publish.</p>
+          </div>
+          <a class="button hot" href="#urlInput">Import free</a>
+        </article>
+        <div class="pricing-list">
+          <div data-reveal-item><b>Import existing portfolio</b><span>Pull in work pages, images, films, PDFs, titles, and project structure.</span></div>
+          <div data-reveal-item><b>Build from raw work</b><span>Upload campaign assets and let AI organize them into portfolio-ready pages.</span></div>
+          <div data-reveal-item><b>Edit, preview, export</b><span>Fix copy, review pages, share previews, manage projects, and download the site.</span></div>
+          <div data-reveal-item><b>Cancel anytime</b><span>Your work stays yours. Keep access to edits, previews, and exports.</span></div>
+        </div>
       </div>
     </section>
 
@@ -452,7 +454,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260609-pixel-edit'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260612-conversion'));
   </script>
 </body>
 </html>
