@@ -637,9 +637,3 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .publish-howto .showcase-copy.compact h2{font-size:clamp(28px,3.6vw,48px);margin-bottom:10px}
 .publish-howto .showcase-copy p{margin:0 auto}
 .publish-howto .publish-panel-demo{width:min(520px,100%);text-align:left}
-
-/* Conversion pass: hero free-note + pricing nav link */
-.hero-free-note{margin:10px 0 0;color:rgba(255,255,255,.62);font-size:13px;letter-spacing:.01em}
-.top-pricing-link{color:rgba(255,255,255,.78);text-decoration:none;font-weight:600;font-size:14px;padding:8px 10px}
-.top-pricing-link:hover{color:#fff}
-@media(max-width:760px){.top-pricing-link{display:none}.hero-free-note{font-size:12px}}

@@ -58,24 +58,6 @@ if (pricing) {
   pricingObserver.observe(pricing);
 }
 
-// Ad-to-landing message match: /?for=behance|squarespace|wix pins the matching
-// hero headline instead of rotating, so the page repeats the ad's promise
-const pinnedAudience = { behance: 0, squarespace: 1, wix: 2 }[
-  String(new URLSearchParams(window.location.search).get('for') || '').toLowerCase()
-];
-if (pinnedAudience != null && importCopySlides[pinnedAudience]) {
-  importCopySlides.forEach((slide, index) => {
-    if (index === pinnedAudience) {
-      slide.style.animation = 'none';
-      slide.style.opacity = '1';
-      slide.style.filter = 'none';
-      slide.style.transform = 'none';
-    } else {
-      slide.style.display = 'none';
-    }
-  });
-}
-
 function syncImportCopyHeight() {
   if (!importCopyFlip || !importCopySlides.length) return;
   const activeSlide = importCopySlides
