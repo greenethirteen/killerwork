@@ -105,9 +105,23 @@ bindProtectedZipLink(downloadLink, (text, tone = '') => {
 });
 
 if (switcher && panels.length) {
+  const dualToggles = [...document.querySelectorAll('[data-dual-toggle]')];
   const setActivePanel = panelName => {
-    if (panelName) switcher.dataset.activePanel = panelName;
+    if (!panelName) return;
+    switcher.dataset.activePanel = panelName;
+    dualToggles.forEach(button => {
+      const active = button.dataset.dualToggle === panelName;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
   };
+
+  dualToggles.forEach(button => {
+    button.addEventListener('click', () => {
+      setActivePanel(button.dataset.dualToggle);
+      track('hero_panel_toggle', { panel: button.dataset.dualToggle });
+    });
+  });
 
   panels.forEach(panel => {
     const activate = () => {

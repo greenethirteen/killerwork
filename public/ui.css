@@ -637,3 +637,12 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .publish-howto .showcase-copy.compact h2{font-size:clamp(28px,3.6vw,48px);margin-bottom:10px}
 .publish-howto .showcase-copy p{margin:0 auto}
 .publish-howto .publish-panel-demo{width:min(520px,100%);text-align:left}
+
+/* Mobile-only Import/Build toggle above the hero panels */
+.dual-mobile-toggle{display:none}
+@media(max-width:900px){
+  .dual-mobile-toggle{display:grid;grid-template-columns:1fr 1fr;width:max-content;margin:22px auto 0}
+  .dual-home-shell .dual-switcher{margin-top:16px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-build,
+  .dual-switcher[data-active-panel="build"] .dual-panel-import{display:none}
+}
