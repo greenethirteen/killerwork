@@ -1,0 +1,60 @@
+/* KillaWork Template: Neo — Deep dark with amber warmth
+   Appended to portfolio.css at build time */
+
+:root{--bg:#05050a;--fg:#ede8e0;--muted:#7a7268;--line:rgba(200,160,70,.1);--card:#0e0d18}
+body{font-family:Inter,'DM Sans',system-ui,sans-serif}
+
+/* Header — frosted glass, amber brand */
+.site-header{background:rgba(5,5,10,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(200,160,70,.1);box-shadow:none}
+.site-header .brand{color:#f5a623}
+.site-header nav a{color:rgba(237,232,224,.45)}
+.behance-site .site-header .brand,.behance-project .site-header .brand{color:#f5a623}
+.killawork-generated-header{background:rgba(5,5,10,.88);backdrop-filter:blur(18px)}
+.source-import-header{background:rgba(5,5,10,.88);backdrop-filter:blur(18px);border-bottom-color:rgba(200,160,70,.1);box-shadow:none}
+.source-import-header>a{color:#f5a623}
+
+/* Cards — warm glow on hover, medium radius */
+.work-card{border-radius:18px;border:1px solid rgba(200,160,70,.07);background:var(--card);transition:border-color .28s,box-shadow .28s}
+.work-card img{border-radius:0}
+.work-card:hover{border-color:rgba(245,166,35,.22);box-shadow:0 0 28px rgba(245,166,35,.07)}
+.work-card:hover img{filter:brightness(.64)}
+.work-card span{color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.55)}
+.work-card:after{background:linear-gradient(180deg,transparent 35%,rgba(5,5,10,.68))}
+.work-card-placeholder{background:linear-gradient(135deg,#0e0d18,#0a0916)}
+
+/* Behance cards — same neo style */
+.behance-home .work-card{border-radius:0;border:none;background:#0e0d18;box-shadow:none}
+.behance-home .work-card:hover{box-shadow:none;border-color:transparent}
+.behance-home .work-card span{text-shadow:0 2px 18px rgba(0,0,0,.55);color:#fff}
+.behance-home .work-card:hover img{filter:brightness(.62) blur(0)}
+
+/* Media — warm borders, subtle glow radius */
+.media img,.media video,.media iframe{border:1px solid rgba(200,160,70,.07);border-radius:16px;background:#0e0d18}
+.media-stack{gap:24px}
+.media.audio{background:#0e0d18;border:1px solid var(--line);border-radius:16px}
+.media.gallery{border-radius:16px;background:#0e0d18;border-color:rgba(200,160,70,.08)}
+
+/* About portrait — warm tint */
+.about-portrait{filter:sepia(.14) brightness(.92);background:#0e0d18}
+
+/* Campaign builder brand — amber subtitle */
+.campaign-builder-brand strong{color:var(--fg)}
+.campaign-builder-brand span{color:#f5a623}
+
+/* Typography — slightly airy */
+.home h1{letter-spacing:-.07em}
+.project-header h1{letter-spacing:-.07em}
+
+/* Text colors */
+.copy-blocks{color:var(--fg)}
+.section-subheading{color:rgba(237,232,224,.7)}
+.section-body{color:rgba(237,232,224,.76)}
+.media-caption{color:var(--muted)}
+.about-story{color:rgba(237,232,224,.82)}
+.campaign-builder-project .source-description{color:rgba(237,232,224,.76)}
+.project-meta{color:var(--muted)}
+.project-meta div:first-child{color:var(--fg)}
+.behance-project .project-meta,.behance-project .project-meta div:first-child{color:var(--fg)}
+.behance-project .campaign-title-split small{color:#f5a623}
+.section-eyebrow{color:#f5a623;letter-spacing:.1em}
+.ai-edit-link{border-color:rgba(245,166,35,.2)!important;color:#f5a623!important}

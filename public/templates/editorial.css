@@ -1,0 +1,60 @@
+/* KillaWork Template: Editorial — Light, magazine style
+   Appended to portfolio.css at build time */
+
+:root{--bg:#f5f4f0;--fg:#0e0d0b;--muted:#888580;--line:rgba(0,0,0,.1);--card:#fff}
+body{font-family:Georgia,'Times New Roman',Times,serif}
+
+/* Header — warm off-white */
+.site-header{background:var(--bg);color:var(--fg);border-bottom:1px solid var(--line);box-shadow:none}
+.site-header nav a{color:var(--muted)}
+.source-import-header{background:var(--bg);color:var(--fg);border-bottom-color:var(--line);box-shadow:none}
+.source-import-header>a{color:var(--fg)}
+.source-import-header nav{color:var(--muted)}
+.killawork-generated-header{background:var(--bg)}
+
+/* Grid — tighter, editorial 3-col with small gaps */
+.work-grid{gap:3px}
+
+/* Cards — title always visible below the image */
+.work-card{background:transparent;border:none;border-radius:0}
+.work-card:after{display:none}
+.work-card img{border-radius:0;transition:filter .35s}
+.work-card span{position:static;inset:auto;display:block;padding:10px 0 16px;border-radius:0;background:transparent;backdrop-filter:none;color:var(--fg);font-size:13px;font-weight:700;letter-spacing:-.01em;line-height:1.2;opacity:1;transform:none;transition:none;text-shadow:none;text-wrap:balance}
+.work-card:hover span{opacity:1;transform:none}
+.work-card:hover img{transform:none;filter:brightness(.88)}
+.work-card-placeholder{background:linear-gradient(135deg,#eae8e4,#e0ded8)}
+
+/* Behance square cards — light reveal overlay */
+.behance-home .work-card span{position:absolute;inset:0;display:grid;place-items:center;padding:24px;border-radius:0;background:rgba(245,244,240,.9);color:var(--fg);font-size:clamp(16px,2.4vw,28px);font-weight:800;text-shadow:none;opacity:0;transform:none;transition:opacity .22s}
+.behance-home .work-card:hover span{opacity:1;transform:none}
+.behance-home .work-card:hover img{transform:none;filter:brightness(.84) blur(4px)}
+.behance-home .work-card:after{display:none}
+
+/* Media — clean, no dark background */
+.media img,.media video,.media iframe{border:none;border-radius:0;background:#e8e6e2}
+.media-stack{gap:3px;margin-top:28px}
+.media.audio{background:var(--card);border:1px solid var(--line);border-radius:0}
+.media.gallery{background:var(--card);border:1px solid var(--line);border-radius:0}
+.gallery-nav{background:rgba(245,244,240,.82);color:var(--fg);border-color:var(--line)}
+
+/* About portrait — full color, no greyscale */
+.about-portrait{filter:none;background:#e8e6e2}
+.about-contact a{border-bottom-color:rgba(0,0,0,.25)}
+
+/* Text and content colors */
+.copy-blocks{color:var(--fg)}
+.section-subheading{color:var(--muted)}
+.section-body{color:var(--fg)}
+.media-caption{color:var(--muted)}
+.about-story{color:var(--fg)}
+.project-meta{color:var(--muted)}
+.project-meta div:first-child{color:var(--fg)}
+.project-meta:before{background:var(--line)}
+.section-eyebrow{color:var(--muted)}
+.project-subhead{color:var(--muted)}
+.video-needs-review{border-color:var(--line);color:var(--muted)}
+.campaign-builder-project .source-description{color:var(--fg)}
+.behance-project .project-meta,.behance-project .project-meta div:first-child,.behance-project .source-note{color:var(--fg)}
+.behance-project .campaign-title-split small{color:var(--muted)}
+.campaign-builder-brand span{color:var(--muted)}
+.ai-edit-link{border-color:rgba(0,0,0,.2)!important;color:var(--fg)!important}

@@ -801,6 +801,9 @@ function VisualEditor() {
   const [selInfo, setSelInfo] = useState(null);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [insertOpen, setInsertOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState('default');
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const iframeRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -852,9 +855,29 @@ function VisualEditor() {
       const pg = (data.pages || []).filter(p => p.path !== 'import-review.html');
       setPages(pg.length ? pg : [{ path: 'index.html', title: 'Home' }]);
       setHistory(data.history || { undoCount: 0, redoCount: 0 });
+      setActiveTemplate(data.portfolioTemplate || 'default');
       setLoading(false);
       setStatus('Select or Text mode to start editing.');
     } catch (err) { setLoading(false); setStatus(err.message); }
+  }
+
+  async function applyTemplate(name) {
+    if (applyingTemplate || name === activeTemplate) return;
+    setApplyingTemplate(true);
+    setStatus('Applying template…');
+    try {
+      await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/template`, {
+        method: 'POST',
+        body: JSON.stringify({ template: name })
+      });
+      setActiveTemplate(name);
+      localUndoStack.current = []; localRedoStack.current = [];
+      setLocalUndoCount(0); setLocalRedoCount(0);
+      setIsDirty(false);
+      setPreviewKey(k => k + 1);
+      setStatus('Template applied!');
+    } catch (err) { setStatus('Template failed: ' + err.message); }
+    finally { setApplyingTemplate(false); }
   }
 
   function captureSnapshot() {
@@ -1275,6 +1298,71 @@ function VisualEditor() {
               <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} />
             ))}
           </div>
+
+          {/* Templates panel — Behance and builder sites only */}
+          {(site?.sourcePlatform === 'behance' || site?.sourceUrl === 'campaign-builder') && (
+            <div style={{ borderBottom:'1px solid #1f1f26' }}>
+              <button onClick={() => setTemplatesOpen(o => !o)}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 10px 8px', background:'none', border:'none', cursor:'pointer', color:'#bbb' }}>
+                <span style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4 }}>Templates</span>
+                <span style={{ fontSize:10, color: activeTemplate !== 'default' ? '#ff5200' : '#555', fontWeight:600 }}>
+                  {applyingTemplate ? '…' : templatesOpen ? '▲' : '▼'}
+                </span>
+              </button>
+              {templatesOpen && (
+                <div style={{ padding:'0 8px 12px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+                  {[
+                    { id:'default', name:'Minimal', desc:'Dark, clean grid',
+                      preview: <div style={{background:'#0b0b0f',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
+                        <div style={{height:6,background:'#050505',borderRadius:2}}/>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:3,flex:1}}>
+                          {[...Array(4)].map((_,i)=><div key={i} style={{background:'#15151c',borderRadius:4}}/>)}
+                        </div>
+                      </div>
+                    },
+                    { id:'editorial', name:'Editorial', desc:'Light, magazine',
+                      preview: <div style={{background:'#f5f4f0',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
+                        <div style={{height:6,background:'#ebe9e4',borderRadius:2}}/>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:2,flex:1}}>
+                          {[...Array(6)].map((_,i)=><div key={i} style={{display:'flex',flexDirection:'column',gap:1}}>
+                            <div style={{flex:1,background:'#d8d6d0',borderRadius:1}}/>
+                            <div style={{height:3,background:'#888',borderRadius:1}}/>
+                          </div>)}
+                        </div>
+                      </div>
+                    },
+                    { id:'bold', name:'Bold', desc:'High-contrast type',
+                      preview: <div style={{background:'#000',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
+                        <div style={{height:8,background:'#111',borderRadius:2}}/>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:3,flex:1}}>
+                          {[...Array(4)].map((_,i)=><div key={i} style={{background:'#0c0c0c',borderRadius:0,position:'relative',overflow:'hidden'}}>
+                            <div style={{position:'absolute',bottom:3,left:3,right:3,height:3,background:'rgba(255,255,255,.6)',borderRadius:1}}/>
+                          </div>)}
+                        </div>
+                      </div>
+                    },
+                    { id:'neo', name:'Neo', desc:'Dark + amber glow',
+                      preview: <div style={{background:'#05050a',height:'100%',padding:'6px',display:'flex',flexDirection:'column',gap:4}}>
+                        <div style={{height:6,background:'rgba(5,5,10,.9)',borderRadius:2,borderBottom:'1px solid rgba(200,160,70,.15)'}}/>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4,flex:1}}>
+                          {[...Array(4)].map((_,i)=><div key={i} style={{background:'#0e0d18',borderRadius:5,border:'1px solid rgba(245,166,35,.12)'}}/>)}
+                        </div>
+                      </div>
+                    },
+                  ].map(t => (
+                    <button key={t.id} onClick={() => applyTemplate(t.id)} disabled={applyingTemplate}
+                      style={{ display:'flex', flexDirection:'column', gap:5, padding:0, background:'none', border:`2px solid ${activeTemplate === t.id ? '#ff5200' : '#1f1f26'}`, borderRadius:8, cursor: applyingTemplate ? 'default' : 'pointer', overflow:'hidden', transition:'border-color .15s' }}>
+                      <div style={{ height:56, width:'100%' }}>{t.preview}</div>
+                      <div style={{ padding:'0 7px 7px', textAlign:'left' }}>
+                        <div style={{ fontSize:11, fontWeight:700, color: activeTemplate === t.id ? '#ff5200' : '#ccc' }}>{t.name}</div>
+                        <div style={{ fontSize:9, color:'#555', marginTop:1 }}>{t.desc}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Properties panel */}
           <div style={{ flex:1, padding:10, overflowY:'auto' }}>

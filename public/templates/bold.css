@@ -1,0 +1,60 @@
+/* KillaWork Template: Bold — High-contrast dark magazine
+   Appended to portfolio.css at build time */
+
+:root{--bg:#000;--fg:#f0ece4;--muted:#666;--line:rgba(255,255,255,.06);--card:#0c0c0c}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif}
+
+/* Header — pure black, clean */
+.site-header{background:#000;border-bottom:1px solid #1a1a1a;box-shadow:none}
+.site-header nav a{color:rgba(255,255,255,.45);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.behance-site .site-header .brand,.behance-project .site-header .brand{font-size:clamp(44px,6.5vw,96px);letter-spacing:-.07em}
+.killawork-generated-header{background:#000}
+.source-import-header{background:#000;box-shadow:none;border-bottom-color:#1a1a1a}
+
+/* Grid — forced 2 columns, tight gaps */
+.work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+@media(max-width:900px){.work-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.work-grid{grid-template-columns:1fr}}
+
+/* Cards — no radius, always-visible bottom title */
+.work-card{border-radius:0;border:none;background:#0c0c0c}
+.work-card:after{background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.82));opacity:1;transition:none}
+.work-card img{transition:transform .55s,filter .35s}
+.work-card span{inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:0 22px 24px;border-radius:0;background:transparent;backdrop-filter:none;color:#fff;font-size:clamp(18px,2.1vw,28px);font-weight:900;letter-spacing:-.03em;line-height:1.05;opacity:1;transform:none;transition:none;text-shadow:0 1px 8px rgba(0,0,0,.5);text-align:left;text-wrap:balance;z-index:1}
+.work-card:hover span{opacity:1;transform:none}
+.work-card:hover img{transform:scale(1.04);filter:brightness(.62)}
+.work-card:hover:after{opacity:1}
+.work-card-placeholder{background:#0c0c0c}
+
+/* Behance cards — same bold style */
+.behance-home .work-card span{display:flex;align-items:flex-end;justify-content:flex-start;padding:0 22px 24px;place-items:unset;font-size:clamp(18px,2.1vw,28px);font-weight:900;letter-spacing:-.03em;opacity:1;transform:none;transition:none;background:transparent;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+.behance-home .work-card:after{background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.82));opacity:1;transition:none}
+.behance-home .work-card:hover span{opacity:1;transform:none}
+.behance-home .work-card:hover img{transform:scale(1.04);filter:brightness(.62) blur(0)}
+.behance-home .work-card:hover:after{opacity:1}
+
+/* Media — minimal, dense */
+.media img,.media video,.media iframe{border:none;border-radius:0;background:#111}
+.media-stack{gap:3px;margin-top:28px}
+.media.audio{background:#0c0c0c;border:1px solid var(--line);border-radius:0}
+.media.gallery{border-radius:0;background:#111;border-color:var(--line)}
+
+/* Typography — bigger, more impact */
+.home h1{font-size:clamp(64px,12vw,190px);letter-spacing:-.09em;line-height:.82}
+.project-header h1{font-size:clamp(48px,8vw,106px);letter-spacing:-.08em}
+.campaign-project-header h1{font-size:clamp(56px,9.5vw,138px);letter-spacing:-.09em}
+.about-copy h1{font-size:clamp(46px,8vw,100px)}
+
+/* Portrait — punchy, high contrast */
+.about-portrait{filter:contrast(1.1);background:#111}
+
+/* Text colors */
+.copy-blocks{color:var(--fg)}
+.section-subheading{color:rgba(240,236,228,.65)}
+.section-body{color:rgba(240,236,228,.72)}
+.media-caption{color:var(--muted)}
+.about-story{color:rgba(240,236,228,.82)}
+.campaign-builder-project .source-description{color:rgba(240,236,228,.75)}
+.project-meta{color:var(--muted)}
+.project-meta div:first-child{color:var(--fg)}
+.ai-edit-link{border-color:rgba(255,255,255,.12)!important;color:#fff!important}

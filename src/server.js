@@ -2272,12 +2272,41 @@ app.get('/api/code-editor/:id/site', requireFirebaseAuth, async (req, res) => {
       preview: `/generated/${id}/site/index.html`,
       published: manifest.published || null,
       customDomain: manifest.customDomain || null,
+      sourcePlatform: manifest.sourcePlatform || '',
+      sourceUrl: manifest.sourceUrl || '',
+      portfolioTemplate: manifest.portfolioTemplate || 'default',
       files,
       pages,
       history
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || 'Could not load site.' });
+  }
+});
+
+app.post('/api/code-editor/:id/template', requireFirebaseAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    if (manifest.sourcePlatform !== 'behance' && manifest.sourceUrl !== 'campaign-builder') {
+      return res.status(400).json({ error: 'Templates are only available for Behance and builder sites.' });
+    }
+    const ALLOWED = ['default', 'editorial', 'bold', 'neo'];
+    const templateName = String(req.body?.template || 'default');
+    if (!ALLOWED.includes(templateName)) return res.status(400).json({ error: 'Unknown template.' });
+    manifest.portfolioTemplate = templateName;
+    await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+    const baseCss = await fs.readFile(path.join(root, 'public', 'portfolio.css'), 'utf8');
+    let css = baseCss;
+    if (templateName !== 'default') {
+      const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
+      if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+    }
+    await fs.writeFile(path.join(siteDir(id), 'styles.css'), css);
+    res.json({ ok: true, template: templateName });
+  } catch (err) {
+    console.error('POST /api/code-editor/:id/template failed', err);
+    res.status(err.status || 500).json({ error: err.message || 'Could not apply template.' });
   }
 });
 

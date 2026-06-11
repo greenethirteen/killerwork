@@ -2645,7 +2645,15 @@ export async function generateSite(manifest, outDir, progress) {
     await fs.copy(stagingAssetsDir, path.join(siteDir, 'assets', 'imported'), { overwrite: true });
   }
   await fs.copy(path.join(__dirname, '..', 'public', 'favicon-logo-144.png'), path.join(siteDir, 'favicon.png'));
-  const styles = await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.css'), 'utf8');
+  const ALLOWED_TEMPLATES = ['default', 'editorial', 'bold', 'neo'];
+  const templateName = ALLOWED_TEMPLATES.includes(manifest.portfolioTemplate) ? manifest.portfolioTemplate : 'default';
+  let styles = await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.css'), 'utf8');
+  if (templateName !== 'default') {
+    const overlayPath = path.join(__dirname, '..', 'public', 'templates', `${templateName}.css`);
+    if (await fs.pathExists(overlayPath)) {
+      styles = styles + '\n' + await fs.readFile(overlayPath, 'utf8');
+    }
+  }
   await fs.writeFile(path.join(siteDir, 'styles.css'), styles);
   await fs.writeFile(path.join(siteDir, 'hls-player.js'), await fs.readFile(path.join(__dirname, '..', 'public', 'hls-player.js'), 'utf8'));
   await fs.writeFile(path.join(siteDir, 'portfolio.js'), await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.js'), 'utf8'));
