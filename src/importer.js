@@ -2006,7 +2006,7 @@ function renderBehanceCampaignDetails(project) {
     : [];
   const lines = rawLines.length ? rawLines : cleanedLines;
   if (!lines.length) return '';
-  return `<section class="project-meta behance-campaign-details" aria-label="Campaign details">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
+  return `<section class="project-meta behance-campaign-details" data-kw-selectable aria-label="Campaign details">${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</section>`;
 }
 
 function treatmentClass(item = {}) {
@@ -2094,11 +2094,11 @@ function renderInlineText(text = '', projectTitle = '', item = {}) {
   if (item.preserveLineBreaks) {
     const lines = String(text || '').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(Boolean);
     if (!lines.length) return '';
-    return `<div class="media-caption"${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
+    return `<div class="media-caption" data-kw-selectable${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
   }
   const lines = normalizedMetaLines([{ text }], projectTitle);
   if (!lines.length) return '';
-  return `<div class="media-caption"${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
+  return `<div class="media-caption" data-kw-selectable${textStyleAttr(item)}>${lines.map(line => `<div>${htmlEscape(line)}</div>`).join('')}</div>`;
 }
 
 function renderSectionMedia(ref, project, poster) {
@@ -2613,8 +2613,8 @@ export function renderAboutPage(manifest) {
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>About — ${htmlEscape(name)}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body>${renderStandardSiteHeader(manifest)}<main class="about-page">
     <section class="about-editorial">
-      <div class="about-image-wrap">${image ? `<img class="about-portrait" src="${htmlEscape(image)}" alt="${htmlEscape(name)}" loading="eager">` : '<div class="about-portrait about-portrait-placeholder">About</div>'}</div>
-      <div class="about-copy">
+      <div class="about-image-wrap" data-kw-selectable>${image ? `<img class="about-portrait" src="${htmlEscape(image)}" alt="${htmlEscape(name)}" loading="eager">` : '<div class="about-portrait about-portrait-placeholder">About</div>'}</div>
+      <div class="about-copy" data-kw-selectable>
         <p class="about-kicker">About</p>
         <h1>${htmlEscape(name)}</h1>
         <p class="about-role">${htmlEscape(roleLine || 'Creative profile')}</p>

@@ -49,7 +49,7 @@ const INJECT_STYLES = `
 `;
 
 // Intentionally excludes raw section/article — those grab huge layout containers and swamp text blocks
-const SELECTABLE = 'img, video, figure, picture, .work-card, .project-card, [class*="card"], [class*="item"], [class*="thumb"], [class*="media"], [class*="banner"]';
+const SELECTABLE = 'img, video, figure, picture, .work-card, .project-card, .project-header, .project-meta, [data-kw-selectable], [class*="card"], [class*="item"], [class*="thumb"], [class*="media"], [class*="banner"]';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Iframe injection helpers
