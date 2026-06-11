@@ -2513,16 +2513,61 @@ function highContrastTextColor(backgroundColor = '', fallback = '') {
   return luminance >= 160 ? '#111111' : '#ffffff';
 }
 
+function extraPageNavLinks(manifest, prefix = '') {
+  const awards = manifest.awardsPage ? `<a href="${prefix}awards.html">Awards</a>` : '';
+  const contact = manifest.contactPage ? `<a href="${prefix}contact.html">Contact</a>` : '';
+  return `${awards}${contact}`;
+}
+
 function renderCampaignBuilderHeader(manifest, prefix = '') {
   const title = manifest.homeTitle || manifest.ownerName || 'Portfolio';
   const intro = manifest.homeIntro ? `<span>${htmlEscape(manifest.homeIntro)}</span>` : '';
-  return `<header class="site-header campaign-builder-site-header"><a class="campaign-builder-brand" href="${prefix}index.html"><strong>${htmlEscape(title)}</strong>${intro}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a></nav></header>`;
+  return `<header class="site-header campaign-builder-site-header"><a class="campaign-builder-brand" href="${prefix}index.html"><strong>${htmlEscape(title)}</strong>${intro}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a>${extraPageNavLinks(manifest, prefix)}</nav></header>`;
 }
 
 function renderStandardSiteHeader(manifest, prefix = '', includeReview = false) {
   const owner = manifest.ownerName || manifest.homeTitle || 'Portfolio';
   const reviewLink = includeReview ? `<a href="${prefix}import-review.html">Review</a>` : '';
-  return `<header class="site-header"><a class="brand" href="${prefix}index.html">${htmlEscape(owner)}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a>${reviewLink}</nav></header>`;
+  return `<header class="site-header"><a class="brand" href="${prefix}index.html">${htmlEscape(owner)}</a><nav><a href="${prefix}index.html">Work</a><a href="${prefix}about.html">About</a>${extraPageNavLinks(manifest, prefix)}${reviewLink}</nav></header>`;
+}
+
+export function renderContactPage(manifest) {
+  const data = manifest.contactPage || {};
+  const title = data.title || 'Contact';
+  const intro = data.intro ? `<p class="simple-page-intro">${htmlEscape(data.intro)}</p>` : '';
+  const rows = [
+    data.email ? `<div class="contact-row"><span>Email</span><a href="mailto:${htmlEscape(data.email)}">${htmlEscape(data.email)}</a></div>` : '',
+    data.phone ? `<div class="contact-row"><span>Phone</span><a href="tel:${htmlEscape(String(data.phone).replace(/[^+\d]/g, ''))}">${htmlEscape(data.phone)}</a></div>` : '',
+    data.location ? `<div class="contact-row"><span>Location</span><b>${htmlEscape(data.location)}</b></div>` : ''
+  ].filter(Boolean).join('');
+  const links = (data.links || []).filter(l => l?.url).map(l =>
+    `<a href="${htmlEscape(l.url)}" target="_blank" rel="noopener">${htmlEscape(l.label || socialLabel(l.url))}</a>`
+  ).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)} — ${htmlEscape(manifest.ownerName || 'Portfolio')}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body>${manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest) : renderStandardSiteHeader(manifest)}<main class="simple-page contact-page">
+    <p class="page-kicker">Contact</p>
+    <h1>${htmlEscape(title)}</h1>
+    ${intro}
+    ${rows ? `<div class="contact-rows">${rows}</div>` : ''}
+    ${links ? `<nav class="contact-links">${links}</nav>` : ''}
+  </main></body></html>`;
+}
+
+export function renderAwardsPage(manifest) {
+  const data = manifest.awardsPage || {};
+  const title = data.title || 'Awards';
+  const intro = data.intro ? `<p class="simple-page-intro">${htmlEscape(data.intro)}</p>` : '';
+  const items = (data.awards || []).filter(a => a?.award).map(a => `
+    <div class="award-row">
+      <div class="award-name">${htmlEscape(a.award)}</div>
+      <div class="award-project">${htmlEscape(a.project || '')}</div>
+      <div class="award-year">${htmlEscape(a.year || '')}</div>
+    </div>`).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)} — ${htmlEscape(manifest.ownerName || 'Portfolio')}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body>${manifest.sourceUrl === 'campaign-builder' ? renderCampaignBuilderHeader(manifest) : renderStandardSiteHeader(manifest)}<main class="simple-page awards-page">
+    <p class="page-kicker">Recognition</p>
+    <h1>${htmlEscape(title)}</h1>
+    ${intro}
+    ${items ? `<div class="awards-list">${items}</div>` : ''}
+  </main></body></html>`;
 }
 
 function parseBrandCampaignFromTitle(project = {}) {
@@ -2673,6 +2718,8 @@ export async function generateSite(manifest, outDir, progress) {
   await fs.writeFile(path.join(siteDir, 'index.html'), renderHomePage(manifest, cards));
 
   await fs.writeFile(path.join(siteDir, 'about.html'), renderAboutPage(manifest));
+  if (manifest.contactPage) await fs.writeFile(path.join(siteDir, 'contact.html'), renderContactPage(manifest));
+  if (manifest.awardsPage) await fs.writeFile(path.join(siteDir, 'awards.html'), renderAwardsPage(manifest));
 
   for (const p of manifest.projects) {
     const dir = path.join(siteDir, 'work', p.slug);

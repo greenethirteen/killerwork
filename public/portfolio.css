@@ -40,3 +40,20 @@ html,body{max-width:100%;overflow-x:hidden}.source-exact,.source-home{margin:0}.
   color:var(--muted);
   letter-spacing:0;
 }
+.simple-page{max-width:840px;margin:0 auto;padding:78px 24px 110px}
+.page-kicker{margin:0 0 24px;color:var(--muted);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+.simple-page h1{margin:0 0 22px;font-size:clamp(42px,7vw,88px);line-height:.95;letter-spacing:-.05em}
+.simple-page-intro{max-width:620px;color:var(--fg);font-size:20px;line-height:1.55;margin:0 0 44px}
+.contact-rows{display:grid;gap:0;border-top:1px solid var(--line)}
+.contact-row{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:baseline;padding:20px 0;border-bottom:1px solid var(--line);font-size:19px}
+.contact-row span{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.contact-row a{color:var(--fg);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px}
+.contact-row b{font-weight:600}
+.contact-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:38px}
+.contact-links a{color:var(--fg);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:10px 22px;font-size:15px}
+.awards-list{border-top:1px solid var(--line)}
+.award-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 70px;gap:18px;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--line)}
+.award-name{font-size:20px;font-weight:700;letter-spacing:-.015em}
+.award-project{color:var(--muted);font-size:16px}
+.award-year{color:var(--muted);font-size:14px;text-align:right}
+@media(max-width:650px){.contact-row{grid-template-columns:1fr;gap:4px}.award-row{grid-template-columns:1fr;gap:3px}.award-year{text-align:left}}

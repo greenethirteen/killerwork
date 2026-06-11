@@ -9,7 +9,7 @@ import admin from 'firebase-admin';
 import Stripe from 'stripe';
 import { runImport, generateSite, validateSite, zipDir, resolvePortfolioIdentity, renderAboutPage } from './importer.js';
 import { cleanupCampaignBuilderManifestWithAI, planPageEditWithAI, planPageOperationsWithAI, planSiteFileEditsWithAI } from './ai.js';
-import { runCampaignBuild, runUploadBuild } from './uploadBuilder.js';
+import { runCampaignBuild, runUploadBuild, buildProjectFromUpload, generatePageCopyWithAI } from './uploadBuilder.js';
 import { analyzePortfolioZip, stagedFilesForBuild } from './zipBuilder.js';
 import { runPortfolioStudioBuild } from './portfolioStudio.js';
 import { hash, safeSlug } from './utils.js';
@@ -1222,6 +1222,19 @@ async function listSiteFiles(id, dir = siteDir(id), prefix = '') {
 async function listSitePages(id) {
   const files = await listSiteFiles(id);
   const manifest = await readManifest(id);
+  const projectOrder = (manifest?.projects || []).map(p => p.slug);
+  // Sidebar order: Home, work pages (manifest order), About, Awards, Contact, anything else
+  const orderFor = (p, slug) => {
+    if (p === 'index.html') return 0;
+    if (p.startsWith('work/')) {
+      const idx = projectOrder.indexOf(slug);
+      return 100 + (idx >= 0 ? idx : 9000);
+    }
+    if (p === 'about.html') return 100000;
+    if (p === 'awards.html') return 100001;
+    if (p === 'contact.html') return 100002;
+    return 200000;
+  };
   return files
     .filter(file => /\.html?$/i.test(file.path) && file.path !== 'import-review.html')
     .map(file => {
@@ -1234,11 +1247,17 @@ async function listSitePages(id) {
       return {
         slug,
         path: file.path,
-        title: isHome ? 'Home' : file.path === 'about.html' ? 'About' : project?.title || fallback,
+        title: isHome ? 'Home'
+          : file.path === 'about.html' ? 'About'
+          : file.path === 'awards.html' ? 'Awards'
+          : file.path === 'contact.html' ? 'Contact'
+          : project?.title || fallback,
         preview: `/generated/${id}/site/${file.path}`,
-        thumbnail
+        thumbnail,
+        order: orderFor(file.path, slug)
       };
-    });
+    })
+    .sort((a, b) => a.order - b.order);
 }
 
 async function readTextSiteFile(id, relativePath) {
@@ -2375,6 +2394,53 @@ app.get('/api/code-editor/:id/site', requireFirebaseAuth, async (req, res) => {
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || 'Could not load site.' });
+  }
+});
+
+app.post('/api/code-editor/:id/add-page', requireFirebaseAuth, upload.array('files', 16), async (req, res) => {
+  const files = req.files || [];
+  try {
+    const id = req.params.id;
+    const manifest = await requireEditablePortfolio(id, req.user);
+    const type = String(req.body?.type || 'project');
+    const title = String(req.body?.title || '').trim().slice(0, 90);
+    const prompt = String(req.body?.prompt || '').replace(/\r/g, '\n').trim().slice(0, 6000);
+    if (!['project', 'contact', 'awards'].includes(type)) return res.status(400).json({ error: 'Unknown page type.' });
+    if (type === 'contact' && manifest.contactPage) return res.status(400).json({ error: 'This site already has a contact page.' });
+    if (type === 'awards' && manifest.awardsPage) return res.status(400).json({ error: 'This site already has an awards page.' });
+    if (type === 'project' && !title) return res.status(400).json({ error: 'Give the project a title.' });
+    if (type === 'project' && !files.length) return res.status(400).json({ error: 'Upload at least one image, video, or PDF for the project.' });
+
+    let pagePath = '';
+    if (type === 'project') {
+      const project = await buildProjectFromUpload({
+        files,
+        outDir: jobDir(id),
+        title,
+        prompt,
+        existingSlugs: (manifest.projects || []).map(p => p.slug)
+      });
+      manifest.projects = [...(manifest.projects || []), project];
+      pagePath = `work/${project.slug}/index.html`;
+    } else {
+      let copy = null;
+      try { copy = await generatePageCopyWithAI({ type, title: title || (type === 'contact' ? 'Contact' : 'Awards'), prompt }); } catch {}
+      if (type === 'contact') {
+        manifest.contactPage = { title: title || 'Contact', intro: prompt.slice(0, 500), ...(copy || {}) };
+        pagePath = 'contact.html';
+      } else {
+        manifest.awardsPage = { title: title || 'Awards', intro: '', awards: [], ...(copy || { intro: prompt.slice(0, 300) }) };
+        pagePath = 'awards.html';
+      }
+      await Promise.all(files.map(f => fs.remove(f.path).catch(() => {})));
+    }
+
+    const validation = await saveManifestAndRebuild(id, manifest);
+    res.json({ ok: true, pagePath, pages: await listSitePages(id), validation });
+  } catch (err) {
+    console.error('POST /api/code-editor/:id/add-page failed', err);
+    await Promise.all(files.map(f => fs.remove(f.path).catch(() => {})));
+    res.status(err.status || 500).json({ error: err.message || 'Could not create the page.' });
   }
 });
 

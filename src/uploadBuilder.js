@@ -331,8 +331,8 @@ function assetCaption(asset, group) {
   ]).filter(line => line.toLowerCase() !== cleanText(group.title).toLowerCase()).slice(0, 8);
 }
 
-function buildManifestFromGroups(groups, assets, { title, userTextOnly = false } = {}) {
-  const projects = groups.projects.map((group, projectIndex) => {
+function projectFromGroup(group, assets, projectIndex, { userTextOnly = false } = {}) {
+  {
     const slugBase = group.title || `Project ${projectIndex + 1}`;
     const images = [];
     const videos = [];
@@ -386,8 +386,11 @@ function buildManifestFromGroups(groups, assets, { title, userTextOnly = false }
       documents,
       warnings: []
     };
-  });
+  }
+}
 
+function buildManifestFromGroups(groups, assets, { title, userTextOnly = false } = {}) {
+  const projects = groups.projects.map((group, projectIndex) => projectFromGroup(group, assets, projectIndex, { userTextOnly }));
   return {
     sourceUrl: 'uploaded-files',
     siteTitle: cleanText(title) || groups.siteTitle || 'Uploaded Portfolio',
@@ -479,6 +482,63 @@ function groupsFromCampaigns(campaigns, assets) {
     siteTitle: 'Uploaded Portfolio',
     projects: groups.filter(group => group.assetIndexes.length)
   };
+}
+
+const PAGE_COPY_SCHEMAS = {
+  project: `{"description":"one or two sharp sentences describing this campaign for a portfolio page","captionLines":["up to 4 short metadata lines, e.g. 'Client: Dove' or 'Role: Art Director'"]}`,
+  contact: `{"intro":"one short, warm paragraph inviting people to get in touch","email":"","phone":"","location":"","links":[{"label":"LinkedIn","url":""}]}`,
+  awards: `{"intro":"one short intro line for an awards page","awards":[{"award":"award name incl. level, e.g. 'Cannes Lions — Gold'","project":"campaign or project it was won for","year":""}]}`
+};
+
+export async function generatePageCopyWithAI({ type, title = '', prompt = '', assets = [] } = {}) {
+  const provider = aiProvider();
+  if (!provider || !PAGE_COPY_SCHEMAS[type] || !cleanText(prompt)) return null;
+  const system = `You turn a creative professional's rough notes into clean portfolio page data.
+Return JSON only matching this schema exactly. Use only facts present in the notes — never invent awards, clients, emails, links, or years. Unknown fields stay empty.
+Schema: ${PAGE_COPY_SCHEMAS[type]}`;
+  const user = `Page title: ${title}\nNotes:\n${prompt}${assets.length ? `\nUploaded files: ${assets.map(a => a.originalName).join(', ')}` : ''}`;
+  if (provider === 'anthropic') {
+    return claudeJson({ system, userContent: user, maxTokens: 2048 });
+  }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(60_000),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      temperature: 0.15,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }]
+    })
+  });
+  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`);
+  const body = await res.json();
+  return jsonFromText(body.choices?.[0]?.message?.content || '{}');
+}
+
+// Builds one manifest project from uploaded files — used by the editor's
+// "Add page" flow. Assets are AI-analyzed exactly like a full upload build.
+export async function buildProjectFromUpload({ files, outDir, title = '', prompt = '', existingSlugs = [], onProgress } = {}) {
+  const progress = (stage, detail = '') => onProgress?.({ stage, detail, at: new Date().toISOString() });
+  if (!files?.length) throw new Error('Upload at least one image, video, audio file, or PDF.');
+  const assets = await saveUploadedAssets(files, outDir, progress, 'Saving page assets');
+  await analyzeAssets(assets, progress);
+  let copy = null;
+  try {
+    copy = await generatePageCopyWithAI({ type: 'project', title, prompt, assets });
+  } catch {}
+  const group = {
+    title: cleanText(title) || 'New project',
+    assetIndexes: assets.map((_, index) => index),
+    captionLines: Array.isArray(copy?.captionLines) ? copy.captionLines.map(cleanText).filter(Boolean).slice(0, 6) : [],
+    description: cleanText(copy?.description) || cleanText(prompt).slice(0, 400)
+  };
+  const project = projectFromGroup(group, assets, existingSlugs.length, { userTextOnly: false });
+  let slug = safeSlug(group.title) || 'project';
+  let candidate = slug;
+  for (let n = 2; existingSlugs.includes(candidate); n++) candidate = `${slug}-${n}`;
+  project.slug = candidate;
+  return project;
 }
 
 export async function runUploadBuild({ files, outDir, title = '', aiCleanup = false, onProgress } = {}) {

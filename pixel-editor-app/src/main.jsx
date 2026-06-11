@@ -804,8 +804,11 @@ function VisualEditor() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState('default');
   const [applyingTemplate, setApplyingTemplate] = useState(false);
-  const [addingPage, setAddingPage] = useState(false);
-  const [newPageName, setNewPageName] = useState('');
+  const [addPageOpen, setAddPageOpen] = useState(false);
+  const [pageType, setPageType] = useState('project');
+  const [pageTitle, setPageTitle] = useState('');
+  const [pagePrompt, setPagePrompt] = useState('');
+  const [pageFiles, setPageFiles] = useState([]);
   const [creatingPage, setCreatingPage] = useState(false);
 
   const iframeRef = useRef(null);
@@ -886,49 +889,29 @@ function VisualEditor() {
   }
 
   async function createPage() {
-    const name = newPageName.trim();
-    if (!name || creatingPage) return;
-    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'page';
-    const pagePath = `${slug}.html`;
-    if (pages.some(p => p.path === pagePath)) { setStatus('A page with that name already exists.'); return; }
+    if (creatingPage) return;
+    if (pageType === 'project' && (!pageTitle.trim() || !pageFiles.length)) {
+      setStatus('Project pages need a title and at least one file.');
+      return;
+    }
+    if (pageType !== 'project' && !pagePrompt.trim() && !pageTitle.trim()) {
+      setStatus('Describe what the page should say.');
+      return;
+    }
     setCreatingPage(true);
     try {
-      // Clone the site header from the home page so the new page matches the site
-      let headerHtml = '';
-      try {
-        const home = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file?path=index.html`);
-        const m = String(home.content || '').match(/<header[^>]*class="[^"]*(?:site-header|campaign-builder-site-header|source-import-header)[^"]*"[\s\S]*?<\/header>/i);
-        if (m) headerHtml = m[0];
-      } catch {}
-      const navLink = `<a href="${pagePath}">${esc(name)}</a>`;
-      // The new page's own nav should include itself too
-      if (headerHtml && /<\/nav>/i.test(headerHtml) && !headerHtml.includes(`href="${pagePath}"`)) {
-        headerHtml = headerHtml.replace(/<\/nav>/i, `${navLink}</nav>`);
-      }
-      const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} — ${esc(site?.siteTitle || 'Portfolio')}</title><link rel="stylesheet" href="styles.css"><link rel="icon" href="favicon.png" type="image/png"></head><body>${headerHtml}<main class="project-page"><h1>${esc(name)}</h1><p style="font-size:17px;line-height:1.65;max-width:640px;">This page is empty. Use ＋ Insert to add headings, text, buttons and images — or switch to Select mode to arrange things.</p></main></body></html>`;
-      await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file`, {
-        method: 'PUT',
-        body: JSON.stringify({ path: pagePath, content: html })
-      });
-      // Link the new page from the nav of the other root-level pages
-      for (const pg of pages.filter(p => !p.path.includes('/'))) {
-        try {
-          const f = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file?path=${encodeURIComponent(pg.path)}`);
-          if (!/<\/nav>/i.test(f.content || '') || (f.content || '').includes(`href="${pagePath}"`)) continue;
-          await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file`, {
-            method: 'PUT',
-            body: JSON.stringify({ path: pg.path, content: f.content.replace(/<\/nav>/i, `${navLink}</nav>`) })
-          });
-        } catch {}
-      }
-      const data = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/site`);
+      const body = new FormData();
+      body.append('type', pageType);
+      body.append('title', pageTitle.trim());
+      body.append('prompt', pagePrompt.trim());
+      pageFiles.forEach(f => body.append('files', f));
+      const data = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/add-page`, { method: 'POST', body });
       setPages((data.pages || []).filter(p => p.path !== 'import-review.html'));
-      setHistory(data.history || history);
-      setAddingPage(false);
-      setNewPageName('');
+      setAddPageOpen(false);
+      setPageTitle(''); setPagePrompt(''); setPageFiles([]); setPageType('project');
       setStatus('Page created!');
-      openPage(pagePath);
+      if (data.pagePath) openPage(data.pagePath);
+      else setPreviewKey(k => k + 1);
     } catch (err) { setStatus('Could not create page: ' + err.message); }
     finally { setCreatingPage(false); }
   }
@@ -1350,31 +1333,12 @@ function VisualEditor() {
             {pages.map(pg => (
               <PageCard key={pg.path} pg={pg} active={selectedPage === pg.path} onClick={() => openPage(pg.path)} />
             ))}
-            {!addingPage ? (
-              <button onClick={() => setAddingPage(true)} title="Add a page"
-                style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', aspectRatio:'16/5', marginBottom:5, background:'transparent', border:'2px dashed #2a2a36', borderRadius:7, color:'#666', cursor:'pointer', fontSize:12, fontWeight:600, transition:'border-color .15s, color .15s' }}
-                onMouseOver={e => { e.currentTarget.style.borderColor = '#ff5200'; e.currentTarget.style.color = '#ff8040'; }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = '#2a2a36'; e.currentTarget.style.color = '#666'; }}>
-                <span style={{ fontSize:17, lineHeight:1 }}>＋</span> Add page
-              </button>
-            ) : (
-              <div style={{ background:'#17171e', border:'1px solid #2a2a36', borderRadius:7, padding:8, marginBottom:5 }}>
-                <input autoFocus value={newPageName} onChange={e => setNewPageName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') createPage(); if (e.key === 'Escape') { setAddingPage(false); setNewPageName(''); } }}
-                  placeholder="Page name, e.g. Contact" disabled={creatingPage}
-                  style={{ width:'100%', boxSizing:'border-box', background:'#0e0e13', border:'1px solid #2a2a36', borderRadius:5, padding:'7px 9px', color:'#eee', fontSize:12, outline:'none', marginBottom:6 }} />
-                <div style={{ display:'flex', gap:5 }}>
-                  <button onClick={createPage} disabled={creatingPage || !newPageName.trim()}
-                    style={{ flex:1, padding:'6px 0', background: newPageName.trim() ? '#ff5200' : '#2a2a36', border:'none', borderRadius:5, color:'#fff', fontSize:11, fontWeight:600, cursor: newPageName.trim() ? 'pointer' : 'default' }}>
-                    {creatingPage ? 'Creating…' : 'Create'}
-                  </button>
-                  <button onClick={() => { setAddingPage(false); setNewPageName(''); }} disabled={creatingPage}
-                    style={{ padding:'6px 12px', background:'transparent', border:'1px solid #2a2a36', borderRadius:5, color:'#888', fontSize:11, cursor:'pointer' }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+            <button onClick={() => setAddPageOpen(true)} title="Add a page"
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', aspectRatio:'16/5', marginBottom:5, background:'transparent', border:'2px dashed #2a2a36', borderRadius:7, color:'#666', cursor:'pointer', fontSize:12, fontWeight:600, transition:'border-color .15s, color .15s' }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = '#ff5200'; e.currentTarget.style.color = '#ff8040'; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = '#2a2a36'; e.currentTarget.style.color = '#666'; }}>
+              <span style={{ fontSize:17, lineHeight:1 }}>＋</span> Add page
+            </button>
           </div>
 
           {/* Templates panel — Behance and builder sites only */}
@@ -1606,13 +1570,99 @@ function VisualEditor() {
           </div>
         </div>
       </div>
+
+      {/* ── Add page modal ── */}
+      {addPageOpen && (
+        <div onClick={() => !creatingPage && setAddPageOpen(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(3px)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width:460, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', background:'#16161c', border:'1px solid #2a2a36', borderRadius:14, padding:'20px 20px 18px', boxShadow:'0 24px 80px rgba(0,0,0,.7)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+              <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>Add a page</h3>
+              <button onClick={() => !creatingPage && setAddPageOpen(false)} style={{ background:'none', border:'none', color:'#666', cursor:'pointer', padding:4 }}><X size={15}/></button>
+            </div>
+
+            {/* Page type */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:14 }}>
+              {[
+                { id:'project', label:'Project', note:'Campaign page' },
+                { id:'awards', label:'Awards', note: pages.some(p => p.path === 'awards.html') ? 'Already added' : 'One per site' },
+                { id:'contact', label:'Contact', note: pages.some(p => p.path === 'contact.html') ? 'Already added' : 'One per site' },
+              ].map(t => {
+                const taken = (t.id === 'awards' && pages.some(p => p.path === 'awards.html')) || (t.id === 'contact' && pages.some(p => p.path === 'contact.html'));
+                return (
+                  <button key={t.id} disabled={taken || creatingPage} onClick={() => setPageType(t.id)}
+                    style={{ padding:'10px 6px', borderRadius:9, cursor: taken ? 'default' : 'pointer', textAlign:'center', opacity: taken ? .4 : 1,
+                      background: pageType === t.id ? '#241410' : '#1b1b22', border:`1px solid ${pageType === t.id ? '#ff5200' : '#26262e'}` }}>
+                    <div style={{ fontSize:12, fontWeight:700, color: pageType === t.id ? '#ff8040' : '#ddd' }}>{t.label}</div>
+                    <div style={{ fontSize:9.5, color:'#666', marginTop:2 }}>{t.note}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Title */}
+            <label style={{ display:'block', marginBottom:12 }}>
+              <span style={{ display:'block', fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.2, marginBottom:5 }}>
+                {pageType === 'project' ? 'Project title' : 'Page title (optional)'}
+              </span>
+              <input value={pageTitle} onChange={e => setPageTitle(e.target.value)} disabled={creatingPage}
+                placeholder={pageType === 'project' ? 'e.g. Nike — Just Do It' : pageType === 'awards' ? 'Awards' : 'Contact'}
+                style={{ width:'100%', boxSizing:'border-box', background:'#0e0e13', border:'1px solid #2a2a36', borderRadius:8, padding:'10px 12px', color:'#eee', fontSize:13, outline:'none' }} />
+            </label>
+
+            {/* Prompt */}
+            <label style={{ display:'block', marginBottom:12 }}>
+              <span style={{ display:'block', fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.2, marginBottom:5 }}>
+                {pageType === 'project' ? 'About this project' : pageType === 'awards' ? 'Your awards' : 'Your contact details'}
+              </span>
+              <textarea value={pagePrompt} onChange={e => setPagePrompt(e.target.value)} disabled={creatingPage} rows={4}
+                placeholder={pageType === 'project'
+                  ? 'Client, agency, your role, the idea, results… AI writes the page copy from this.'
+                  : pageType === 'awards'
+                    ? 'List them out: "Cannes Lions Gold for Dove Real Beauty 2023, D&AD Pencil for…" — AI formats them.'
+                    : 'Email, phone, location, LinkedIn/social links… AI lays them out.'}
+                style={{ width:'100%', boxSizing:'border-box', background:'#0e0e13', border:'1px solid #2a2a36', borderRadius:8, padding:'10px 12px', color:'#eee', fontSize:13, lineHeight:1.5, outline:'none', resize:'vertical', fontFamily:'inherit' }} />
+            </label>
+
+            {/* Files — project pages only */}
+            {pageType === 'project' && (
+              <label style={{ display:'block', marginBottom:16, cursor:'pointer' }}>
+                <span style={{ display:'block', fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.2, marginBottom:5 }}>Work files</span>
+                <div style={{ border:'2px dashed #2a2a36', borderRadius:9, padding:'16px 12px', textAlign:'center', color:'#777', fontSize:12 }}>
+                  {pageFiles.length
+                    ? <span style={{ color:'#ff8040', fontWeight:600 }}>{pageFiles.length} file(s) selected</span>
+                    : <>Click to add images, videos, PDFs, audio<br/><span style={{ fontSize:10.5, color:'#555' }}>AI scans each ad for captions — up to 16 files</span></>}
+                </div>
+                <input type="file" multiple accept="image/*,video/*,audio/*,application/pdf" disabled={creatingPage}
+                  onChange={e => setPageFiles([...(e.target.files || [])].slice(0, 16))} style={{ display:'none' }} />
+              </label>
+            )}
+
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={createPage} disabled={creatingPage}
+                style={{ flex:1, padding:'11px 0', background: creatingPage ? '#2a2a36' : 'linear-gradient(135deg,#ff5200,#ff7a00)', border:'none', borderRadius:9, color:'#fff', fontSize:13, fontWeight:700, cursor: creatingPage ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                {creatingPage ? <><Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> Building with AI — can take a minute…</> : 'Create page with AI'}
+              </button>
+              {!creatingPage && (
+                <button onClick={() => setAddPageOpen(false)}
+                  style={{ padding:'11px 16px', background:'transparent', border:'1px solid #2a2a36', borderRadius:9, color:'#888', fontSize:12, cursor:'pointer' }}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+const SPECIAL_PAGE_ICONS = { 'index.html':'🏠', 'about.html':'👤', 'awards.html':'🏆', 'contact.html':'✉️' };
+
 function PageCard({ pg, active, onClick }) {
   const title = pg.title || pageLabel(pg.path);
-  const isSpecial = pg.path === 'index.html' || pg.path === 'about.html';
+  const isSpecial = pg.path in SPECIAL_PAGE_ICONS;
   return (
     <button onClick={onClick} style={{
       display:'block', width:'100%', padding:0, border:'none', cursor:'pointer',
@@ -1625,7 +1675,7 @@ function PageCard({ pg, active, onClick }) {
         {pg.thumbnail
           ? <img src={pg.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} onError={e => { e.target.style.display='none'; }} />
           : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, opacity:.25 }}>
-              {pg.path === 'index.html' ? '🏠' : pg.path === 'about.html' ? '👤' : '📄'}
+              {SPECIAL_PAGE_ICONS[pg.path] || '📄'}
             </div>
         }
         {/* Home / About: title overlaid on the thumbnail */}
