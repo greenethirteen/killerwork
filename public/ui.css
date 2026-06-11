@@ -631,6 +631,9 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 @media(max-width:900px){.pixel-feature-row{grid-template-columns:1fr 1fr}.clicks-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.pixel-editor-showcase,.clicks-compare{padding:18px}.pixel-feature-row{grid-template-columns:1fr}.pixel-demo-canvas{padding:24px 16px 36px}.pd-modes span{display:none}.pd-selected{width:84%}.pd-textrow{width:84%}.pd-toolbar span:last-child{display:none}}
 
-/* Publish section after removing the 3-step row: single column, centered demo */
-.publish-howto{grid-template-columns:1fr}
-.publish-howto .publish-panel-demo{width:min(520px,100%);margin:0 auto}
+/* Publish section: centered single-column after step-row removal */
+.publish-howto{grid-template-columns:1fr;justify-items:center;text-align:center}
+.publish-howto .showcase-copy,.publish-howto .showcase-copy.compact{display:block;text-align:center;max-width:600px}
+.publish-howto .showcase-copy.compact h2{font-size:clamp(28px,3.6vw,48px);margin-bottom:10px}
+.publish-howto .showcase-copy p{margin:0 auto}
+.publish-howto .publish-panel-demo{width:min(520px,100%);text-align:left}
