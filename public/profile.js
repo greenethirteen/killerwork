@@ -33,9 +33,9 @@ async function loadBilling() {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Could not check your subscription.');
   const active = !!data.active;
-  subscriptionStatus.textContent = active ? 'Active' : data.status === 'not_configured' ? 'Not configured' : 'Inactive';
+  subscriptionStatus.textContent = active ? 'Paid' : data.status === 'not_configured' ? 'Not configured' : 'Not purchased';
   subscribeButton.classList.toggle('hidden', active);
-  cancelSubscriptionButton.classList.toggle('hidden', !active);
+  cancelSubscriptionButton.classList.add('hidden');
 }
 
 async function openBillingPortal() {

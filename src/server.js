@@ -167,7 +167,7 @@ const firebaseAdmin = firebaseAccount ? admin.initializeApp({
   projectId: firebaseProjectId
 }) : null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
-const stripeMonthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1Tb1w7CE6bX7hMAXXOoILehR';
+const stripeProductId = process.env.STRIPE_PRODUCT_ID || 'prod_UgzYd1PagEbSax';
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function requestHostname(req) {
@@ -251,17 +251,9 @@ async function subscriptionStateFor(user) {
   if (!stripe) return { configured: false, active: false, status: 'not_configured' };
   const customer = await stripeCustomerFor(user);
   if (!customer) return { configured: true, active: false, status: 'none' };
-  const subscriptions = await stripe.subscriptions.list({ customer: customer.id, status: 'all', limit: 100 });
-  const subscription = subscriptions.data.find(item => (
-    ['active', 'trialing'].includes(item.status)
-    && item.items.data.some(line => line.price?.id === stripeMonthlyPriceId)
-  ));
-  return {
-    configured: true,
-    active: !!subscription,
-    status: subscription?.status || 'none',
-    customerId: customer.id
-  };
+  const sessions = await stripe.checkout.sessions.list({ customer: customer.id, limit: 100 });
+  const paid = sessions.data.some(s => s.mode === 'payment' && s.payment_status === 'paid' && s.status === 'complete');
+  return { configured: true, active: paid, status: paid ? 'paid' : 'none', customerId: customer.id };
 }
 
 async function requireActiveSubscription(req, res, next) {
@@ -272,15 +264,15 @@ async function requireActiveSubscription(req, res, next) {
     }
     if (!state.active) {
       return res.status(402).json({
-        error: 'Subscribe to the KillaWork $5 monthly plan to publish or download your portfolio.',
+        error: 'A one-time $19 payment is required to publish or download your portfolio.',
         code: 'subscription_required'
       });
     }
     req.subscription = state;
     next();
   } catch (err) {
-    console.error('Stripe subscription check failed', err);
-    res.status(503).json({ error: 'Could not verify your subscription. Please try again.', code: 'billing_unavailable' });
+    console.error('Stripe payment check failed', err);
+    res.status(503).json({ error: 'Could not verify your payment status. Please try again.', code: 'billing_unavailable' });
   }
 }
 
@@ -1952,48 +1944,47 @@ app.get('/api/billing/status', requireFirebaseAuth, async (req, res) => {
 
 app.get('/api/billing/checkout-session/:sessionId', requireFirebaseAuth, async (req, res) => {
   try {
-    if (!stripe) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
-    const session = await stripe.checkout.sessions.retrieve(req.params.sessionId, { expand: ['subscription'] });
-    const subscription = session.subscription && typeof session.subscription === 'object' ? session.subscription : null;
+    if (!stripe) return res.status(503).json({ error: 'Billing is not configured yet.', code: 'billing_not_configured' });
+    const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
     const belongsToUser = session.client_reference_id === req.user.uid || session.metadata?.firebaseUid === req.user.uid;
-    const matchingPlan = subscription?.items?.data?.some(line => line.price?.id === stripeMonthlyPriceId);
-    const active = ['active', 'trialing'].includes(subscription?.status);
     if (!belongsToUser) return res.status(403).json({ error: 'This checkout session does not belong to your account.' });
-    if (session.mode !== 'subscription' || session.status !== 'complete' || !matchingPlan || !active) {
-      return res.status(409).json({ error: 'Your subscription has not been confirmed yet.', code: 'subscription_pending' });
+    if (session.mode !== 'payment' || session.status !== 'complete' || session.payment_status !== 'paid') {
+      return res.status(409).json({ error: 'Your payment has not been confirmed yet.', code: 'payment_pending' });
     }
     res.json({
       confirmed: true,
       transactionId: session.id,
-      value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 5,
+      value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 19,
       currency: String(session.currency || 'usd').toUpperCase()
     });
   } catch (err) {
     console.error('Stripe checkout confirmation failed', err);
-    res.status(503).json({ error: 'Could not confirm your subscription. Please try again.', code: 'billing_unavailable' });
+    res.status(503).json({ error: 'Could not confirm your payment. Please try again.', code: 'billing_unavailable' });
   }
 });
 
 app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
   try {
-    if (!stripe) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
+    if (!stripe) return res.status(503).json({ error: 'Billing is not configured yet.', code: 'billing_not_configured' });
     const customer = await stripeCustomerFor(req.user, { create: true });
     const origin = requestOrigin(req);
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
+      mode: 'payment',
       customer: customer.id,
       client_reference_id: req.user.uid,
-      line_items: [{ price: stripeMonthlyPriceId, quantity: 1 }],
-      success_url: `${origin}/manage.html?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/manage.html?subscription=cancelled`,
+      line_items: [{
+        price_data: { currency: 'usd', unit_amount: 1900, product: stripeProductId },
+        quantity: 1
+      }],
+      success_url: `${origin}/manage.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/manage.html?payment=cancelled`,
       allow_promotion_codes: true,
-      metadata: { firebaseUid: req.user.uid },
-      subscription_data: { metadata: { firebaseUid: req.user.uid } }
+      metadata: { firebaseUid: req.user.uid }
     });
     res.json({ url: session.url });
   } catch (err) {
     console.error('Stripe checkout session failed', err);
-    res.status(503).json({ error: 'Could not open subscription checkout. Please try again.', code: 'billing_unavailable' });
+    res.status(503).json({ error: 'Could not open checkout. Please try again.', code: 'billing_unavailable' });
   }
 });
 

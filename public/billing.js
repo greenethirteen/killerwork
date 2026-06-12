@@ -11,16 +11,16 @@ function track(name, params = {}) {
 }
 
 export async function startSubscriptionCheckout(setStatus) {
-  setStatus?.('Opening secure subscription checkout...');
+  setStatus?.('Opening secure checkout...');
   const res = await fetch('/api/billing/checkout', {
     method: 'POST',
     headers: await authHeaders(true)
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.url) throw new Error(data.error || 'Could not open subscription checkout.');
+  if (!res.ok || !data.url) throw new Error(data.error || 'Could not open checkout.');
   track('checkout_start', {
-    plan_name: 'KillaWork monthly subscription',
-    price: 5,
+    plan_name: 'KillaWork one-time',
+    price: 19,
     currency: 'USD',
   });
   window.location.assign(data.url);
@@ -28,37 +28,37 @@ export async function startSubscriptionCheckout(setStatus) {
 
 export async function trackSubscriptionCheckoutReturn(setStatus) {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('subscription') === 'cancelled') {
-    setStatus?.('Subscription checkout cancelled.');
+  if (params.get('payment') === 'cancelled') {
+    setStatus?.('Checkout cancelled.');
     return;
   }
   const sessionId = params.get('session_id');
-  if (params.get('subscription') !== 'success' || !sessionId) return;
-  setStatus?.('Confirming your subscription...');
+  if (params.get('payment') !== 'success' || !sessionId) return;
+  setStatus?.('Confirming your payment...');
   const res = await fetch(`/api/billing/checkout-session/${encodeURIComponent(sessionId)}`, {
     headers: await authHeaders()
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.confirmed) throw new Error(data.error || 'Could not confirm your subscription.');
-  const storageKey = `killerwork:subscription-conversion:${sessionId}`;
+  if (!res.ok || !data.confirmed) throw new Error(data.error || 'Could not confirm your payment.');
+  const storageKey = `killerwork:payment-conversion:${sessionId}`;
   if (!localStorage.getItem(storageKey)) {
-    track('subscription_purchase', {
+    track('payment_purchase', {
       value: data.value,
       currency: data.currency,
       transaction_id: data.transactionId
     });
     localStorage.setItem(storageKey, 'true');
   }
-  params.delete('subscription');
+  params.delete('payment');
   params.delete('session_id');
   const query = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
-  setStatus?.('Subscription active. Publishing and ZIP downloads are unlocked.', 'ok');
+  setStatus?.('Payment confirmed. Publishing and ZIP downloads are unlocked.', 'ok');
 }
 
 export async function handleSubscriptionRequired(res, data = {}, setStatus) {
   if (res.status !== 402 || data.code !== 'subscription_required') return false;
-  setStatus?.(data.error || 'Subscribe to publish or download your portfolio.', 'error');
+  setStatus?.(data.error || 'A one-time $19 payment unlocks publishing and downloads.', 'error');
   await startSubscriptionCheckout(setStatus);
   return true;
 }
