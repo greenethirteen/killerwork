@@ -1641,12 +1641,26 @@ async function extractHomePage(page, url, progress) {
   const data = await page.evaluate(async (sourceAuthSelectors) => {
     const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
     const abs = (v) => { try { return new URL(v, location.href).href; } catch { return ''; } };
-    const root = document.querySelector('#siteWrapper') || document.querySelector('#page') || document.querySelector('#canvas') || document.querySelector('main') || document.body;
     const removeSelectors = [
       'script','style','noscript',
       ...sourceAuthSelectors,
-      '#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block'
+      '#sqs-cookie-banner','.sqs-cookie-banner-v2','.newsletter-block',
+      '#footer','.footer','.Footer','#footerBlock','.site-footer'
     ];
+    // For Squarespace 7.0 and similar CMS where the site header is a sibling of the
+    // main content area (not inside #siteWrapper), expand root to their common parent
+    // so the header is captured in the clone.
+    const _pageEl = document.querySelector('#page');
+    const _headerEl = document.querySelector('#header, header[role="banner"], .Header');
+    let root = document.querySelector('#siteWrapper');
+    if (!root) {
+      if (_pageEl && _headerEl && !_pageEl.contains(_headerEl) && _pageEl.parentElement && _pageEl.parentElement.contains(_headerEl)) {
+        root = _pageEl.parentElement;
+      } else {
+        root = _pageEl || document.querySelector('#canvas') || document.querySelector('main') || document.body;
+      }
+    }
+    if (!root) root = document.body;
     const sourceFontCss = () => {
       const chunks = [];
       document.querySelectorAll('link[rel~="stylesheet"][href]').forEach(link => {
