@@ -60,22 +60,14 @@ if (pricing) {
 
 function syncImportCopyHeight() {
   if (!importCopyFlip || !importCopySlides.length) return;
-  // Size the flip container to the TALLEST slide, not the active one — slides
-  // are absolutely positioned, so a taller rotating slide would otherwise
-  // overflow onto the badge/form below, and the card height would jump
-  // on every rotation.
-  const heights = importCopySlides.map(slide => {
-    const slideTop = slide.getBoundingClientRect().top;
-    const lastChild = slide.lastElementChild;
-    const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + slide.scrollHeight;
-    return contentBottom - slideTop;
-  });
-  importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(Math.max(...heights))}px`);
-}
-
-const scrollHint = document.querySelector('[data-scroll-hint]');
-if (scrollHint) {
-  window.addEventListener('scroll', () => scrollHint.classList.add('is-hidden'), { passive: true, once: true });
+  const activeSlide = importCopySlides
+    .map(slide => ({ slide, opacity: Number(getComputedStyle(slide).opacity) || 0 }))
+    .filter(entry => entry.opacity > 0.05)
+    .sort((a, b) => b.opacity - a.opacity)[0]?.slide || importCopySlides[0];
+  const slideTop = activeSlide.getBoundingClientRect().top;
+  const lastChild = activeSlide.lastElementChild;
+  const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + activeSlide.scrollHeight;
+  importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(contentBottom - slideTop)}px`);
 }
 
 if (importCopyFlip && importCopySlides.length) {
@@ -113,25 +105,9 @@ bindProtectedZipLink(downloadLink, (text, tone = '') => {
 });
 
 if (switcher && panels.length) {
-  const dualToggles = [...document.querySelectorAll('[data-dual-toggle]')];
-  const dualToggleWrap = document.querySelector('.dual-mobile-toggle');
   const setActivePanel = panelName => {
-    if (!panelName) return;
-    switcher.dataset.activePanel = panelName;
-    dualToggleWrap?.setAttribute('data-active', panelName);
-    dualToggles.forEach(button => {
-      const active = button.dataset.dualToggle === panelName;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-selected', String(active));
-    });
+    if (panelName) switcher.dataset.activePanel = panelName;
   };
-
-  dualToggles.forEach(button => {
-    button.addEventListener('click', () => {
-      setActivePanel(button.dataset.dualToggle);
-      track('hero_panel_toggle', { panel: button.dataset.dualToggle });
-    });
-  });
 
   panels.forEach(panel => {
     const activate = () => {

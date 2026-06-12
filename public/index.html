@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260612-scroll-hint" />
+  <link rel="stylesheet" href="/ui.css?v=20260611-publish-fix" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -78,10 +78,6 @@
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
-    <div class="dual-mobile-toggle action-toggle" data-active="import" role="tablist" aria-label="Choose import or build">
-      <button type="button" class="active" data-dual-toggle="import" role="tab" aria-selected="true">Import</button>
-      <button type="button" data-dual-toggle="build" role="tab" aria-selected="false">Build</button>
-    </div>
     <section class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
       <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
         <div class="dual-panel-inner">
@@ -455,11 +451,8 @@
       <span>Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days.</span>
     </footer>
   </main>
-  <div class="scroll-hint" data-scroll-hint aria-hidden="true">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-  </div>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260612-scroll-hint'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260609-pixel-edit'));
   </script>
 </body>
 </html>
