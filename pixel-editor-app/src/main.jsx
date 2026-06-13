@@ -988,6 +988,21 @@ function VisualEditor() {
   }
 
   function handleIframeLoad() {
+    // If the user clicked a link inside the iframe, track the navigation so savePage()
+    // writes to the correct file. Without this, navigating to a campaign page and saving
+    // would overwrite site/index.html with campaign page HTML (wrong relative CSS paths).
+    try {
+      const iframeLoc = iframeRef.current?.contentWindow?.location;
+      if (iframeLoc) {
+        const siteBase = `/generated/${encodeURIComponent(JOB_ID)}/site/`;
+        const loc = iframeLoc.pathname;
+        if (loc.startsWith(siteBase)) {
+          const rel = loc.slice(siteBase.length).replace(/^\//, '') || 'index.html';
+          if (rel !== selectedPage) setSelectedPage(rel);
+        }
+      }
+    } catch {}
+
     if (mode !== 'browse') {
       setTimeout(() => activateMode(mode), 100);
     }
@@ -1024,6 +1039,15 @@ function VisualEditor() {
     });
 
     const html = `<!doctype html>\n${clone.outerHTML}`;
+    // Safety check: if the serialised HTML contains campaign-page relative paths (../../)
+    // but selectedPage looks like a root page, the iframe navigated internally and the
+    // selectedPage state hasn't caught up yet. Abort rather than overwrite the wrong file.
+    const looksLikeCampaignPage = /href="\.\.\/\.\.\/styles\.css"/.test(html) || /src="\.\.\/\.\.\/assets\//.test(html);
+    if (looksLikeCampaignPage && !selectedPage.includes('/')) {
+      setStatus('Save skipped — please wait for the page to finish loading and try again.');
+      setSaving(false);
+      return;
+    }
     setSaving(true); setStatus('Saving…');
     try {
       const data = await api(`/api/code-editor/${encodeURIComponent(JOB_ID)}/file`, {
