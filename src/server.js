@@ -1284,6 +1284,21 @@ async function writeTextSiteFile(id, relativePath, content) {
   return relative;
 }
 
+// Ensure styles.css exists in the site directory. Old imports or partially-regenerated
+// sites can be missing it, causing the preview to load completely unstyled.
+async function ensureStylesCss(id, manifest) {
+  const stylesCssPath = path.join(siteDir(id), 'styles.css');
+  if (await fs.pathExists(stylesCssPath)) return;
+  const baseCss = await fs.readFile(path.join(root, 'public', 'portfolio.css'), 'utf8').catch(() => '');
+  const templateName = manifest?.portfolioTemplate || 'default';
+  let css = baseCss;
+  if (templateName !== 'default') {
+    const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
+    if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+  }
+  await fs.writeFile(stylesCssPath, css);
+}
+
 // Remove snapshot dirs and manifest sidecars that history no longer references.
 // Every save/upload/add/delete copies the whole site here; without pruning the
 // volume fills up — history caps at 20 entries but old dirs were never deleted.
@@ -2410,6 +2425,7 @@ app.get('/api/code-editor/:id/site', requireFirebaseAuth, async (req, res) => {
   try {
     const id = req.params.id;
     const manifest = await requireEditablePortfolio(id, req.user);
+    await ensureStylesCss(id, manifest);
     const [files, pages, history] = await Promise.all([
       listSiteFiles(id),
       listSitePages(id),
@@ -2559,7 +2575,8 @@ app.get('/api/code-editor/:id/file', requireFirebaseAuth, async (req, res) => {
 
 app.put('/api/code-editor/:id/file', requireFirebaseAuth, async (req, res) => {
   try {
-    await requireEditablePortfolio(req.params.id, req.user);
+    const manifest = await requireEditablePortfolio(req.params.id, req.user);
+    await ensureStylesCss(req.params.id, manifest);
     await createEditorSnapshot(req.params.id);
     const rel = await writeTextSiteFile(req.params.id, req.body?.path || '', req.body?.content || '');
     const validation = await validateSite(siteDir(req.params.id));
