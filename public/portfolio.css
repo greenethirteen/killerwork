@@ -39,10 +39,10 @@ html,body{max-width:100%;overflow-x:hidden}.source-exact,.source-home{margin:0}.
   display:block;
   font-size:clamp(17px,2vw,26px);
   font-weight:400;
-  font-style:italic;
+  font-style:normal;
   color:var(--muted);
   letter-spacing:.01em;
-  font-family:Georgia,'Times New Roman',serif;
+  font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
   line-height:1.25;
 }
 .simple-page{max-width:840px;margin:0 auto;padding:78px 24px 110px}
