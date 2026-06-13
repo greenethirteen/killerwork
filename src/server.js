@@ -143,6 +143,29 @@ app.get(['/generated/:id/site', '/generated/:id/site/', '/generated/:id/site/ind
 app.get('/generated/:id/site/work/:slug/index.html', serveGeneratedCampaignPage);
 app.get(['/generated/:id/site/favicon.ico', '/generated/:id/site/favicon.png'], (req, res) => res.sendFile(path.join(root, 'public', 'favicon-logo-144.png')));
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
+// Fallback: if styles.css is missing from disk (old import, pruned volume), generate it on the fly.
+// express.static calls next() when the file isn't found, so this only fires on a real 404.
+app.get('/generated/:id/site/styles.css', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const manifest = await readManifest(id).catch(() => ({}));
+    const baseCss = await fs.readFile(path.join(root, 'public', 'portfolio.css'), 'utf8').catch(() => '');
+    const templateName = manifest?.portfolioTemplate || 'default';
+    let css = baseCss;
+    if (templateName !== 'default') {
+      const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
+      if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+    }
+    // Write to disk so the next request is served by express.static
+    await fs.ensureDir(siteDir(id));
+    await fs.writeFile(path.join(siteDir(id), 'styles.css'), css).catch(() => {});
+    res.setHeader('Content-Type', 'text/css');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(css);
+  } catch (err) {
+    res.status(500).send('/* styles.css generation failed */');
+  }
+});
 app.get('/generated/:id/*', generatedMissingHandler);
 
 function firebaseServiceAccount() {
@@ -1284,19 +1307,22 @@ async function writeTextSiteFile(id, relativePath, content) {
   return relative;
 }
 
-// Ensure styles.css exists in the site directory. Old imports or partially-regenerated
-// sites can be missing it, causing the preview to load completely unstyled.
+// Write styles.css into the site directory, always. Old imports may be missing it;
+// even fresh sites need it refreshed when portfolio.css changes.
 async function ensureStylesCss(id, manifest) {
-  const stylesCssPath = path.join(siteDir(id), 'styles.css');
-  if (await fs.pathExists(stylesCssPath)) return;
-  const baseCss = await fs.readFile(path.join(root, 'public', 'portfolio.css'), 'utf8').catch(() => '');
-  const templateName = manifest?.portfolioTemplate || 'default';
-  let css = baseCss;
-  if (templateName !== 'default') {
-    const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
-    if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+  try {
+    const baseCss = await fs.readFile(path.join(root, 'public', 'portfolio.css'), 'utf8').catch(() => '');
+    const templateName = manifest?.portfolioTemplate || 'default';
+    let css = baseCss;
+    if (templateName !== 'default') {
+      const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
+      if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+    }
+    await fs.ensureDir(siteDir(id));
+    await fs.writeFile(path.join(siteDir(id), 'styles.css'), css);
+  } catch (e) {
+    console.error('[ensureStylesCss] failed for', id, e.message);
   }
-  await fs.writeFile(stylesCssPath, css);
 }
 
 // Remove snapshot dirs and manifest sidecars that history no longer references.
