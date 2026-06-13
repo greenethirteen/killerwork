@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260613-pricing-align" />
+  <link rel="stylesheet" href="/ui.css?v=20260613-pricing-mirror" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -212,15 +212,9 @@
           <a class="button hot" href="#urlInput">Import for free</a>
         </article>
         <div class="pricing-them">
-          <div class="pricing-them-label">if this was $19/mo like the others</div>
-          <div class="price-ticker">
-            <span class="ticker-static">$19</span>
-            <span class="ticker-static">×</span>
-            <span class="ticker-month-slot" id="tickerMonths">Jan</span>
-            <span class="ticker-static">=</span>
-            <span class="ticker-total-slot" id="tickerTotal">$19</span>
-          </div>
-          <p class="ticker-sub">month after month. forever.</p>
+          <span class="pricing-label">Squarespace at $19/mo</span>
+          <h2 class="ticker-h2"><span id="tickerTotal">$19</span><span class="ticker-context"> total · <span id="tickerMonths">Jan</span></span></h2>
+          <p class="pricing-card-sub">$19 charged every month. Month after month. Forever.</p>
           <ul class="pricing-negatives">
             <li>Billed whether you update your site or not</li>
             <li>Cancel and your portfolio disappears</li>
@@ -240,15 +234,15 @@
         var perMonth = 19;
         function roll(el, newText) {
           el.style.transition = 'transform 0.2s ease-in, opacity 0.2s ease-in';
-          el.style.transform = 'translateY(-16px)';
+          el.style.transform = 'translateY(-14px)';
           el.style.opacity = '0';
           setTimeout(function () {
             el.style.transition = 'none';
             el.textContent = newText;
-            el.style.transform = 'translateY(16px)';
+            el.style.transform = 'translateY(14px)';
             el.style.opacity = '0';
             el.offsetHeight;
-            el.style.transition = 'transform 0.26s ease-out, opacity 0.26s ease-out';
+            el.style.transition = 'transform 0.28s ease-out, opacity 0.28s ease-out';
             el.style.transform = 'translateY(0)';
             el.style.opacity = '1';
           }, 215);
