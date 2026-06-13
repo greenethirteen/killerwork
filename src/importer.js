@@ -2590,15 +2590,15 @@ export function renderAwardsPage(manifest) {
 
 function parseBrandCampaignFromTitle(project = {}) {
   const title = cleanTitle(project.title || '');
-  const aiBrand = cleanTitle(project?.cleaned?.brand || '');
-  const aiCampaign = cleanTitle(project?.cleaned?.campaign || '');
-  if (aiBrand && aiCampaign) return { brand: aiBrand, campaign: aiCampaign };
+  const rawAiBrand = String(project?.cleaned?.brand || '').trim();
+  const rawAiCampaign = String(project?.cleaned?.campaign || '').trim();
+  if (rawAiBrand && rawAiCampaign) return { brand: cleanTitle(rawAiBrand), campaign: cleanTitle(rawAiCampaign) };
   const metadata = Array.isArray(project?.cleaned?.metadata) ? project.cleaned.metadata.map(item => String(item || '').trim()) : [];
   const joined = metadata.join(' | ');
   const brandMatch = joined.match(/\bbrand\s*[:\-]\s*([^|]+?)(?=\s+\b(?:campaign|agency|role)\b\s*[:\-]|$)/i);
   const campaignMatch = joined.match(/\bcampaign\s*[:\-]\s*([^|]+?)(?=\s+\b(?:brand|agency|role)\b\s*[:\-]|$)/i);
-  const fromMetaBrand = cleanTitle(brandMatch?.[1] || '');
-  const fromMetaCampaign = cleanTitle(campaignMatch?.[1] || '');
+  const fromMetaBrand = brandMatch?.[1] ? cleanTitle(brandMatch[1]) : '';
+  const fromMetaCampaign = campaignMatch?.[1] ? cleanTitle(campaignMatch[1]) : '';
   if (fromMetaBrand && fromMetaCampaign) return { brand: fromMetaBrand, campaign: fromMetaCampaign };
   const split = title.match(/^\s*([^:|\-–—]+?)\s*[:|\-–—]\s+(.+?)\s*$/);
   if (split) {

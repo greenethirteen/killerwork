@@ -223,7 +223,24 @@ async function poll(id){
   bar.style.width = `${job.percent || 0}%`;
   pct.textContent = `${job.percent || 0}%`;
   if (logs) {
-    logs.textContent = '';
+    const entries = job.progress || [];
+    const atBottom = logs.scrollHeight - logs.scrollTop <= logs.clientHeight + 32;
+    logs.innerHTML = '';
+    entries.forEach((item, i) => {
+      const line = document.createElement('span');
+      line.className = 'log-line';
+      const ts = item.at ? new Date(item.at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+      const msg = [item.stage, item.detail].filter(Boolean).join(' — ');
+      if (ts) { const t = document.createElement('span'); t.className = 'log-ts'; t.textContent = ts; line.appendChild(t); }
+      line.appendChild(document.createTextNode('> ' + msg));
+      logs.appendChild(line);
+    });
+    if (job.status === 'running') {
+      const cur = document.createElement('span');
+      cur.className = 'log-cursor';
+      logs.appendChild(cur);
+    }
+    if (atBottom) logs.scrollTop = logs.scrollHeight;
   }
   setStep(last?.stage || '');
   if(job.status === 'done'){
@@ -260,7 +277,7 @@ form.addEventListener('submit', async (e) => {
   activeButton = startBtn;
   actions.classList.add('hidden');
   publishControl.hide();
-  if (logs) logs.textContent = '';
+  if (logs) logs.innerHTML = '';
   panel.classList.remove('hidden');
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   startBtn.disabled = true;
