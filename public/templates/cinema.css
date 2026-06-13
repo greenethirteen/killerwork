@@ -1,0 +1,78 @@
+/* KillaWork Template: Cinema — inspired by Supari Studios
+   Ultra-dark cinematic stage, deep crimson accent, Georgia italic display.
+   Appended after portfolio.css; later rules win at equal specificity.
+   Content colors use var(--fg)/var(--muted) so project pages stay readable;
+   only chrome is hardcoded. */
+
+:root{--bg:#0a0a0a;--fg:#f2f0ee;--muted:#8a8580;--line:rgba(255,255,255,.09);--card:#121212}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+
+/* Header — sticky dark, left-aligned italic brand */
+.site-header{position:sticky;top:0;background:rgba(10,10,10,.82);backdrop-filter:blur(16px);color:var(--fg);border-bottom:1px solid var(--line);box-shadow:none;padding:22px 4vw}
+.site-header .brand{color:var(--fg);font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:500;letter-spacing:-.01em}
+.site-header nav a{color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.site-header nav a:hover{color:#c0392b}
+.behance-site .site-header .brand,.behance-project .site-header .brand{font-family:Georgia,serif;font-style:italic;font-weight:500;letter-spacing:-.02em}
+.killawork-generated-header{background:rgba(10,10,10,.82);backdrop-filter:blur(16px)}
+.ai-edit-link{border:1px solid rgba(192,57,43,.5)!important;color:#e05a4c!important}
+.source-import-header{background:rgba(10,10,10,.82);backdrop-filter:blur(16px);color:var(--fg);border-bottom-color:var(--line);box-shadow:none}
+.source-import-header>a{color:var(--fg);font-family:Georgia,serif;font-style:italic}
+.source-import-header nav{color:var(--muted)}
+
+/* Home heading — large cinematic italic */
+.home h1{color:var(--fg);font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:500;letter-spacing:-.025em;line-height:1.02}
+.home .intro{color:var(--muted)}
+
+/* Grid — 2 columns, strong overlay, white italic title bottom-left */
+.work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin-top:48px}
+@media(max-width:650px){.work-grid{grid-template-columns:1fr}}
+.work-card{aspect-ratio:auto;min-height:0;border:0;border-left:0 solid #c0392b;border-radius:0;background:#121212;overflow:hidden;transition:border-left-width .3s ease}
+.work-card:after{background:linear-gradient(180deg,transparent 32%,rgba(10,10,10,.86));opacity:1;transition:none}
+.work-card img{aspect-ratio:16/9;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:0;filter:brightness(.82);transition:filter .4s ease;transform:none}
+.work-card span{inset:auto 24px 22px 24px;display:block;place-items:unset;padding:0;opacity:1;transform:none;transition:none;background:transparent;backdrop-filter:none;border-radius:0;color:#fff;font-family:Georgia,serif;font-style:italic;font-size:23px;font-weight:500;letter-spacing:-.01em;line-height:1.15;text-align:left;text-shadow:0 2px 18px rgba(0,0,0,.7);text-wrap:balance}
+.work-card:hover{border-left-width:4px}
+.work-card:hover img{filter:brightness(1.02)}
+.work-card:hover span{opacity:1;transform:none}
+.work-card-placeholder{aspect-ratio:16/9;min-height:0;height:auto;background:#161616;color:#444}
+
+/* Behance square grid — same cinematic treatment */
+.behance-home .work-card{aspect-ratio:auto;border:0;border-left:0 solid #c0392b;border-radius:0;background:#121212;overflow:hidden;transition:border-left-width .3s ease}
+.behance-home .work-card:after{background:linear-gradient(180deg,transparent 32%,rgba(10,10,10,.86));opacity:1;transition:none}
+.behance-home .work-card img{aspect-ratio:1;height:auto;object-fit:cover;filter:brightness(.82);transition:filter .4s ease}
+.behance-home .work-card span{inset:auto 22px 20px 22px;display:block;place-items:unset;padding:0;opacity:1;transform:none;transition:none;background:transparent;color:#fff;font-family:Georgia,serif;font-style:italic;font-size:20px;font-weight:500;line-height:1.15;text-align:left;text-shadow:0 2px 18px rgba(0,0,0,.7)}
+.behance-home .work-card:hover{border-left-width:4px}
+.behance-home .work-card:hover img{filter:brightness(1.02)}
+.behance-home .work-card-placeholder{aspect-ratio:1;height:auto}
+
+/* Project pages */
+.project-header h1{color:var(--fg);font-family:Georgia,serif;font-style:italic;font-weight:500;letter-spacing:-.025em}
+.media img,.media video,.media iframe{border:1px solid var(--line);border-radius:0;background:#121212}
+.media-stack{gap:30px}
+.media.audio{background:#121212;border:1px solid var(--line);border-radius:0}
+.media.gallery{background:#121212;border:1px solid var(--line);border-radius:0}
+.gallery-nav{background:rgba(18,18,18,.85);color:var(--fg);border-color:rgba(192,57,43,.4)}
+.media-caption{font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.project-meta{color:var(--muted)}
+.project-meta div:first-child{color:var(--fg)}
+.project-meta:before{background:#c0392b;height:2px}
+.section-eyebrow{color:#e05a4c;letter-spacing:.14em}
+.section-subheading,.section-body,.copy-blocks,.about-story{color:var(--fg)}
+.video-needs-review{border-color:var(--line);color:var(--muted)}
+.campaign-builder-project .source-description{color:var(--fg)}
+.behance-project .campaign-title-split small{color:#e05a4c}
+.source-note{color:var(--muted)}
+
+/* About — cinematic portrait */
+.about-portrait{filter:brightness(.9);background:#121212}
+.about-copy h1{font-family:Georgia,serif;font-style:italic;font-weight:500}
+.about-kicker,.about-role{color:#e05a4c}
+.about-contact a{border-bottom-color:rgba(192,57,43,.5)}
+
+/* Campaign builder chrome */
+.campaign-builder-brand strong{color:var(--fg);font-family:Georgia,serif;font-style:italic}
+.campaign-builder-brand span{color:#e05a4c}
+
+/* Page transitions — slow fade through dark */
+@keyframes kw-page-in-cinema{from{opacity:0}to{opacity:1}}
+body{animation:kw-page-in-cinema .7s ease forwards}
+body.page-leaving{opacity:0;transition:opacity .3s ease;pointer-events:none}

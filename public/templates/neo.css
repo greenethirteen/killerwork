@@ -66,3 +66,8 @@ body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(1100px 70
 /* Campaign builder chrome */
 .campaign-builder-brand strong{color:var(--fg)}
 .campaign-builder-brand span{background:linear-gradient(92deg,#a78bff,#5ee6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a78bff}
+
+/* Page transitions — fade + scale up */
+@keyframes kw-page-in-neo{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+body{animation:kw-page-in-neo .5s cubic-bezier(.2,.7,.2,1) forwards}
+body.page-leaving{opacity:0;transition:opacity .26s ease;pointer-events:none}

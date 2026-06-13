@@ -74,3 +74,8 @@ body{font-family:Georgia,'Times New Roman',Times,serif;background:var(--bg);colo
 /* Campaign builder chrome */
 .campaign-builder-brand strong{color:var(--fg)}
 .campaign-builder-brand span{color:var(--muted)}
+
+/* Page transitions — gentle fade + slight rise */
+@keyframes kw-page-in-editorial{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+body{animation:kw-page-in-editorial .5s ease forwards}
+body.page-leaving{opacity:0;transition:opacity .28s ease;pointer-events:none}

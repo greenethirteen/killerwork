@@ -64,4 +64,18 @@
   document.querySelectorAll('.source-exact-page video,.source-home-page video').forEach(function (video) {
     if (!video.preload) video.preload = 'metadata';
   });
+
+  // Page transitions — intercept same-origin link clicks and animate out
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a[href]');
+    if (!a) return;
+    var href = a.href;
+    if (!href || a.target === '_blank' || a.getAttribute('href') === '#' ||
+        href.indexOf('javascript') === 0 ||
+        (href.indexOf('//') !== -1 && href.indexOf(location.host) === -1)) return;
+    e.preventDefault();
+    document.body.classList.add('page-leaving');
+    var dest = href;
+    setTimeout(function() { location.href = dest; }, 300);
+  });
 })();

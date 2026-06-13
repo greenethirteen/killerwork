@@ -72,3 +72,8 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--bg
 /* Campaign builder chrome */
 .campaign-builder-brand strong{color:var(--fg);font-weight:900;text-transform:uppercase}
 .campaign-builder-brand span{color:var(--muted)}
+
+/* Page transitions — snappy fade */
+@keyframes kw-page-in-bold{from{opacity:0}to{opacity:1}}
+body{animation:kw-page-in-bold .3s ease forwards}
+body.page-leaving{opacity:0;transition:opacity .2s ease;pointer-events:none}

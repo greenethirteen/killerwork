@@ -1388,6 +1388,11 @@ function VisualEditor() {
                     { id:'editorial', name:'Editorial', desc:'Light gallery · serif type' },
                     { id:'bold', name:'Bold', desc:'Swiss · black on white' },
                     { id:'neo', name:'Neo', desc:'Dark luxe · electric accents' },
+                    { id:'cinema', name:'Cinema', desc:'Cinematic dark · crimson' },
+                    { id:'studio', name:'Studio', desc:'White · Framer clean' },
+                    { id:'gallery', name:'Gallery', desc:'Cream · maximum space' },
+                    { id:'french', name:'French', desc:'Typographic · orange edge' },
+                    { id:'agency', name:'Agency', desc:'Charcoal · amber agency' },
                   ].map(t => (
                     <button key={t.id} onClick={() => applyTemplate(t.id)} disabled={applyingTemplate}
                       style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', background: activeTemplate === t.id ? '#241410' : '#17171e', border:`1px solid ${activeTemplate === t.id ? '#ff5200' : '#23232c'}`, borderRadius:8, cursor: applyingTemplate ? 'default' : 'pointer', textAlign:'left', transition:'border-color .15s, background .15s' }}>

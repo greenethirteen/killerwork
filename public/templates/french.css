@@ -1,0 +1,78 @@
+/* KillaWork Template: French — inspired by Julien Calot
+   Off-white, vermillion accent, big typographic brand, numbered grid.
+   Appended after portfolio.css; later rules win at equal specificity.
+   Content colors use var(--fg)/var(--muted); only chrome is hardcoded. */
+
+:root{--bg:#fafaf8;--fg:#161412;--muted:#8c877f;--line:rgba(22,20,18,.12);--card:#efede8}
+body{font-family:Georgia,'Times New Roman',Times,serif;background:var(--bg);color:var(--fg)}
+
+/* Header — huge brand, tiny right-aligned nav */
+.site-header{position:sticky;top:0;background:rgba(250,250,248,.92);backdrop-filter:blur(12px);color:var(--fg);border-bottom:1px solid var(--line);box-shadow:none;padding:26px 4vw;align-items:center}
+.site-header .brand{color:var(--fg);font-weight:700;font-size:clamp(28px,4vw,46px);letter-spacing:-.04em;line-height:.9}
+.site-header nav a{color:var(--muted);font-family:Inter,Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.site-header nav a:hover{color:#e85d04}
+.behance-site .site-header .brand,.behance-project .site-header .brand{font-weight:700;letter-spacing:-.06em}
+.killawork-generated-header{background:rgba(250,250,248,.92);backdrop-filter:blur(12px)}
+.ai-edit-link{border:1px solid rgba(232,93,4,.5)!important;color:#e85d04!important}
+.source-import-header{background:rgba(250,250,248,.92);backdrop-filter:blur(12px);color:var(--fg);border-bottom-color:var(--line);box-shadow:none}
+.source-import-header>a{color:var(--fg);font-weight:700}
+.source-import-header nav{color:var(--muted)}
+
+/* Home heading — large serif */
+.home h1{color:var(--fg);font-weight:700;letter-spacing:-.035em;line-height:1}
+.home .intro{color:var(--muted);font-family:Inter,Arial,sans-serif}
+
+/* Grid — 2 columns with big overlaid CSS-counter numbers, italic title below */
+.work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:54px 40px;margin-top:54px;counter-reset:kw-fr}
+@media(max-width:650px){.work-grid{grid-template-columns:1fr;gap:48px}}
+.work-card{counter-increment:kw-fr;aspect-ratio:auto;min-height:0;border:0;border-radius:0;background:transparent;overflow:visible;position:relative}
+.work-card:after{display:none}
+.work-card:before{content:counter(kw-fr,decimal-leading-zero);position:absolute;top:14px;left:16px;z-index:2;font-family:Inter,Arial,sans-serif;font-size:54px;font-weight:800;line-height:1;color:rgba(250,250,248,.92);letter-spacing:-.04em;text-shadow:0 1px 12px rgba(0,0,0,.35);pointer-events:none}
+.work-card img{aspect-ratio:4/3;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:0;background:var(--card);transition:opacity .3s ease;transform:none}
+.work-card span{position:static;inset:auto;display:inline-block;place-items:unset;opacity:1;transform:none;transition:none;padding:16px 0 0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:21px;font-style:italic;font-weight:500;letter-spacing:-.01em;line-height:1.3;text-align:left;text-shadow:none;border-bottom:2px solid transparent;text-wrap:balance}
+.work-card:hover img{opacity:.95}
+.work-card:hover span{opacity:1;transform:none;border-bottom-color:#e85d04}
+.work-card-placeholder{aspect-ratio:4/3;min-height:0;height:auto;background:var(--card);color:#c6c0b4}
+
+/* Behance square grid — same numbered treatment */
+.behance-home .work-grid{counter-reset:kw-fr}
+.behance-home .work-card{counter-increment:kw-fr;aspect-ratio:auto;border:0;border-radius:0;background:transparent;overflow:visible;position:relative}
+.behance-home .work-card:after{display:none}
+.behance-home .work-card:before{content:counter(kw-fr,decimal-leading-zero);position:absolute;top:14px;left:16px;z-index:2;font-family:Inter,Arial,sans-serif;font-size:48px;font-weight:800;line-height:1;color:rgba(250,250,248,.92);text-shadow:0 1px 12px rgba(0,0,0,.35);pointer-events:none}
+.behance-home .work-card img{aspect-ratio:1;height:auto;object-fit:cover;background:var(--card);transition:opacity .3s ease}
+.behance-home .work-card span{position:static;inset:auto;display:inline-block;place-items:unset;opacity:1;transform:none;transition:none;padding:16px 0 0;background:transparent;color:var(--fg);font-size:19px;font-style:italic;font-weight:500;line-height:1.3;text-align:left;text-shadow:none;border-bottom:2px solid transparent}
+.behance-home .work-card:hover span{border-bottom-color:#e85d04}
+.behance-home .work-card-placeholder{aspect-ratio:1;height:auto}
+
+/* Project pages */
+.project-header h1{color:var(--fg);font-weight:700;letter-spacing:-.035em;font-style:italic}
+.media img,.media video,.media iframe{border:1px solid var(--line);border-radius:0;background:var(--card)}
+.media-stack{gap:32px}
+.media.audio{background:var(--card);border:1px solid var(--line);border-radius:0}
+.media.gallery{background:var(--card);border:1px solid var(--line);border-radius:0}
+.gallery-nav{background:rgba(250,250,248,.9);color:var(--fg);border-color:rgba(232,93,4,.4)}
+.media-caption{font-family:Inter,Arial,sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.project-meta{color:var(--muted)}
+.project-meta div:first-child{color:var(--fg)}
+.project-meta:before{background:#e85d04;height:2px}
+.section-eyebrow{font-family:Inter,Arial,sans-serif;color:#e85d04;letter-spacing:.14em}
+.section-subheading,.section-body,.copy-blocks,.about-story{color:var(--fg)}
+.video-needs-review{border-color:var(--line);color:var(--muted)}
+.campaign-builder-project .source-description{color:var(--fg)}
+.behance-project .campaign-title-split small{color:#e85d04}
+.source-note{color:var(--muted)}
+
+/* About — serif story, color portrait */
+.about-portrait{filter:none;background:var(--card)}
+.about-copy h1{font-weight:700;font-style:italic}
+.about-kicker,.about-role{font-family:Inter,Arial,sans-serif;color:#e85d04}
+.about-contact a{border-bottom-color:rgba(232,93,4,.5)}
+
+/* Campaign builder chrome */
+.campaign-builder-brand strong{color:var(--fg)}
+.campaign-builder-brand span{color:#e85d04}
+
+/* Page transitions — slide in from right + fade */
+@keyframes kw-page-in-french{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+body{animation:kw-page-in-french .45s cubic-bezier(.2,.7,.2,1) forwards}
+body.page-leaving{opacity:0;transition:opacity .28s ease;pointer-events:none}
