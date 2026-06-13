@@ -2528,10 +2528,7 @@ app.post('/api/code-editor/:id/template', requireFirebaseAuth, async (req, res) 
   try {
     const id = req.params.id;
     const manifest = await requireEditablePortfolio(id, req.user);
-    if (manifest.sourcePlatform !== 'behance' && !['campaign-builder', 'uploaded-files'].includes(manifest.sourceUrl)) {
-      return res.status(400).json({ error: 'Templates are only available for Behance and builder sites.' });
-    }
-    const ALLOWED = ['default', 'editorial', 'bold', 'neo'];
+    const ALLOWED = ['default', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
     const templateName = String(req.body?.template || 'default');
     if (!ALLOWED.includes(templateName)) return res.status(400).json({ error: 'Unknown template.' });
     manifest.portfolioTemplate = templateName;
