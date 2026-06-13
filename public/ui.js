@@ -252,7 +252,7 @@ async function poll(id){
     currentJobId = job.id;
     previewLink.href = job.links.preview;
     localStorage.setItem('killerwork:lastJobId', job.id);
-    manageLink.href = `/manage.html?job=${encodeURIComponent(job.id)}`;
+    manageLink.href = '/manage.html';
     editorLink.href = `/pixel-editor.html?job=${encodeURIComponent(job.id)}`;
     reviewLink.href = job.links.review;
     manifestLink.href = job.links.manifest;
