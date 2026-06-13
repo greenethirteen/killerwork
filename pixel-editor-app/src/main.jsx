@@ -997,7 +997,11 @@ function VisualEditor() {
         const siteBase = `/generated/${encodeURIComponent(JOB_ID)}/site/`;
         const loc = iframeLoc.pathname;
         if (loc.startsWith(siteBase)) {
-          const rel = loc.slice(siteBase.length).replace(/^\//, '') || 'index.html';
+          let rel = loc.slice(siteBase.length).replace(/^\//, '');
+          // Normalise directory URLs (work/snickers/ or work/snickers) → work/snickers/index.html
+          if (!rel || !rel.match(/\.[a-zA-Z0-9]+$/)) {
+            rel = (rel ? rel.replace(/\/$/, '') + '/' : '') + 'index.html';
+          }
           if (rel !== selectedPage) setSelectedPage(rel);
         }
       }
