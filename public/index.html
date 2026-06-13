@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260613-pricing-ticker" />
+  <link rel="stylesheet" href="/ui.css?v=20260613-pricing-roll" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -198,49 +198,58 @@
       <div class="section-kicker">Pricing</div>
       <div class="pricing-compare">
         <article class="pricing-card">
-          <span class="pricing-label">KillaWork™</span>
-          <h2>$19<span> one-time fee</span></h2>
+          <div>
+            <span class="pricing-label">KillaWork™</span>
+            <h2>$19<span> one-time fee</span></h2>
+            <p class="pricing-card-sub">Import for free. Pay once when you're ready to publish.</p>
+          </div>
+          <ul class="pricing-includes">
+            <li>Import from Behance, Squarespace &amp; Wix</li>
+            <li>Pixel-perfect visual editor</li>
+            <li>Publish to your own domain</li>
+            <li>No renewal. No monthly bill.</li>
+          </ul>
           <a class="button hot" href="#urlInput">Import for free</a>
         </article>
         <div class="pricing-them">
-          <div class="pricing-them-label">Squarespace at $25/mo</div>
-          <div class="price-ticker">
-            <span class="ticker-unit">$25</span>
-            <span class="ticker-op">×</span>
-            <span class="ticker-slot" id="tickerMonths"><span>1</span></span>
-            <span class="ticker-op">=</span>
-            <span class="ticker-slot ticker-total" id="tickerTotal"><span>$25</span></span>
+          <div class="pricing-them-label">if this was $19/mo like the others</div>
+          <div class="ticker-box">
+            <span class="ticker-num" id="tickerTotal">$19</span>
           </div>
+          <p class="ticker-meta">total paid after <span id="tickerMonths">1</span> month</p>
           <p class="ticker-sub">month after month. forever.</p>
         </div>
       </div>
     </section>
     <script>
       (function () {
-        var mSlot = document.getElementById('tickerMonths');
-        var tSlot = document.getElementById('tickerTotal');
-        if (!mSlot || !tSlot) return;
+        var totalEl = document.getElementById('tickerTotal');
+        var monthsEl = document.getElementById('tickerMonths');
+        if (!totalEl || !monthsEl) return;
         var month = 1;
-        var perMonth = 25;
-        function flipSlot(slot, text) {
-          var old = slot.querySelector('span');
-          if (old) {
-            old.style.animation = 'slotOut 0.26s ease-in forwards';
-            setTimeout(function () { if (old.parentNode) old.parentNode.removeChild(old); }, 280);
-          }
-          var next = document.createElement('span');
-          next.textContent = text;
-          next.style.animation = 'slotIn 0.26s ease-out forwards';
-          slot.appendChild(next);
+        var perMonth = 19;
+        function roll(el, newText) {
+          el.style.transition = 'transform 0.22s ease-in, opacity 0.22s ease-in';
+          el.style.transform = 'translateY(-18px)';
+          el.style.opacity = '0';
+          setTimeout(function () {
+            el.style.transition = 'none';
+            el.textContent = newText;
+            el.style.transform = 'translateY(18px)';
+            el.style.opacity = '0';
+            el.offsetHeight;
+            el.style.transition = 'transform 0.28s ease-out, opacity 0.28s ease-out';
+            el.style.transform = 'translateY(0)';
+            el.style.opacity = '1';
+          }, 230);
         }
         function tick() {
           month++;
-          flipSlot(mSlot, month);
-          flipSlot(tSlot, '$' + (perMonth * month));
-          var delay = Math.min(450 + month * 55, 2800);
-          setTimeout(tick, delay);
+          roll(totalEl, '$' + (perMonth * month));
+          monthsEl.textContent = month;
+          setTimeout(tick, 1400);
         }
-        setTimeout(tick, 1600);
+        setTimeout(tick, 2000);
       })();
     </script>
 
