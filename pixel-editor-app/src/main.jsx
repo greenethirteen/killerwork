@@ -1034,6 +1034,8 @@ function VisualEditor() {
       localUndoStack.current = []; localRedoStack.current = [];
       setLocalUndoCount(0); setLocalRedoCount(0);
       setIsDirty(false);
+      // Pre-warm styles.css so the preview tab never gets a 404
+      await fetch(`/generated/${encodeURIComponent(JOB_ID)}/site/styles.css`, { cache: 'reload' }).catch(() => {});
       setStatus('Saved!');
     } catch (err) { setStatus('Save failed: ' + err.message); }
     finally {

@@ -1394,6 +1394,9 @@ async function restoreEditorSnapshot(id, direction = 'undo') {
   }
   await fs.writeJson(historyFile, history, { spaces: 2 });
   await pruneEditorSnapshots(id, history);
+  // Old snapshots pre-date styles.css — always regenerate it after restore so the preview never 404s
+  const restoredManifest = await readManifest(id).catch(() => null);
+  if (restoredManifest) await ensureStylesCss(id, restoredManifest);
   await zipDir(siteDir(id), path.join(jobDir(id), 'site.zip'));
   return { restored: snapshot, undoCount: history.undo?.length || 0, redoCount: history.redo?.length || 0 };
 }
