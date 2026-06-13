@@ -637,3 +637,4 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .publish-howto .showcase-copy.compact h2{font-size:clamp(28px,3.6vw,48px);margin-bottom:10px}
 .publish-howto .showcase-copy p{margin:0 auto}
 .publish-howto .publish-panel-demo{width:min(520px,100%);text-align:left}
+.whatsapp-fab{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;align-items:center;gap:10px;padding:13px 20px;background:#25d366;color:#fff;font-size:14px;font-weight:700;text-decoration:none;border-radius:999px;box-shadow:0 4px 20px rgba(37,211,102,.4),0 2px 8px rgba(0,0,0,.2);transition:transform .2s ease,box-shadow .2s ease;white-space:nowrap}.whatsapp-fab:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(37,211,102,.5),0 4px 12px rgba(0,0,0,.22)}@media(max-width:600px){.whatsapp-fab span{display:none}.whatsapp-fab{padding:14px;border-radius:999px}}
