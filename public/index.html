@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260613-pricing-simple" />
+  <link rel="stylesheet" href="/ui.css?v=20260613-pricing-ticker" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -203,16 +203,46 @@
           <a class="button hot" href="#urlInput">Import for free</a>
         </article>
         <div class="pricing-them">
-          <div class="pricing-them-label">vs. monthly subscriptions</div>
-          <ul class="pricing-them-list">
-            <li><span>Squarespace</span><b>$25/mo</b></li>
-            <li><span>Wix</span><b>$17/mo</b></li>
-            <li><span>Cargo</span><b>$13/mo</b></li>
-          </ul>
-          <p class="pricing-them-note">Billed monthly. Forever.</p>
+          <div class="pricing-them-label">Squarespace at $25/mo</div>
+          <div class="price-ticker">
+            <span class="ticker-unit">$25</span>
+            <span class="ticker-op">×</span>
+            <span class="ticker-slot" id="tickerMonths"><span>1</span></span>
+            <span class="ticker-op">=</span>
+            <span class="ticker-slot ticker-total" id="tickerTotal"><span>$25</span></span>
+          </div>
+          <p class="ticker-sub">month after month. forever.</p>
         </div>
       </div>
     </section>
+    <script>
+      (function () {
+        var mSlot = document.getElementById('tickerMonths');
+        var tSlot = document.getElementById('tickerTotal');
+        if (!mSlot || !tSlot) return;
+        var month = 1;
+        var perMonth = 25;
+        function flipSlot(slot, text) {
+          var old = slot.querySelector('span');
+          if (old) {
+            old.style.animation = 'slotOut 0.26s ease-in forwards';
+            setTimeout(function () { if (old.parentNode) old.parentNode.removeChild(old); }, 280);
+          }
+          var next = document.createElement('span');
+          next.textContent = text;
+          next.style.animation = 'slotIn 0.26s ease-out forwards';
+          slot.appendChild(next);
+        }
+        function tick() {
+          month++;
+          flipSlot(mSlot, month);
+          flipSlot(tSlot, '$' + (perMonth * month));
+          var delay = Math.min(450 + month * 55, 2800);
+          setTimeout(tick, delay);
+        }
+        setTimeout(tick, 1600);
+      })();
+    </script>
 
     <section class="behance-import-showcase" aria-label="Behance import before and after" data-nosnippet data-reveal>
       <div class="showcase-copy">
