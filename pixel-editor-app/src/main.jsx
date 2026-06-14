@@ -1334,6 +1334,41 @@ function VisualEditor() {
         </div>
         <input ref={insertImgRef} type="file" accept="image/*" onChange={handleInsertImage} style={{ display:'none' }} />
 
+        {/* Template picker — top bar */}
+        {(site?.sourcePlatform === 'behance' || ['campaign-builder', 'uploaded-files'].includes(site?.sourceUrl)) && (
+          <div style={{ position:'relative' }}>
+            <button onClick={() => setTemplatesOpen(o => !o)}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:6, border:'1px solid #333', cursor:'pointer', fontSize:11, fontWeight:500,
+                background: templatesOpen ? '#1e1e26' : 'transparent', color: activeTemplate !== 'default' ? '#ff8040' : '#bbb' }}>
+              Theme{activeTemplate !== 'default' ? `: ${[{id:'editorial',name:'Editorial'},{id:'bold',name:'Bold'},{id:'neo',name:'Neo'},{id:'cinema',name:'Cinema'},{id:'studio',name:'Studio'},{id:'gallery',name:'Gallery'},{id:'french',name:'French'},{id:'agency',name:'Agency'}].find(t=>t.id===activeTemplate)?.name || activeTemplate}` : ''} {templatesOpen ? '▲' : '▼'}
+            </button>
+            {templatesOpen && (
+              <div style={{ position:'absolute', top:34, left:0, background:'#1c1c22', border:'1px solid #2a2a36', borderRadius:9, padding:5, zIndex:300, minWidth:180, boxShadow:'0 10px 30px rgba(0,0,0,.6)' }}>
+                {[
+                  { id:'default', name:'Minimal', desc:'Dark · clean grid' },
+                  { id:'editorial', name:'Editorial', desc:'Light gallery · serif type' },
+                  { id:'bold', name:'Bold', desc:'Swiss · black on white' },
+                  { id:'neo', name:'Neo', desc:'Dark luxe · electric accents' },
+                  { id:'cinema', name:'Cinema', desc:'Cinematic dark · crimson' },
+                  { id:'studio', name:'Studio', desc:'White · Framer clean' },
+                  { id:'gallery', name:'Gallery', desc:'Cream · maximum space' },
+                  { id:'french', name:'French', desc:'Typographic · orange edge' },
+                  { id:'agency', name:'Agency', desc:'Charcoal · amber agency' },
+                ].map(t => (
+                  <button key={t.id} onClick={() => { applyTemplate(t.id); setTemplatesOpen(false); }} disabled={applyingTemplate}
+                    style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, width:'100%', padding:'8px 10px', background: activeTemplate === t.id ? '#241410' : 'none', border:'none', borderRadius:7, cursor: applyingTemplate ? 'default' : 'pointer', textAlign:'left' }}>
+                    <span>
+                      <span style={{ display:'block', fontSize:12, fontWeight:700, color: activeTemplate === t.id ? '#ff8040' : '#ddd' }}>{t.name}</span>
+                      <span style={{ display:'block', fontSize:10, color:'#777', marginTop:1 }}>{t.desc}</span>
+                    </span>
+                    {activeTemplate === t.id && <span style={{ color:'#ff5200', fontSize:13, fontWeight:700, flexShrink:0 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {mode === 'select' && <span style={{ fontSize:11, color:'#bbb', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click · Drag to snap · ⇧ resize keeps ratio · ⌘D duplicate</span>}
         {mode === 'text' && <span style={{ fontSize:11, color:'#bbb', padding:'3px 8px', background:'#1a1a1e', borderRadius:5 }}>Click text to edit · Toolbar appears above · Hover for drag</span>}
 
@@ -1401,42 +1436,6 @@ function VisualEditor() {
             </button>
           </div>
 
-          {/* Templates panel — Behance and builder sites only */}
-          {(site?.sourcePlatform === 'behance' || ['campaign-builder', 'uploaded-files'].includes(site?.sourceUrl)) && (
-            <div style={{ borderBottom:'1px solid #1f1f26' }}>
-              <button onClick={() => setTemplatesOpen(o => !o)}
-                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 10px 8px', background:'none', border:'none', cursor:'pointer', color:'#bbb' }}>
-                <span style={{ fontSize:10, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:1.4 }}>Templates</span>
-                <span style={{ fontSize:10, color: activeTemplate !== 'default' ? '#ff5200' : '#555', fontWeight:600 }}>
-                  {applyingTemplate ? '…' : templatesOpen ? '▲' : '▼'}
-                </span>
-              </button>
-              {templatesOpen && (
-                <div style={{ padding:'0 8px 12px', display:'grid', gap:5 }}>
-                  {[
-                    { id:'default', name:'Minimal', desc:'Dark · clean grid' },
-                    { id:'editorial', name:'Editorial', desc:'Light gallery · serif type' },
-                    { id:'bold', name:'Bold', desc:'Swiss · black on white' },
-                    { id:'neo', name:'Neo', desc:'Dark luxe · electric accents' },
-                    { id:'cinema', name:'Cinema', desc:'Cinematic dark · crimson' },
-                    { id:'studio', name:'Studio', desc:'White · Framer clean' },
-                    { id:'gallery', name:'Gallery', desc:'Cream · maximum space' },
-                    { id:'french', name:'French', desc:'Typographic · orange edge' },
-                    { id:'agency', name:'Agency', desc:'Charcoal · amber agency' },
-                  ].map(t => (
-                    <button key={t.id} onClick={() => applyTemplate(t.id)} disabled={applyingTemplate}
-                      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', background: activeTemplate === t.id ? '#241410' : '#17171e', border:`1px solid ${activeTemplate === t.id ? '#ff5200' : '#23232c'}`, borderRadius:8, cursor: applyingTemplate ? 'default' : 'pointer', textAlign:'left', transition:'border-color .15s, background .15s' }}>
-                      <span>
-                        <span style={{ display:'block', fontSize:12, fontWeight:700, color: activeTemplate === t.id ? '#ff8040' : '#ddd' }}>{t.name}</span>
-                        <span style={{ display:'block', fontSize:10, color:'#777', marginTop:2 }}>{t.desc}</span>
-                      </span>
-                      {activeTemplate === t.id && <span style={{ color:'#ff5200', fontSize:14, fontWeight:700, flexShrink:0 }}>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Properties panel */}
           <div style={{ padding:'10px 10px 30px' }}>
