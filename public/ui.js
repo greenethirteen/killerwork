@@ -266,6 +266,7 @@ async function poll(id){
     activeButton.disabled = false;
     activeButton.textContent = activeButton === buildUploadBtn ? 'Build another portfolio' : 'Start another import';
     track('import_complete', { job_id: job.id, source_url: job.url, source_domain: (() => { try { return new URL(job.url).hostname; } catch { return job.url || ''; } })() });
+    window.open(job.links.preview, '_blank', 'noopener');
   }
   if(job.status === 'error'){
     clearInterval(timer);
