@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260614-freemium" />
+  <link rel="stylesheet" href="/ui.css?v=20260614-domain-guide" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -171,6 +171,11 @@
                 </label>
                 <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
               </form>
+              <div class="domain-guide-strip">
+                <span class="domain-guide-label">Don't have a domain yet?</span>
+                <a class="domain-guide-link" href="https://www.namecheap.com" target="_blank" rel="noreferrer noopener">Buy one on Namecheap →</a>
+                <a class="domain-guide-link" href="https://www.youtube.com/results?search_query=how+to+connect+namecheap+domain+to+website" target="_blank" rel="noreferrer noopener">Watch how to connect it ↗</a>
+              </div>
               <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
                 <h4>DNS setup</h4>
                 <p>Add this CNAME record where you bought your domain.</p>
@@ -179,7 +184,7 @@
                   <strong>Name:</strong> <span data-dns-name>www.yourportfolio.com</span><br>
                   <strong>Value:</strong> <span data-dns-value>your-name.killa.work</span>
                 </div>
-                <p class="note">Publish to a KillaWork URL first. DNS changes can take a while to appear everywhere.</p>
+                <p class="note">DNS changes can take up to 24 hours to appear everywhere.</p>
               </div>
               <p class="publish-result hidden" data-custom-domain-result></p>
             </div>
