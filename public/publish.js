@@ -1,4 +1,4 @@
-import { handleSubscriptionRequired } from './billing.js?v=20260602-gtm';
+import { handleSubscriptionRequired, startSubscriptionCheckout } from './billing.js?v=20260602-gtm';
 
 export function setupPublishControl({ control, getJobId, setStatus }) {
   const noop = { show() {}, hide() {}, setPublished() {} };
@@ -18,6 +18,8 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   const dnsName = control.querySelector('[data-dns-name]');
   const dnsValue = control.querySelector('[data-dns-value]');
   const customBlock = control.querySelector('[data-custom-domain-block]');
+  const freeUpgrade = control.querySelector('[data-free-upgrade]');
+  const freeUpgradeBtn = control.querySelector('[data-free-upgrade-btn]');
   let publishedState = null;
 
   if (!toggle || !panel || !form || !input || !submit) {
@@ -105,6 +107,15 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
     if (!panel.classList.contains('hidden')) input.focus();
   }
 
+  freeUpgradeBtn?.addEventListener('click', async () => {
+    const jobId = getJobId();
+    try {
+      await startSubscriptionCheckout(setStatus, { jobId });
+    } catch (err) {
+      setStatus?.(err.message || 'Could not open checkout.', 'error');
+    }
+  });
+
   toggle.addEventListener('click', openPanel);
   input.addEventListener('input', () => {
     input.value = clean(input.value);
@@ -132,6 +143,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
       publishedState = data.published;
       resultLink(data.published);
       updateCustomDomainState(data.customDomain);
+      if (freeUpgrade) freeUpgrade.classList.toggle('hidden', !!data.paid);
       panel.classList.add('hidden');
       setStatus?.(`Published at ${data.published.url}`, 'ok');
     } catch (err) {
@@ -168,6 +180,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
         body: JSON.stringify({ domain: customDomain })
       });
       const data = await res.json().catch(() => ({}));
+      if (await handleSubscriptionRequired(res, data, setStatus, { jobId })) return;
       if (!res.ok) throw new Error(data.error || 'Domain connection failed.');
       updateCustomDomainState(data.customDomain);
       setStatus?.(`${customDomain} connected. Add the DNS record shown in Publish.`, 'ok');
@@ -189,6 +202,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
       publishedState = null;
       resultLink(null);
       updateCustomDomainState(null);
+      if (freeUpgrade) freeUpgrade.classList.add('hidden');
     },
     setPublished(published, customDomain = null) {
       publishedState = published || null;
