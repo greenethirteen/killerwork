@@ -2012,6 +2012,8 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
     if (!stripe) return res.status(503).json({ error: 'Billing is not configured yet.', code: 'billing_not_configured' });
     const customer = await stripeCustomerFor(req.user, { create: true });
     const origin = requestOrigin(req);
+    const jobId = String(req.body?.jobId || '').trim().slice(0, 80);
+    const sourceUrl = jobId ? String((await readManifest(jobId).catch(() => null))?.sourceUrl || '').slice(0, 500) : '';
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer: customer.id,
@@ -2023,7 +2025,7 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
       success_url: `${origin}/manage.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/manage.html?payment=cancelled`,
       allow_promotion_codes: true,
-      metadata: { firebaseUid: req.user.uid }
+      metadata: { firebaseUid: req.user.uid, ...(jobId && { jobId }), ...(sourceUrl && { sourceUrl }) }
     });
     res.json({ url: session.url });
   } catch (err) {

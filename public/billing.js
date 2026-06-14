@@ -10,11 +10,12 @@ function track(name, params = {}) {
   window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
 }
 
-export async function startSubscriptionCheckout(setStatus) {
+export async function startSubscriptionCheckout(setStatus, { jobId } = {}) {
   setStatus?.('Opening secure checkout...');
   const res = await fetch('/api/billing/checkout', {
     method: 'POST',
-    headers: await authHeaders(true)
+    headers: await authHeaders(true),
+    body: JSON.stringify({ jobId: jobId || null })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data.error || 'Could not open checkout.');
@@ -22,6 +23,7 @@ export async function startSubscriptionCheckout(setStatus) {
     plan_name: 'KillaWork one-time',
     price: 19,
     currency: 'USD',
+    job_id: jobId || ''
   });
   window.location.assign(data.url);
 }
@@ -56,10 +58,10 @@ export async function trackSubscriptionCheckoutReturn(setStatus) {
   setStatus?.('Payment confirmed. Publishing and ZIP downloads are unlocked.', 'ok');
 }
 
-export async function handleSubscriptionRequired(res, data = {}, setStatus) {
+export async function handleSubscriptionRequired(res, data = {}, setStatus, { jobId } = {}) {
   if (res.status !== 402 || data.code !== 'subscription_required') return false;
   setStatus?.(data.error || 'A one-time $19 payment unlocks publishing and downloads.', 'error');
-  await startSubscriptionCheckout(setStatus);
+  await startSubscriptionCheckout(setStatus, { jobId });
   return true;
 }
 

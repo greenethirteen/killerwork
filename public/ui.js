@@ -103,6 +103,10 @@ bindProtectedZipLink(downloadLink, (text, tone = '') => {
   detail.textContent = text;
   if (tone) pill.textContent = tone === 'ok' ? 'Complete' : 'Error';
 });
+previewLink?.addEventListener('click', () => track('action_click', { action: 'preview_site', job_id: currentJobId }));
+editorLink?.addEventListener('click', () => track('action_click', { action: 'edit_site', job_id: currentJobId }));
+downloadLink?.addEventListener('click', () => track('action_click', { action: 'download_zip', job_id: currentJobId }));
+document.querySelector('[data-publish-toggle]')?.addEventListener('click', () => track('action_click', { action: 'publish_open', job_id: currentJobId }));
 
 if (switcher && panels.length) {
   const setActivePanel = panelName => {
@@ -261,6 +265,7 @@ async function poll(id){
     publishControl.setPublished(job.published, job.customDomain);
     activeButton.disabled = false;
     activeButton.textContent = activeButton === buildUploadBtn ? 'Build another portfolio' : 'Start another import';
+    track('import_complete', { job_id: job.id, source_url: job.url, source_domain: (() => { try { return new URL(job.url).hostname; } catch { return job.url || ''; } })() });
   }
   if(job.status === 'error'){
     clearInterval(timer);
@@ -293,7 +298,9 @@ form.addEventListener('submit', async (e) => {
     return;
   }
   startBtn.textContent = 'Importing...';
-  const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json', Authorization: `Bearer ${token}`}, body: JSON.stringify({ url: urlInput.value, aiCleanup: true }) });
+  const importUrl = urlInput.value.trim();
+  track('import_start', { source_url: importUrl, source_domain: (() => { try { return new URL(importUrl).hostname; } catch { return ''; } })() });
+  const res = await fetch('/api/import', { method:'POST', headers:{'Content-Type':'application/json', Authorization: `Bearer ${token}`}, body: JSON.stringify({ url: importUrl, aiCleanup: true }) });
   const data = await res.json();
   if(!res.ok){ detail.textContent = data.error || 'Could not start import'; startBtn.disabled=false; return; }
   clearInterval(timer);
