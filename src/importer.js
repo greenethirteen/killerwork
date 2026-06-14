@@ -2708,7 +2708,7 @@ export async function generateSite(manifest, outDir, progress) {
     await fs.copy(stagingAssetsDir, path.join(siteDir, 'assets', 'imported'), { overwrite: true });
   }
   await fs.copy(path.join(__dirname, '..', 'public', 'favicon-logo-144.png'), path.join(siteDir, 'favicon.png'));
-  const ALLOWED_TEMPLATES = ['default', 'editorial', 'bold', 'neo'];
+  const ALLOWED_TEMPLATES = ['default', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
   const templateName = ALLOWED_TEMPLATES.includes(manifest.portfolioTemplate) ? manifest.portfolioTemplate : 'default';
   let styles = await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.css'), 'utf8');
   if (templateName !== 'default') {

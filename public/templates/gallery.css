@@ -23,25 +23,30 @@ body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);c
 .home h1{color:var(--fg);font-weight:400;letter-spacing:-.025em;line-height:1.08}
 .home .intro{color:var(--muted);font-weight:400}
 
-/* Grid — 2 columns, very generous gap, 3:2 images, tiny uppercase title */
-.work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:72px;margin-top:64px}
-@media(max-width:700px){.work-grid{grid-template-columns:1fr;gap:56px}}
-.work-card{aspect-ratio:auto;min-height:0;border:0;border-radius:0;background:transparent;overflow:visible}
+/* Home — masonry. Columns flow with the images' natural heights for a
+   staggered gallery wall; tiny uppercase caption under each piece */
+.work-grid{display:block;column-count:3;column-gap:34px;margin-top:64px}
+@media(max-width:1000px){.work-grid{column-count:2;column-gap:28px}}
+@media(max-width:600px){.work-grid{column-count:1}}
+.work-card{display:inline-block;width:100%;margin:0 0 34px;break-inside:avoid;aspect-ratio:auto;min-height:0;border:0;border-radius:0;background:transparent;overflow:visible}
 .work-card:after{display:none}
-.work-card img{aspect-ratio:3/2;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:0;background:var(--card);transition:opacity .4s ease;transform:none}
-.work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:none;padding:18px 0 0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;line-height:1.4;text-align:left;text-shadow:none}
-.work-card:hover img{opacity:.8;transform:none}
+.work-card img{aspect-ratio:auto;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:0;background:var(--card);transition:opacity .4s ease;transform:none}
+.work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:color .3s ease;padding:14px 0 0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;line-height:1.4;text-align:left;text-shadow:none}
+.work-card:hover img{opacity:.82;transform:none}
 .work-card:hover span{opacity:1;transform:none;color:var(--fg)}
 .work-card-placeholder{aspect-ratio:3/2;min-height:0;height:auto;background:var(--card);color:#cac3b6}
 
-/* Behance square grid — same airy treatment */
-.behance-home .work-card{aspect-ratio:auto;border:0;border-radius:0;background:transparent;overflow:visible}
+/* Behance — masonry with natural (non-square) heights */
+.behance-home .work-grid{display:block;column-count:3;column-gap:34px}
+@media(max-width:1000px){.behance-home .work-grid{column-count:2;column-gap:28px}}
+@media(max-width:600px){.behance-home .work-grid{column-count:1}}
+.behance-home .work-card{display:inline-block;width:100%;margin:0 0 34px;break-inside:avoid;aspect-ratio:auto;border:0;border-radius:0;background:transparent;overflow:visible}
 .behance-home .work-card:after{display:none}
-.behance-home .work-card img{aspect-ratio:1;height:auto;object-fit:cover;background:var(--card);transition:opacity .4s ease}
-.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:none;padding:18px 0 0;background:transparent;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;line-height:1.4;text-align:left;text-shadow:none}
-.behance-home .work-card:hover img{opacity:.8}
+.behance-home .work-card img{aspect-ratio:auto;height:auto;width:100%;object-fit:cover;background:var(--card);transition:opacity .4s ease}
+.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:color .3s ease;padding:14px 0 0;background:transparent;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;line-height:1.4;text-align:left;text-shadow:none}
+.behance-home .work-card:hover img{opacity:.82}
 .behance-home .work-card:hover span{color:var(--fg)}
-.behance-home .work-card-placeholder{aspect-ratio:1;height:auto}
+.behance-home .work-card-placeholder{aspect-ratio:3/2;height:auto}
 
 /* Project pages */
 .project-header h1{color:var(--fg);font-weight:400;letter-spacing:-.025em}

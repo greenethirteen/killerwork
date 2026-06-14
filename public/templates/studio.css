@@ -22,28 +22,36 @@ body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);c
 .home h1{color:var(--fg);font-weight:300;letter-spacing:-.03em;line-height:1.05}
 .home .intro{color:var(--muted);font-weight:400}
 
-/* Grid — 3-column, borderless, soft shadow on hover, title below */
-.work-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:40px 28px;margin-top:52px}
-@media(max-width:900px){.work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 22px}}
-@media(max-width:600px){.work-grid{grid-template-columns:1fr;gap:32px}}
-.work-card{aspect-ratio:auto;min-height:0;border:0;border-radius:8px;background:transparent;overflow:visible;transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+/* Home — staggered editorial blocks. Single column with large breathing room;
+   blocks alternate left/right and vary in width for a magazine rhythm */
+.work-grid{grid-template-columns:1fr;gap:clamp(56px,9vw,128px);margin-top:64px}
+.work-card{aspect-ratio:auto;min-height:0;width:64%;border:0;border-radius:10px;background:transparent;overflow:visible;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.work-card:nth-child(odd){justify-self:start}
+.work-card:nth-child(even){justify-self:end;width:52%;margin-top:clamp(-72px,-5vw,0px)}
+.work-card:nth-child(3n){width:74%}
 .work-card:after{display:none}
-.work-card img{aspect-ratio:4/3;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:8px;background:var(--card);box-shadow:0 1px 3px rgba(21,20,15,.06);transition:box-shadow .35s ease;transform:none}
-.work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:none;padding:14px 2px 0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:15px;font-weight:500;letter-spacing:-.01em;line-height:1.3;text-align:left;text-shadow:none;text-wrap:balance}
-.work-card:hover{transform:translateY(-4px)}
-.work-card:hover img{box-shadow:0 18px 40px rgba(21,20,15,.14)}
+.work-card img{aspect-ratio:4/3;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:10px;background:var(--card);box-shadow:0 1px 3px rgba(21,20,15,.06);transition:box-shadow .4s ease;transform:none}
+.work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:none;padding:18px 2px 0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:clamp(20px,2.2vw,30px);font-weight:300;letter-spacing:-.02em;line-height:1.2;text-align:left;text-shadow:none;text-wrap:balance}
+.work-card:hover{transform:translateY(-6px)}
+.work-card:hover img{box-shadow:0 26px 60px rgba(21,20,15,.16)}
 .work-card:hover span{opacity:1;transform:none;color:#8c7a5c}
-.work-card-placeholder{aspect-ratio:4/3;min-height:0;height:auto;border-radius:8px;background:var(--card);color:#c9c2b3}
+.work-card-placeholder{aspect-ratio:4/3;min-height:0;height:auto;border-radius:10px;background:var(--card);color:#c9c2b3}
+@media(max-width:600px){.work-card,.work-card:nth-child(even),.work-card:nth-child(3n){width:100%;margin-top:0}.work-grid{gap:44px}}
 
-/* Behance square grid — same clean treatment */
-.behance-home .work-card{aspect-ratio:auto;border:0;border-radius:8px;background:transparent;overflow:visible;transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+/* Behance — same staggered rhythm */
+.behance-home .work-grid{grid-template-columns:1fr;gap:clamp(56px,9vw,128px)}
+.behance-home .work-card{aspect-ratio:auto;width:58%;border:0;border-radius:10px;background:transparent;overflow:visible;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.behance-home .work-card:nth-child(odd){justify-self:start}
+.behance-home .work-card:nth-child(even){justify-self:end;width:48%;margin-top:clamp(-72px,-5vw,0px)}
+.behance-home .work-card:nth-child(3n){width:68%}
 .behance-home .work-card:after{display:none}
-.behance-home .work-card img{aspect-ratio:1;height:auto;object-fit:cover;border-radius:8px;box-shadow:0 1px 3px rgba(21,20,15,.06);transition:box-shadow .35s ease}
-.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:none;padding:14px 2px 0;background:transparent;color:var(--fg);font-size:14px;font-weight:500;line-height:1.3;text-align:left;text-shadow:none}
-.behance-home .work-card:hover{transform:translateY(-4px)}
-.behance-home .work-card:hover img{box-shadow:0 18px 40px rgba(21,20,15,.14)}
+.behance-home .work-card img{aspect-ratio:4/3;height:auto;object-fit:cover;border-radius:10px;box-shadow:0 1px 3px rgba(21,20,15,.06);transition:box-shadow .4s ease}
+.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:none;padding:18px 2px 0;background:transparent;color:var(--fg);font-size:clamp(18px,2vw,28px);font-weight:300;line-height:1.2;text-align:left;text-shadow:none}
+.behance-home .work-card:hover{transform:translateY(-6px)}
+.behance-home .work-card:hover img{box-shadow:0 26px 60px rgba(21,20,15,.16)}
 .behance-home .work-card:hover span{color:#8c7a5c}
-.behance-home .work-card-placeholder{aspect-ratio:1;height:auto;border-radius:8px}
+.behance-home .work-card-placeholder{aspect-ratio:4/3;height:auto;border-radius:10px}
+@media(max-width:600px){.behance-home .work-card,.behance-home .work-card:nth-child(even),.behance-home .work-card:nth-child(3n){width:100%;margin-top:0}.behance-home .work-grid{gap:44px}}
 
 /* Project pages */
 .project-header h1{color:var(--fg);font-weight:300;letter-spacing:-.03em}

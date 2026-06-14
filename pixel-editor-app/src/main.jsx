@@ -1345,15 +1345,15 @@ function VisualEditor() {
             {templatesOpen && (
               <div style={{ position:'absolute', top:34, left:0, background:'#1c1c22', border:'1px solid #2a2a36', borderRadius:9, padding:5, zIndex:300, minWidth:180, boxShadow:'0 10px 30px rgba(0,0,0,.6)' }}>
                 {[
-                  { id:'default', name:'Minimal', desc:'Dark · clean grid' },
-                  { id:'editorial', name:'Editorial', desc:'Light gallery · serif type' },
+                  { id:'default', name:'Minimal', desc:'Dark · rounded card grid' },
+                  { id:'editorial', name:'Editorial', desc:'Numbered index · hover reveal' },
+                  { id:'cinema', name:'Cinema', desc:'Full-bleed scroll · dark' },
+                  { id:'studio', name:'Studio', desc:'Staggered blocks · white' },
+                  { id:'gallery', name:'Gallery', desc:'Masonry wall · cream' },
                   { id:'bold', name:'Bold', desc:'Swiss · black on white' },
                   { id:'neo', name:'Neo', desc:'Dark luxe · electric accents' },
-                  { id:'cinema', name:'Cinema', desc:'Cinematic dark · crimson' },
-                  { id:'studio', name:'Studio', desc:'White · Framer clean' },
-                  { id:'gallery', name:'Gallery', desc:'Cream · maximum space' },
-                  { id:'french', name:'French', desc:'Typographic · orange edge' },
-                  { id:'agency', name:'Agency', desc:'Charcoal · amber agency' },
+                  { id:'french', name:'French', desc:'Numbered grid · orange edge' },
+                  { id:'agency', name:'Agency', desc:'Dense contact sheet · amber' },
                 ].map(t => (
                   <button key={t.id} onClick={() => { applyTemplate(t.id); setTemplatesOpen(false); }} disabled={applyingTemplate}
                     style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, width:'100%', padding:'8px 10px', background: activeTemplate === t.id ? '#241410' : 'none', border:'none', borderRadius:7, cursor: applyingTemplate ? 'default' : 'pointer', textAlign:'left' }}>
