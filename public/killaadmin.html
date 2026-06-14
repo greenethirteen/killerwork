@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KillaAdmin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080e0a;
+    --surface: #0f1a12;
+    --border: rgba(140,255,193,.1);
+    --green: #8cffc1;
+    --blue: #7bdef2;
+    --muted: rgba(255,255,255,.38);
+    --text: rgba(255,255,255,.88);
+    --red: #ff6b6b;
+    --yellow: #ffd166;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; padding: 32px 24px; }
+  h1 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--green); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 32px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 36px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 18px; }
+  .card-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .card-value { font-size: 34px; font-weight: 900; letter-spacing: -.03em; line-height: 1; }
+  .card-value.green { color: var(--green); }
+  .card-value.blue { color: var(--blue); }
+  .card-value.yellow { color: var(--yellow); }
+  .card-value.red { color: var(--red); }
+  section { margin-bottom: 40px; }
+  h2 { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 12.5px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(140,255,193,.03); }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .pill-paid { background: rgba(140,255,193,.15); color: var(--green); }
+  .pill-open, .pill-unpaid { background: rgba(255,255,255,.08); color: var(--muted); }
+  .pill-pub { background: rgba(123,222,242,.15); color: var(--blue); }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .url-cell { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .loading { color: var(--muted); font-size: 13px; padding: 40px 0; text-align: center; }
+  .error-msg { color: var(--red); padding: 20px; background: rgba(255,107,107,.08); border-radius: 10px; }
+  .domains-list { display: flex; flex-wrap: wrap; gap: 10px; }
+  .domain-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; gap: 10px; }
+  .domain-chip .dn { font-weight: 600; }
+  .domain-chip .dc { color: var(--green); font-weight: 800; font-size: 16px; }
+  .refresh-btn { background: rgba(140,255,193,.1); color: var(--green); border: 1px solid rgba(140,255,193,.2); border-radius: 8px; padding: 6px 16px; font-size: 12px; font-weight: 700; cursor: pointer; float: right; }
+  .refresh-btn:hover { background: rgba(140,255,193,.18); }
+  .ts { color: var(--muted); }
+  .empty { color: var(--muted); font-size: 12px; padding: 20px 12px; }
+</style>
+</head>
+<body>
+<h1>KillaAdmin</h1>
+<p class="subtitle" id="lastRefresh">Loading stats…</p>
+<button class="refresh-btn" onclick="load()">Refresh</button>
+
+<div id="root"><p class="loading">Fetching data…</p></div>
+
+<script>
+function fmt(n, dec = 0) { return Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+function esc(s) { const d = document.createElement('span'); d.textContent = s || ''; return d.innerHTML; }
+
+function domainLink(url) {
+  if (!url) return '<span class="ts">—</span>';
+  try {
+    const u = new URL(url);
+    return `<a href="${esc(url)}" target="_blank" rel="noreferrer">${esc(u.hostname)}</a>`;
+  } catch { return esc(url); }
+}
+
+function shortUrl(url) {
+  if (!url) return '—';
+  try {
+    const u = new URL(url);
+    return (u.hostname + u.pathname).replace(/\/$/, '').slice(0, 55) + (url.length > 60 ? '…' : '');
+  } catch { return (url || '').slice(0, 55); }
+}
+
+async function load() {
+  document.getElementById('root').innerHTML = '<p class="loading">Fetching data…</p>';
+  document.getElementById('lastRefresh').textContent = 'Loading…';
+  try {
+    const res = await fetch('/api/admin/stats');
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Request failed');
+    render(d);
+    document.getElementById('lastRefresh').textContent = 'Updated ' + fmtDate(new Date().toISOString());
+  } catch (err) {
+    document.getElementById('root').innerHTML = `<p class="error-msg">Error: ${esc(err.message)}</p>`;
+    document.getElementById('lastRefresh').textContent = 'Failed to load';
+  }
+}
+
+function render(d) {
+  const { totals, topDomains, imports, checkoutSessions, stripeConfigured } = d;
+  const paid = checkoutSessions.filter(s => s.status === 'paid');
+  const abandoned = checkoutSessions.filter(s => s.status !== 'paid');
+
+  let html = '';
+
+  // Summary cards
+  html += `<div class="cards">
+    <div class="card"><div class="card-label">Total Imports</div><div class="card-value green">${fmt(totals.imports)}</div></div>
+    <div class="card"><div class="card-label">Published Sites</div><div class="card-value blue">${fmt(totals.published)}</div></div>
+    <div class="card"><div class="card-label">Paid Checkouts</div><div class="card-value green">${fmt(totals.paid)}</div></div>
+    <div class="card"><div class="card-label">Abandoned</div><div class="card-value yellow">${fmt(totals.abandoned)}</div></div>
+    <div class="card"><div class="card-label">Revenue (USD)</div><div class="card-value green">$${fmt(totals.revenue, 2)}</div></div>
+  </div>`;
+
+  // Top source domains
+  if (topDomains.length) {
+    html += `<section><h2>Top Source Domains</h2><div class="domains-list">`;
+    for (const { domain, count } of topDomains) {
+      html += `<div class="domain-chip"><span class="dn">${esc(domain)}</span><span class="dc">${count}</span></div>`;
+    }
+    html += `</div></section>`;
+  }
+
+  // Stripe checkout sessions
+  html += `<section><h2>Checkout Sessions ${stripeConfigured ? '' : '<span style="color:var(--red)">(Stripe not configured)</span>'}</h2>`;
+  if (checkoutSessions.length === 0) {
+    html += `<p class="empty">No checkout sessions found.</p>`;
+  } else {
+    html += `<table><thead><tr><th>Date</th><th>Email</th><th>Status</th><th>Amount</th><th>Source URL (from import)</th><th>Job</th></tr></thead><tbody>`;
+    for (const s of checkoutSessions) {
+      const statusPill = s.status === 'paid'
+        ? `<span class="pill pill-paid">Paid</span>`
+        : `<span class="pill pill-open">Abandoned</span>`;
+      const srcLink = s.sourceUrl
+        ? `<a href="${esc(s.sourceUrl)}" target="_blank" rel="noreferrer" title="${esc(s.sourceUrl)}">${esc(shortUrl(s.sourceUrl))}</a>`
+        : `<span class="ts">${esc(s.sourceDomain) || '—'}</span>`;
+      html += `<tr>
+        <td class="ts">${fmtDate(s.createdAt)}</td>
+        <td>${esc(s.email) || '<span class="ts">—</span>'}</td>
+        <td>${statusPill}</td>
+        <td>${s.amount ? '$' + fmt(s.amount, 2) : '<span class="ts">—</span>'}</td>
+        <td class="url-cell">${srcLink}</td>
+        <td><span class="ts">${esc(s.jobId) || '—'}</span></td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  html += `</section>`;
+
+  // All imports
+  html += `<section><h2>All Imports (${imports.length})</h2>`;
+  if (imports.length === 0) {
+    html += `<p class="empty">No imports found on disk.</p>`;
+  } else {
+    const sorted = [...imports].reverse();
+    html += `<table><thead><tr><th>ID</th><th>Source URL</th><th>Name</th><th>Projects</th><th>Published</th></tr></thead><tbody>`;
+    for (const imp of sorted) {
+      const srcLink = imp.sourceUrl
+        ? `<a href="${esc(imp.sourceUrl)}" target="_blank" rel="noreferrer" title="${esc(imp.sourceUrl)}">${esc(shortUrl(imp.sourceUrl))}</a>`
+        : `<span class="ts">upload/build</span>`;
+      const pubCell = imp.published
+        ? `<a href="https://${esc(imp.published)}" target="_blank" rel="noreferrer" class="pill pill-pub">${esc(imp.published)}</a>`
+        : `<span class="ts">—</span>`;
+      html += `<tr>
+        <td><span class="ts" style="font-family:monospace;font-size:11px">${esc(imp.id.slice(0, 12))}</span></td>
+        <td class="url-cell">${srcLink}</td>
+        <td>${esc(imp.ownerName || imp.siteTitle) || '<span class="ts">—</span>'}</td>
+        <td>${imp.projectCount || '—'}</td>
+        <td>${pubCell}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  html += `</section>`;
+
+  document.getElementById('root').innerHTML = html;
+}
+
+load();
+</script>
+</body>
+</html>

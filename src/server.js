@@ -3376,4 +3376,89 @@ app.post('/api/pixel-editor/:id/publish', requireFirebaseAuth, async (req, res) 
   }
 });
 
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    // Scan all manifests from generatedRoot
+    const entries = await fs.readdir(generatedRoot, { withFileTypes: true }).catch(() => []);
+    const manifests = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const mf = path.join(generatedRoot, entry.name, 'manifest.json');
+      if (!(await fs.pathExists(mf))) continue;
+      try {
+        const data = await fs.readJson(mf);
+        manifests.push({ id: entry.name, data });
+      } catch { /* skip corrupt manifests */ }
+    }
+
+    const imports = manifests.map(({ id, data }) => ({
+      id,
+      sourceUrl: data.sourceUrl || '',
+      sourceDomain: (() => { try { return data.sourceUrl ? new URL(data.sourceUrl).hostname : ''; } catch { return ''; } })(),
+      siteTitle: data.siteTitle || data.homeTitle || '',
+      ownerName: data.ownerName || data.profile?.name || '',
+      ownerUid: data.ownerUid || data.owner?.uid || '',
+      published: data.published?.subdomain ? data.published.subdomain + '.killa.work' : '',
+      publishedAt: data.published?.publishedAt || '',
+      projectCount: (data.projects || []).length,
+    }));
+
+    // Domain frequency
+    const domainMap = {};
+    for (const imp of imports) {
+      if (imp.sourceDomain) domainMap[imp.sourceDomain] = (domainMap[imp.sourceDomain] || 0) + 1;
+    }
+    const topDomains = Object.entries(domainMap).sort((a, b) => b[1] - a[1]).map(([domain, count]) => ({ domain, count }));
+
+    // Stripe data
+    let checkoutSessions = [];
+    let stripeConfigured = false;
+    if (stripe) {
+      stripeConfigured = true;
+      let hasMore = true;
+      let startingAfter;
+      while (hasMore) {
+        const page = await stripe.checkout.sessions.list({ limit: 100, ...(startingAfter && { starting_after: startingAfter }) });
+        for (const session of page.data) {
+          checkoutSessions.push({
+            id: session.id,
+            createdAt: new Date(session.created * 1000).toISOString(),
+            email: session.customer_details?.email || session.customer_email || '',
+            status: session.payment_status,
+            amount: session.amount_total ? session.amount_total / 100 : 0,
+            currency: (session.currency || 'usd').toUpperCase(),
+            sourceUrl: session.metadata?.sourceUrl || '',
+            sourceDomain: (() => { try { return session.metadata?.sourceUrl ? new URL(session.metadata.sourceUrl).hostname : ''; } catch { return ''; } })(),
+            jobId: session.metadata?.jobId || '',
+          });
+        }
+        hasMore = page.has_more;
+        if (page.data.length) startingAfter = page.data[page.data.length - 1].id;
+        else break;
+      }
+      checkoutSessions.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
+    const paid = checkoutSessions.filter(s => s.status === 'paid');
+    const abandoned = checkoutSessions.filter(s => s.status !== 'paid');
+
+    res.json({
+      totals: {
+        imports: imports.length,
+        published: imports.filter(i => i.published).length,
+        paid: paid.length,
+        abandoned: abandoned.length,
+        revenue: paid.reduce((sum, s) => sum + s.amount, 0),
+      },
+      topDomains,
+      imports,
+      checkoutSessions,
+      stripeConfigured,
+    });
+  } catch (err) {
+    console.error('Admin stats error', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => console.log(`KillaWork™ Importer running on http://localhost:${PORT}`));
