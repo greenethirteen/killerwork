@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260616-hero-caps" />
+  <link rel="stylesheet" href="/ui.css?v=20260616-hero-italic2" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -570,6 +570,17 @@
       <b>KillaWork™</b>
     </footer>
   </main>
+  <script>
+    (() => {
+      const onScroll = () => {
+        if (window.scrollY > 24) {
+          document.documentElement.classList.add('scrolled');
+          window.removeEventListener('scroll', onScroll);
+        }
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+    })();
+  </script>
   <script type="module">
     import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260615-pricing19'));
   </script>
