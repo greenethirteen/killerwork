@@ -726,9 +726,10 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .hero-accent{background:linear-gradient(120deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
 .site-hero-sub b{font-weight:800}
 @media(max-width:760px){
-  .site-hero{position:relative;min-height:78vh;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0;padding:2vh 6px 16vh}
-  .site-hero-title{font-size:clamp(40px,12vw,64px);line-height:.98;max-width:none}
-  .site-hero-sub{margin-top:16px;font-size:16.5px;max-width:36ch}
+  .site-hero{position:relative;min-height:88vh;min-height:88svh;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0;padding:5vh 14px 13vh}
+  .site-hero-title{font-size:clamp(44px,13.5vw,72px);line-height:.96;max-width:none}
+  .site-hero-sub{margin-top:20px;font-size:17px;max-width:30ch;line-height:1.55}
+  .hero-flow{display:none}
   .site-hero::after{content:"↓";position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:22px;font-weight:400;color:var(--muted);animation:hero-bob 1.7s ease-in-out infinite;transition:opacity .35s ease}
   html.scrolled .site-hero::after{opacity:0;pointer-events:none}
 }
