@@ -707,7 +707,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 
 /* ── Site hero — primary headline above the import/build panels ── */
 .site-hero{margin:clamp(40px,6vw,76px) 0 clamp(38px,5vw,60px);text-align:center;padding:0 8px}
-.site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7vw,92px);line-height:.94;letter-spacing:-.03em;font-weight:950;font-style:italic;text-transform:uppercase;color:var(--fg)}
+.site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7vw,92px);line-height:.94;letter-spacing:-.03em;font-weight:950;text-transform:uppercase;color:var(--fg)}
 .site-hero-sub{margin:20px auto 0;max-width:48ch;color:var(--fg);font-size:clamp(16px,1.5vw,20px);line-height:1.5}
 .site-hero+.dual-switcher{margin-top:0}
 .hero-accent{background:linear-gradient(120deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
