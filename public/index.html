@@ -586,6 +586,23 @@
       window.addEventListener('scroll', onScroll, { passive: true });
     })();
   </script>
+  <script>
+    (() => {
+      if (window.innerWidth <= 760) return;
+      let interacted = false;
+      const mark = () => { interacted = true; };
+      window.addEventListener('wheel', mark, { passive: true, once: true });
+      window.addEventListener('touchstart', mark, { passive: true, once: true });
+      window.addEventListener('keydown', mark, { once: true });
+      setTimeout(() => {
+        if (interacted || window.scrollY > 10) return;
+        const target = document.querySelector('.dual-switcher');
+        if (!target) return;
+        const top = target.getBoundingClientRect().top + window.scrollY - 24;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }, 2300);
+    })();
+  </script>
   <script type="module">
     import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260615-pricing19'));
   </script>
