@@ -30,7 +30,7 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260616-hero-splash" />
+  <link rel="stylesheet" href="/ui.css?v=20260615-pricing-trim" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -78,30 +78,21 @@
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
-    <header class="site-hero" data-reveal>
-      <h1 class="site-hero-title">The <span class="hero-accent">automatic</span> portfolio builder</h1>
-      <p class="site-hero-sub">Import your portfolio from <b class="highlight-site highlight-behance">Behance</b>, <b class="highlight-site highlight-squarespace">Squarespace</b> and <b class="highlight-site highlight-wix">Wix</b>, or upload your work and get a portfolio.</p>
-      <div class="hero-flow" aria-label="Import from Behance, Squarespace, Wix, or files — get a pro site">
-        <span class="hf-src"><span>Behance</span><span>Squarespace</span><span>Wix</span><span>Files</span></span>
-        <span class="hf-arrow" aria-hidden="true"></span>
-        <span class="hf-out">Pro site</span>
-      </div>
-    </header>
     <section class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
       <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
         <div class="dual-panel-inner">
           <span class="section-tab">Import your portfolio</span>
           <div class="import-copy-flip" data-nosnippet aria-label="Behance, Squarespace, and Wix import messages">
             <div class="import-copy-slide">
-              <h2>Turn your <span class="highlight-site highlight-behance">Behance</span><br><span class="headline-second">page into a pro site</span></h2>
+              <h1>Turn your <span class="highlight-site highlight-behance">Behance</span><br><span class="headline-second">page into a pro site</span></h1>
               <p>Publish free to killa.work — own your .com for $19</p>
             </div>
             <div class="import-copy-slide">
-              <h2>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-squarespace">Squarespace</span></span></h2>
+              <h1>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-squarespace">Squarespace</span></span></h1>
               <p>Publish free — then own your .com for a one-time $19</p>
             </div>
             <div class="import-copy-slide">
-              <h2>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-wix">Wix</span></span></h2>
+              <h1>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-wix">Wix</span></span></h1>
               <p>Publish free to killa.work. No subscriptions ever.</p>
             </div>
           </div>
@@ -575,34 +566,6 @@
       <b>KillaWork™</b>
     </footer>
   </main>
-  <script>
-    (() => {
-      const onScroll = () => {
-        if (window.scrollY > 24) {
-          document.documentElement.classList.add('scrolled');
-          window.removeEventListener('scroll', onScroll);
-        }
-      };
-      window.addEventListener('scroll', onScroll, { passive: true });
-    })();
-  </script>
-  <script>
-    (() => {
-      if (window.innerWidth <= 760) return;
-      let interacted = false;
-      const mark = () => { interacted = true; };
-      window.addEventListener('wheel', mark, { passive: true, once: true });
-      window.addEventListener('touchstart', mark, { passive: true, once: true });
-      window.addEventListener('keydown', mark, { once: true });
-      setTimeout(() => {
-        if (interacted || window.scrollY > 10) return;
-        const target = document.querySelector('.dual-switcher');
-        if (!target) return;
-        const top = target.getBoundingClientRect().top + window.scrollY - 40;
-        window.scrollTo({ top, behavior: 'smooth' });
-      }, 2300);
-    })();
-  </script>
   <script type="module">
     import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260615-pricing19'));
   </script>
