@@ -707,13 +707,13 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 
 /* ── Site hero — primary headline above the import/build panels ── */
 .site-hero{margin:clamp(40px,6vw,76px) 0 clamp(38px,5vw,60px);text-align:center;padding:0 8px}
-.site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7vw,92px);line-height:.94;letter-spacing:-.055em;font-weight:950;color:var(--fg)}
+.site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7vw,92px);line-height:.94;letter-spacing:-.03em;font-weight:950;text-transform:uppercase;color:var(--fg)}
 .site-hero-sub{margin:20px auto 0;max-width:48ch;color:var(--muted);font-size:clamp(16px,1.5vw,20px);line-height:1.5}
 .site-hero+.dual-switcher{margin-top:0}
 .hero-accent{background:linear-gradient(120deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
 .site-hero-sub b{font-weight:800}
 @media(max-width:760px){
-  .site-hero{position:relative;min-height:78vh;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0;padding:4vh 6px 8vh}
+  .site-hero{position:relative;min-height:78vh;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0;padding:2vh 6px 16vh}
   .site-hero-title{font-size:clamp(40px,12vw,64px);line-height:.98;max-width:none}
   .site-hero-sub{margin-top:16px;font-size:16.5px;max-width:36ch}
   .site-hero::after{content:"↓";position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:22px;font-weight:400;color:var(--muted);animation:hero-bob 1.7s ease-in-out infinite}
