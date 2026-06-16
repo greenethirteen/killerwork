@@ -706,9 +706,11 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 @media(prefers-reduced-motion:reduce){.tt-canvas{animation:none}}
 
 /* ── Site hero — primary headline above the import/build panels ── */
-.site-hero{margin:42px 0 4px;text-align:center;padding:0 8px}
-.site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7.6vw,104px);line-height:.92;letter-spacing:-.06em;font-weight:950;color:var(--fg)}
-@media(max-width:760px){.site-hero{margin:16px 0 2px}.site-hero-title{font-size:clamp(34px,9vw,52px);max-width:none}}
+.site-hero{margin:clamp(40px,6vw,76px) 0 clamp(38px,5vw,60px);text-align:center;padding:0 8px}
+.site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7vw,92px);line-height:.94;letter-spacing:-.055em;font-weight:950;color:var(--fg)}
+.site-hero-sub{margin:20px auto 0;max-width:48ch;color:var(--muted);font-size:clamp(16px,1.5vw,20px);line-height:1.5}
+.site-hero+.dual-switcher{margin-top:0}
+@media(max-width:760px){.site-hero{margin:20px 0 30px}.site-hero-title{font-size:clamp(34px,9vw,52px);max-width:none}.site-hero-sub{margin-top:14px;font-size:16px}}
 
 /* ── Theme toggle button ── */
 .theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:var(--glass);color:var(--fg);font-size:17px;line-height:1;cursor:pointer;transition:background .2s ease,transform .2s ease}
@@ -717,6 +719,9 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 /* ── Light theme (experimental) — flip core tokens + key dark surfaces ── */
 html[data-theme="light"]{--bg:#f4f2ed;--fg:#16140f;--muted:#6c6458;--glass:rgba(20,18,14,.045);--line:rgba(20,18,14,.12)}
 html[data-theme="light"] body{background:radial-gradient(circle at 18% -2%,#e7e3f6,transparent 38%),radial-gradient(circle at 102% 16%,#f6e5ef,transparent 40%),var(--bg)}
+html[data-theme="light"] .parallax-home{background:#f4f2ed}
+html[data-theme="light"] .landing-atmosphere{background:linear-gradient(145deg,#edeefb 0%,#f4f2ed 44%,#f7e9f2 100%)}
+html[data-theme="light"] .landing-atmosphere:before{background:linear-gradient(105deg,rgba(120,130,220,.16),transparent 40%,rgba(200,120,170,.14))}
 html[data-theme="light"] .landing-grid{background-image:linear-gradient(rgba(20,18,14,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(20,18,14,.05) 1px,transparent 1px)}
 html[data-theme="light"] .landing-wordmark{-webkit-text-stroke:1px rgba(20,18,14,.06)}
 html[data-theme="light"] .landing-topbar a,html[data-theme="light"] .landing-topbar .top-signin,html[data-theme="light"] .logo-text{color:var(--fg)}
