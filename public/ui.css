@@ -710,6 +710,8 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .site-hero-title{margin:0 auto;max-width:15ch;font-size:clamp(42px,7vw,92px);line-height:.94;letter-spacing:-.055em;font-weight:950;color:var(--fg)}
 .site-hero-sub{margin:20px auto 0;max-width:48ch;color:var(--muted);font-size:clamp(16px,1.5vw,20px);line-height:1.5}
 .site-hero+.dual-switcher{margin-top:0}
+.hero-accent{background:linear-gradient(120deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+.site-hero-sub b{font-weight:800}
 @media(max-width:760px){.site-hero{margin:20px 0 30px}.site-hero-title{font-size:clamp(34px,9vw,52px);max-width:none}.site-hero-sub{margin-top:14px;font-size:16px}}
 
 /* ── Theme toggle button ── */
@@ -749,3 +751,9 @@ html[data-theme="light"] .button.secondary,html[data-theme="light"] .button.ghos
 /* Splash intro overlay light */
 html[data-theme="light"] .splash-intro{background:var(--bg)}
 html[data-theme="light"] .splash-intro span{color:var(--fg)}
+/* Accent colors readable on light */
+html[data-theme="light"] .hero-accent{background:linear-gradient(120deg,#0aa86d,#1f8fc4);-webkit-background-clip:text;background-clip:text;color:transparent}
+html[data-theme="light"] .highlight-behance{color:#cf2e92}
+html[data-theme="light"] .highlight-squarespace{color:#a9760d}
+html[data-theme="light"] .highlight-wix{color:#1d8fb8}
+html[data-theme="light"] .highlight-site{text-shadow:none}
