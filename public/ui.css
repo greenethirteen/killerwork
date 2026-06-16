@@ -757,3 +757,10 @@ html[data-theme="light"] .highlight-behance{color:#cf2e92}
 html[data-theme="light"] .highlight-squarespace{color:#a9760d}
 html[data-theme="light"] .highlight-wix{color:#1d8fb8}
 html[data-theme="light"] .highlight-site{text-shadow:none}
+
+/* Desktop — compact import/before-after buttons (content width, not full-bleed) */
+@media(min-width:901px){
+  .dual-panel .url-form{align-items:center}
+  .import-action-row{grid-template-columns:auto auto;justify-content:start;gap:12px}
+  .import-action-row button,.import-action-row .button{width:auto;min-height:52px;padding:0 24px;font-size:15px;border-radius:18px}
+}
