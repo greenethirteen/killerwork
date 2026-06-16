@@ -30,7 +30,8 @@
     }
   </script>
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260616-hero" />
+  <link rel="stylesheet" href="/ui.css?v=20260616-theme-toggle" />
+  <script>(()=>{try{if(localStorage.getItem('kw-theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -72,6 +73,7 @@
         <span class="logo-text">KillaWork™</span>
       </a>
       <div class="topnav-actions">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch between light and dark theme" title="Toggle theme">◐</button>
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
         <a data-auth-link class="top-signin" href="#">Sign up / Sign in</a>
@@ -87,15 +89,15 @@
           <span class="section-tab">Import your portfolio</span>
           <div class="import-copy-flip" data-nosnippet aria-label="Behance, Squarespace, and Wix import messages">
             <div class="import-copy-slide">
-              <h1>Turn your <span class="highlight-site highlight-behance">Behance</span><br><span class="headline-second">page into a pro site</span></h1>
+              <h2>Turn your <span class="highlight-site highlight-behance">Behance</span><br><span class="headline-second">page into a pro site</span></h2>
               <p>Publish free to killa.work — own your .com for $19</p>
             </div>
             <div class="import-copy-slide">
-              <h1>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-squarespace">Squarespace</span></span></h1>
+              <h2>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-squarespace">Squarespace</span></span></h2>
               <p>Publish free — then own your .com for a one-time $19</p>
             </div>
             <div class="import-copy-slide">
-              <h1>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-wix">Wix</span></span></h1>
+              <h2>Move your portfolio<br><span class="headline-second">out of <span class="highlight-site highlight-wix">Wix</span></span></h2>
               <p>Publish free to killa.work. No subscriptions ever.</p>
             </div>
           </div>
@@ -569,6 +571,18 @@
       <b>KillaWork™</b>
     </footer>
   </main>
+  <script>
+    (() => {
+      const btn = document.querySelector('[data-theme-toggle]');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const root = document.documentElement;
+        const light = root.getAttribute('data-theme') === 'light';
+        if (light) { root.removeAttribute('data-theme'); try { localStorage.setItem('kw-theme', 'dark'); } catch (e) {} }
+        else { root.setAttribute('data-theme', 'light'); try { localStorage.setItem('kw-theme', 'light'); } catch (e) {} }
+      });
+    })();
+  </script>
   <script type="module">
     import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260615-pricing19'));
   </script>
