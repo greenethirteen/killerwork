@@ -501,7 +501,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .dual-panel{padding:22px 28px}
   .dual-panel-inner{gap:10px}
   .section-tab{padding:7px 11px;font-size:10px}
-  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:104px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:var(--import-copy-height,150px)}
   .dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:42px;line-height:.92}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-slide p{font-size:14px;line-height:1.18}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge{margin-bottom:0;padding:8px 12px 8px 28px;border-radius:16px}
@@ -523,7 +523,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 }
 
 @media(max-width:340px){
-  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:136px}
+  .dual-switcher[data-active-panel="import"] .dual-panel-import .import-copy-flip{height:var(--import-copy-height,136px)}
   .dual-switcher[data-active-panel="build"] .dual-panel-import .import-copy-flip{height:72px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:38px}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge{padding-left:20px;padding-right:8px}

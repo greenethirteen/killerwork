@@ -60,14 +60,15 @@ if (pricing) {
 
 function syncImportCopyHeight() {
   if (!importCopyFlip || !importCopySlides.length) return;
-  const activeSlide = importCopySlides
-    .map(slide => ({ slide, opacity: Number(getComputedStyle(slide).opacity) || 0 }))
-    .filter(entry => entry.opacity > 0.05)
-    .sort((a, b) => b.opacity - a.opacity)[0]?.slide || importCopySlides[0];
-  const slideTop = activeSlide.getBoundingClientRect().top;
-  const lastChild = activeSlide.lastElementChild;
-  const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + activeSlide.scrollHeight;
-  importCopyFlip.style.setProperty('--import-copy-height', `${Math.ceil(contentBottom - slideTop)}px`);
+  const slideHeight = importCopySlides.reduce((maxHeight, slide) => {
+    const slideTop = slide.getBoundingClientRect().top;
+    const lastChild = slide.lastElementChild;
+    const contentBottom = lastChild?.getBoundingClientRect().bottom || slideTop + slide.scrollHeight;
+    return Math.max(maxHeight, Math.ceil(contentBottom - slideTop));
+  }, 0);
+  if (slideHeight > 0) {
+    importCopyFlip.style.setProperty('--import-copy-height', `${slideHeight}px`);
+  }
 }
 
 if (importCopyFlip && importCopySlides.length) {
