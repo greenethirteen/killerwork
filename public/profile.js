@@ -1,4 +1,4 @@
-import { startSubscriptionCheckout } from './billing.js?v=20260602-gtm';
+import { startSubscriptionCheckout } from './billing.js?v=20260617-price999';
 
 const statusEl = document.getElementById('profileStatus');
 const profileName = document.getElementById('profileName');

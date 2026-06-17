@@ -21,7 +21,7 @@ export async function startSubscriptionCheckout(setStatus, { jobId } = {}) {
   if (!res.ok || !data.url) throw new Error(data.error || 'Could not open checkout.');
   track('checkout_start', {
     plan_name: 'KillaWork one-time',
-    price: 19,
+    price: 9.99,
     currency: 'USD',
     job_id: jobId || ''
   });
@@ -60,7 +60,7 @@ export async function trackSubscriptionCheckoutReturn(setStatus) {
 
 export async function handleSubscriptionRequired(res, data = {}, setStatus, { jobId } = {}) {
   if (res.status !== 402 || data.code !== 'subscription_required') return false;
-  setStatus?.(data.error || 'A one-time $19 payment unlocks publishing and downloads.', 'error');
+  setStatus?.(data.error || 'A one-time $9.99 payment unlocks publishing and downloads.', 'error');
   await startSubscriptionCheckout(setStatus, { jobId });
   return true;
 }

@@ -1,5 +1,5 @@
-import { setupPublishControl } from './publish.js?v=20260602-gtm';
-import { bindProtectedZipLink, trackSubscriptionCheckoutReturn } from './billing.js?v=20260602-gtm';
+import { setupPublishControl } from './publish.js?v=20260617-price999';
+import { bindProtectedZipLink, trackSubscriptionCheckoutReturn } from './billing.js?v=20260617-price999';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');

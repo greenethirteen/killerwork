@@ -190,7 +190,7 @@ const firebaseAdmin = firebaseAccount ? admin.initializeApp({
   projectId: firebaseProjectId
 }) : null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
-const stripeProductId = process.env.STRIPE_PRODUCT_ID || 'prod_UgzYd1PagEbSax';
+const stripeProductId = process.env.STRIPE_PRODUCT_ID || 'prod_Uio91cAmqETWVG';
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function requestHostname(req) {
@@ -287,7 +287,7 @@ async function requireActiveSubscription(req, res, next) {
     }
     if (!state.active) {
       return res.status(402).json({
-        error: 'A one-time $19 payment removes branding and unlocks custom domains and ZIP downloads.',
+        error: 'A one-time $9.99 payment removes branding and unlocks custom domains and ZIP downloads.',
         code: 'subscription_required'
       });
     }
@@ -2017,7 +2017,7 @@ app.get('/api/billing/checkout-session/:sessionId', requireFirebaseAuth, async (
     res.json({
       confirmed: true,
       transactionId: session.id,
-      value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 19,
+      value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 9.99,
       currency: String(session.currency || 'usd').toUpperCase()
     });
   } catch (err) {
@@ -2038,7 +2038,7 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
       customer: customer.id,
       client_reference_id: req.user.uid,
       line_items: [{
-        price_data: { currency: 'usd', unit_amount: 1900, product: stripeProductId },
+        price_data: { currency: 'usd', unit_amount: 999, product: stripeProductId },
         quantity: 1
       }],
       success_url: `${origin}/manage.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
