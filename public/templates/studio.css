@@ -4,7 +4,7 @@
    Content colors use var(--fg)/var(--muted); only chrome is hardcoded. */
 
 :root{--bg:#ffffff;--fg:#15140f;--muted:#9a9488;--line:rgba(21,20,15,.1);--card:#f6f4ef}
-body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+body{font-family:'Space Grotesk',Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
 
 /* Header — sticky pure white, thin border, weight 300 brand */
 .site-header{position:sticky;top:0;background:rgba(255,255,255,.9);backdrop-filter:blur(14px);color:var(--fg);border-bottom:1px solid var(--line);box-shadow:none;padding:22px 4vw}

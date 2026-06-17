@@ -143,6 +143,16 @@ app.get(['/generated/:id/site', '/generated/:id/site/', '/generated/:id/site/ind
 app.get('/generated/:id/site/work/:slug/index.html', serveGeneratedCampaignPage);
 app.get(['/generated/:id/site/favicon.ico', '/generated/:id/site/favicon.png'], (req, res) => res.sendFile(path.join(root, 'public', 'favicon-logo-144.png')));
 app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedStaticHeaders }));
+
+// Per-template display fonts. Prepended (as @import, which must lead the stylesheet)
+// so each template reads as a distinct design system, not just recoloured Inter.
+const TEMPLATE_FONT_IMPORTS = {
+  editorial: "@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap');\n",
+  cinema: "@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap');\n",
+  studio: "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');\n",
+  gallery: "@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap');\n",
+};
+
 // Fallback: if styles.css is missing from disk (old import, pruned volume), generate it on the fly.
 // express.static calls next() when the file isn't found, so this only fires on a real 404.
 app.get('/generated/:id/site/styles.css', async (req, res) => {
@@ -154,7 +164,7 @@ app.get('/generated/:id/site/styles.css', async (req, res) => {
     let css = baseCss;
     if (templateName !== 'default') {
       const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
-      if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+      if (await fs.pathExists(overlayPath)) css = (TEMPLATE_FONT_IMPORTS[templateName] || '') + baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
     }
     // Write to disk so the next request is served by express.static
     await fs.ensureDir(siteDir(id));
@@ -1321,7 +1331,7 @@ async function ensureStylesCss(id, manifest) {
     let css = baseCss;
     if (templateName !== 'default') {
       const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
-      if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+      if (await fs.pathExists(overlayPath)) css = (TEMPLATE_FONT_IMPORTS[templateName] || '') + baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
     }
     await fs.ensureDir(siteDir(id));
     await fs.writeFile(path.join(siteDir(id), 'styles.css'), css);
@@ -2606,7 +2616,7 @@ app.post('/api/code-editor/:id/template', requireFirebaseAuth, async (req, res) 
     let css = baseCss;
     if (templateName !== 'default') {
       const overlayPath = path.join(root, 'public', 'templates', `${templateName}.css`);
-      if (await fs.pathExists(overlayPath)) css = baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
+      if (await fs.pathExists(overlayPath)) css = (TEMPLATE_FONT_IMPORTS[templateName] || '') + baseCss + '\n' + await fs.readFile(overlayPath, 'utf8');
     }
     await fs.writeFile(path.join(siteDir(id), 'styles.css'), css);
     res.json({ ok: true, template: templateName });

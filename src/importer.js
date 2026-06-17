@@ -2710,11 +2710,17 @@ export async function generateSite(manifest, outDir, progress) {
   await fs.copy(path.join(__dirname, '..', 'public', 'favicon-logo-144.png'), path.join(siteDir, 'favicon.png'));
   const ALLOWED_TEMPLATES = ['default', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
   const templateName = ALLOWED_TEMPLATES.includes(manifest.portfolioTemplate) ? manifest.portfolioTemplate : 'default';
+  const TEMPLATE_FONT_IMPORTS = {
+    editorial: "@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap');\n",
+    cinema: "@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap');\n",
+    studio: "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');\n",
+    gallery: "@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap');\n",
+  };
   let styles = await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.css'), 'utf8');
   if (templateName !== 'default') {
     const overlayPath = path.join(__dirname, '..', 'public', 'templates', `${templateName}.css`);
     if (await fs.pathExists(overlayPath)) {
-      styles = styles + '\n' + await fs.readFile(overlayPath, 'utf8');
+      styles = (TEMPLATE_FONT_IMPORTS[templateName] || '') + styles + '\n' + await fs.readFile(overlayPath, 'utf8');
     }
   }
   await fs.writeFile(path.join(siteDir, 'styles.css'), styles);

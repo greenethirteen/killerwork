@@ -4,7 +4,7 @@
    inline page colors stay readable; only chrome is hardcoded. */
 
 :root{--bg:#faf9f5;--fg:#191511;--muted:#8d867a;--line:rgba(25,20,12,.14);--card:#f1efe8}
-body{font-family:Georgia,'Times New Roman',Times,serif;background:var(--bg);color:var(--fg)}
+body{font-family:'Fraunces','Times New Roman',Times,serif;font-optical-sizing:auto;background:var(--bg);color:var(--fg)}
 
 /* Header — paper, hairline rule, small-caps nav */
 .site-header{background:rgba(250,249,245,.94);backdrop-filter:blur(12px);color:var(--fg);border-bottom:1px solid var(--line);box-shadow:none;padding:24px 4vw}
