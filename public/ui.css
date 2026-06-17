@@ -704,3 +704,5 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 
 .themes-note{margin:30px auto 0;text-align:center;color:var(--muted);font-size:14px}
 @media(prefers-reduced-motion:reduce){.tt-canvas{animation:none}}
+/* Anchor targets for Google Ads sitelinks */
+#import,#editor,#pricing,#faq{scroll-margin-top:28px}
