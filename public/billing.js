@@ -55,12 +55,12 @@ export async function trackSubscriptionCheckoutReturn(setStatus) {
   params.delete('session_id');
   const query = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
-  setStatus?.('Payment confirmed. Publishing and ZIP downloads are unlocked.', 'ok');
+  setStatus?.('Payment confirmed. Publishing, custom domains, and ZIP downloads are unlocked.', 'ok');
 }
 
 export async function handleSubscriptionRequired(res, data = {}, setStatus, { jobId } = {}) {
   if (res.status !== 402 || data.code !== 'subscription_required') return false;
-  setStatus?.(data.error || 'A one-time $9.99 payment unlocks publishing and downloads.', 'error');
+  setStatus?.(data.error || 'A one-time $9.99 payment unlocks publishing, custom domains, and ZIP downloads.', 'error');
   await startSubscriptionCheckout(setStatus, { jobId });
   return true;
 }

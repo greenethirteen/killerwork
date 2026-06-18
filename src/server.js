@@ -297,7 +297,7 @@ async function requireActiveSubscription(req, res, next) {
     }
     if (!state.active) {
       return res.status(402).json({
-        error: 'A one-time $9.99 payment removes branding and unlocks custom domains and ZIP downloads.',
+        error: 'A one-time $9.99 payment unlocks publishing, custom domains, and ZIP downloads.',
         code: 'subscription_required'
       });
     }
@@ -421,7 +421,6 @@ function portfolioRuntimeOptions(manifest, relativePath = '') {
     behanceHome: isBehance && isHomePagePath(relativePath),
     behanceProject: isBehance && isCampaignPagePath(relativePath),
     pageTitle: isHomePagePath(relativePath) ? portfolioBrowserTitle(manifest) : '',
-    showBranding: manifest?.paid === false,
   };
 }
 
@@ -458,7 +457,7 @@ function addBodyClass(html, className) {
   });
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', showBranding = false } = {}) {
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '' } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
   if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
   if (/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i.test(html)) {
@@ -478,10 +477,6 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
     html = html.replace(/\/portfolio-loader\.js(?:\?[^"'\\s<]*)?/g, '/portfolio-loader.js?v=20260601-squarespace-speed');
   } else {
     html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body>');
-  }
-  if (showBranding) {
-    const badge = '<a href="https://killa.work" target="_blank" rel="noreferrer" style="position:fixed;bottom:16px;right:16px;z-index:9999;background:rgba(8,14,10,.85);color:#8cffc1;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;text-decoration:none;letter-spacing:.03em;backdrop-filter:blur(8px);border:1px solid rgba(140,255,193,.18)">Made with KillaWork</a>';
-    html = html.replace(/<\/body>/i, `${badge}</body>`);
   }
   res.setHeader('Cache-Control', 'no-cache');
   return res.type('html').send(html);
@@ -2010,20 +2005,6 @@ app.get('/api/billing/checkout-session/:sessionId', requireFirebaseAuth, async (
     if (session.mode !== 'payment' || session.status !== 'complete' || session.payment_status !== 'paid') {
       return res.status(409).json({ error: 'Your payment has not been confirmed yet.', code: 'payment_pending' });
     }
-    // Mark all this user's manifests as paid so branding is removed from their published sites
-    fs.readdir(generatedRoot, { withFileTypes: true }).then(async entries => {
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const mfPath = path.join(generatedRoot, entry.name, 'manifest.json');
-        try {
-          const mf = await fs.readJson(mfPath);
-          if ((mf.ownerUid || mf.owner?.uid) === req.user.uid && mf.paid !== true) {
-            mf.paid = true;
-            await fs.writeJson(mfPath, mf, { spaces: 2 });
-          }
-        } catch { /* skip */ }
-      }
-    }).catch(() => {});
     res.json({
       confirmed: true,
       transactionId: session.id,
@@ -2093,7 +2074,7 @@ app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   res.json(publicPortfolio(id, manifest, validation));
 });
 
-app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
+app.post('/api/publish/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
@@ -2106,8 +2087,7 @@ app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
   const index = await publishedIndex();
   const existing = index.get(requested);
   if (existing && existing.id !== id) return res.status(409).json({ error: `${requested}.${publicHost()} is already taken.` });
-  const payState = await subscriptionStateFor(req.user).catch(() => ({ active: false }));
-  manifest.paid = payState.active;
+  manifest.paid = true;
   manifest.published = {
     subdomain: requested,
     url: publishedUrlFor(requested),

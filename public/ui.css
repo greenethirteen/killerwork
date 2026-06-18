@@ -649,11 +649,6 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .pricing-upgrade-row{margin-top:18px}
 .pricing-upgrade-label{display:block;margin-bottom:8px;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;color:var(--green)}
 .pricing-upgrade-list li{font-size:15px;color:rgba(255,255,255,.72)}
-.free-upgrade-callout{margin:12px 0 0;padding:13px 14px;border:1px solid rgba(140,255,193,.22);border-radius:14px;background:rgba(140,255,193,.07)}
-.free-upgrade-callout p{margin:0 0 4px;color:var(--muted);font-size:13px;line-height:1.35}
-.free-upgrade-callout p:last-of-type{margin-bottom:11px}
-.free-upgrade-btn{width:100%;font-size:13px;padding:11px 14px}
-.free-upgrade-callout.hidden{display:none}
 .domain-guide-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:14px 0 10px;padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.04)}
 .domain-guide-label{flex:0 0 100%;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
 .domain-guide-link{color:var(--blue);font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
