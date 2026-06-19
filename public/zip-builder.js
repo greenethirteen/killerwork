@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260602-gtm';
+import { setupPublishControl } from './publish.js?v=20260619-publish-modal';
 
 const panels = [...document.querySelectorAll('[data-step-panel]')];
 const markers = [...document.querySelectorAll('[data-step-marker]')];

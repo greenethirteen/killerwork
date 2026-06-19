@@ -100,9 +100,65 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
     customResultLink(customDomain);
   }
 
+  // Home-page publish is presented as a centered modal (control has .publish-modal).
+  // Elsewhere it stays the anchored dropdown — setOpen works for both.
+  const isModal = control.classList.contains('publish-modal');
+  let backdrop = null;
+  let segWrap = null;
+
+  function selectSegment(which) {
+    if (!segWrap) return;
+    segWrap.querySelectorAll('[data-seg]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.seg === which);
+    });
+    form.classList.toggle('hidden', which !== 'free');
+    if (customBlock) customBlock.classList.toggle('hidden', which !== 'custom');
+  }
+
+  function setOpen(open) {
+    panel.classList.toggle('hidden', !open);
+    if (backdrop) backdrop.classList.toggle('hidden', !open);
+    document.body.classList.toggle('publish-modal-open', isModal && open);
+    if (open) {
+      if (segWrap) selectSegment('free');
+      input.focus();
+    }
+  }
+
+  if (isModal) {
+    backdrop = document.createElement('div');
+    backdrop.className = 'publish-modal-backdrop hidden';
+    backdrop.addEventListener('click', () => setOpen(false));
+    document.body.appendChild(backdrop);
+
+    const head = document.createElement('div');
+    head.className = 'publish-modal-head';
+    const heading = document.createElement('strong');
+    heading.textContent = 'Publish your site';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'publish-modal-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => setOpen(false));
+    head.append(heading, closeBtn);
+    panel.prepend(head);
+
+    segWrap = document.createElement('div');
+    segWrap.className = 'publish-seg';
+    segWrap.innerHTML = '<button type="button" data-seg="free">Free URL</button><button type="button" data-seg="custom">Custom domain</button>';
+    segWrap.querySelectorAll('[data-seg]').forEach(btn => {
+      btn.addEventListener('click', () => selectSegment(btn.dataset.seg));
+    });
+    head.after(segWrap);
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !panel.classList.contains('hidden')) setOpen(false);
+    });
+  }
+
   function openPanel() {
-    panel.classList.toggle('hidden');
-    if (!panel.classList.contains('hidden')) input.focus();
+    setOpen(panel.classList.contains('hidden'));
   }
 
   toggle.addEventListener('click', openPanel);
@@ -132,7 +188,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
       publishedState = data.published;
       resultLink(data.published);
       updateCustomDomainState(data.customDomain);
-      panel.classList.add('hidden');
+      setOpen(false);
       setStatus?.(`Published at ${data.published.url}`, 'ok');
     } catch (err) {
       setStatus?.(err.message || 'Publish failed.', 'error');
@@ -186,7 +242,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
     },
     hide() {
       control.classList.add('hidden');
-      panel.classList.add('hidden');
+      setOpen(false);
       publishedState = null;
       resultLink(null);
       updateCustomDomainState(null);

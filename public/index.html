@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260617-mobile-import-height" />
+  <link rel="stylesheet" href="/ui.css?v=20260619-publish-modal" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -74,6 +74,12 @@
         <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
         <span class="logo-text">KillaWork™</span>
       </a>
+      <nav class="landing-sectionnav" aria-label="Page sections">
+        <a href="#editor">Editor</a>
+        <a href="#themes">Themes</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
@@ -121,6 +127,18 @@
       </article>
     </section>
 
+    <section class="proof-strip proof-strip-top" aria-label="Agency proof" data-nosnippet>
+      <div class="proof-copy">
+        <span>Trusted by creatives</span>
+      </div>
+      <div class="logo-marquee" aria-hidden="true">
+        <div class="logo-track">
+          <figure class="agency-logo"><img src="/logos/ogilvy.svg" alt="Ogilvy logo" /></figure><figure class="agency-logo"><img src="/logos/tbwa.svg" alt="TBWA logo" /></figure><figure class="agency-logo"><img src="/logos/bbdo.svg" alt="BBDO logo" /></figure><figure class="agency-logo"><img src="/logos/ddb.svg" alt="DDB logo" /></figure><figure class="agency-logo"><img src="/logos/leo-burnett.png" alt="Leo Burnett logo" /></figure><figure class="agency-logo"><img src="/logos/mccann.jpg" alt="McCann logo" /></figure><figure class="agency-logo"><img src="/logos/publicis.svg" alt="Publicis logo" /></figure>
+          <figure class="agency-logo"><img src="/logos/ogilvy.svg" alt="Ogilvy logo" /></figure><figure class="agency-logo"><img src="/logos/tbwa.svg" alt="TBWA logo" /></figure><figure class="agency-logo"><img src="/logos/bbdo.svg" alt="BBDO logo" /></figure><figure class="agency-logo"><img src="/logos/ddb.svg" alt="DDB logo" /></figure><figure class="agency-logo"><img src="/logos/leo-burnett.png" alt="Leo Burnett logo" /></figure><figure class="agency-logo"><img src="/logos/mccann.jpg" alt="McCann logo" /></figure><figure class="agency-logo"><img src="/logos/publicis.svg" alt="Publicis logo" /></figure>
+        </div>
+      </div>
+    </section>
+
     <section id="progressPanel" class="glass progress-panel hidden">
       <div class="panel-top">
         <div><span class="status-pill" id="statusPill">Waiting</span><h2 id="stageTitle">Ready to import</h2><p id="stageDetail">Paste a URL to begin.</p></div>
@@ -143,7 +161,7 @@
         <a id="reviewLink" class="button secondary hidden" target="_blank">Review import</a>
         <a id="manifestLink" class="button ghost hidden" target="_blank">Manifest</a>
         <a id="downloadLink" class="button hot">Download ZIP</a>
-        <div id="publishControl" class="publish-control hidden" data-publish-domain="killa.work">
+        <div id="publishControl" class="publish-control publish-modal hidden" data-publish-domain="killa.work">
           <button class="button publish-cta" type="button" data-publish-toggle>⬆ Publish</button>
           <div class="publish-panel hidden" data-publish-panel>
             <form data-publish-form>
@@ -308,7 +326,7 @@
       </div>
     </section>
 
-    <section class="themes-showcase" aria-label="Portfolio themes" data-nosnippet data-reveal>
+    <section id="themes" class="themes-showcase" aria-label="Portfolio themes" data-nosnippet data-reveal>
       <div class="showcase-copy compact">
         <span class="section-kicker">Themes</span>
         <h2>Not basic templates.<br>Ones that stop the scroll.</h2>

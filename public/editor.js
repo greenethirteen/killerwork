@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260602-gtm';
+import { setupPublishControl } from './publish.js?v=20260619-publish-modal';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');

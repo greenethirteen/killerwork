@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260617-price999';
+import { setupPublishControl } from './publish.js?v=20260619-publish-modal';
 import { bindProtectedZipLink } from './billing.js?v=20260617-price999';
 
 const form = document.getElementById('importForm');
