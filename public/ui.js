@@ -233,14 +233,14 @@ function renderBar(value) {
   pct.textContent = `${Math.round(v)}%`;
 }
 
-// Smoothly eases the displayed bar toward real backend progress while always
-// trickling a little further, so it never sits frozen on one number then jumps.
+// Eases the displayed bar toward real backend progress, and when it has caught up
+// (a long stage where the backend percent doesn't move) keeps creeping at a steady
+// ~1%/4s so the number never sits frozen. Capped at 95% until the job is done.
 function tickProgress() {
-  const ceiling = Math.min(95, targetPercent + 14);
   if (displayPercent < targetPercent) {
     displayPercent += Math.max(0.5, (targetPercent - displayPercent) * 0.16);
-  } else if (displayPercent < ceiling) {
-    displayPercent += Math.max(0.08, (ceiling - displayPercent) * 0.045);
+  } else if (displayPercent < 95) {
+    displayPercent += 0.04;
   }
   displayPercent = Math.min(displayPercent, 99);
   renderBar(displayPercent);

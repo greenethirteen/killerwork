@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260619-publish-modal" />
+  <link rel="stylesheet" href="/ui.css?v=20260619-splash-bigger" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -75,10 +75,10 @@
         <span class="logo-text">KillaWork™</span>
       </a>
       <nav class="landing-sectionnav" aria-label="Page sections">
+        <a href="#how-it-works">How it works</a>
         <a href="#editor">Editor</a>
         <a href="#themes">Themes</a>
         <a href="#pricing">Pricing</a>
-        <a href="#faq">FAQ</a>
       </nav>
       <div class="topnav-actions">
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
@@ -107,7 +107,7 @@
             <input id="urlInput" type="url" placeholder="Enter your Behance/Portfolio URL" required data-clarity-mask="true" />
             <div class="import-action-row">
               <button id="startBtn" type="submit">Import it</button>
-              <a class="button secondary see-action-button" href="/see-it-in-action.html" target="_blank" rel="noopener">Before &amp; After</a>
+              <a class="button see-action-button" href="/see-it-in-action.html" target="_blank" rel="noopener"><span class="see-action-icon" aria-hidden="true">▶</span>How it works</a>
             </div>
           </form>
         </div>
@@ -218,7 +218,7 @@
       </div>
     </section>
 
-    <section class="behance-import-showcase" aria-label="Behance import before and after" data-nosnippet data-reveal>
+    <section id="how-it-works" class="behance-import-showcase" aria-label="Behance import before and after" data-nosnippet data-reveal>
       <div class="showcase-copy">
         <span class="section-kicker">Behance import</span>
         <h2>From a Behance site into a polished <span class="dotcom-highlight">.com</span> portfolio</h2>
@@ -548,28 +548,6 @@
       </div>
     </section>
 
-    <section id="faq" class="faq-section" aria-label="Frequently asked questions" data-nosnippet data-reveal>
-      <div class="section-kicker">FAQ</div>
-      <div class="faq-grid">
-        <details data-reveal-item>
-          <summary>Is it really a one-time fee?</summary>
-          <p>Yes. One-time $9.99 fee and your portfolio stays published. No monthly charges, no renewal, no surprises.</p>
-        </details>
-        <details data-reveal-item>
-          <summary>Can I edit imported pages?</summary>
-          <p>Yes. After import, you can review pages, change copy, manage projects, and preview the result.</p>
-        </details>
-        <details data-reveal-item>
-          <summary>What files can it handle?</summary>
-          <p>Images, campaign boards, videos, audio/radio spots, PDFs, and existing project-page assets.</p>
-        </details>
-        <details data-reveal-item>
-          <summary>Which platforms can it import from?</summary>
-          <p>It is built around portfolio-style sites and creative profiles from Behance, Squarespace, and Cargo.</p>
-        </details>
-      </div>
-    </section>
-
     <section class="ownership-note" data-nosnippet data-reveal>
       <b>Your work stays yours.</b>
       <span>Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days.</span>
@@ -580,7 +558,7 @@
     </footer>
   </main>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260619-smooth-progress'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260619-progress-creep'));
   </script>
 </body>
 </html>
