@@ -457,7 +457,25 @@ function addBodyClass(html, className) {
   });
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '' } = {}) {
+// Floating "Publish Live" button injected into PREVIEW pages only. Published/live
+// sites are served through serveSiteFile and never pass through here, so visitors
+// of a published portfolio never see this control.
+function previewPublishButton(jobId) {
+  if (!jobId) return '';
+  const href = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
+  // Hidden by default; revealed only when the preview is the top-level document.
+  // This keeps it out of the editor preview iframes (ai-studio, zip-studio, ad-builder).
+  return `<style>
+.kw-preview-publish{position:fixed;top:18px;right:18px;z-index:2147483647;display:none;align-items:center;gap:8px;padding:13px 20px;border-radius:999px;background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c;font:950 15px/1 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;text-decoration:none;box-shadow:0 14px 40px rgba(0,0,0,.32);transition:transform .15s ease,box-shadow .15s ease}
+.kw-preview-publish:hover{transform:translateY(-1px);box-shadow:0 18px 52px rgba(0,0,0,.4)}
+@media(max-width:760px){.kw-preview-publish{top:12px;right:12px;padding:11px 16px;font-size:14px}}
+@media print{.kw-preview-publish{display:none!important}}
+</style>
+<a id="kwPreviewPublish" class="kw-preview-publish" href="${href}" target="_top" rel="noopener" aria-label="Publish this portfolio live">⬆ Publish Live</a>
+<script>(function(){try{if(window.top===window.self){document.getElementById('kwPreviewPublish').style.display='inline-flex';}}catch(e){}})();</script>`;
+}
+
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '' } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
   if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
   if (/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i.test(html)) {
@@ -478,6 +496,10 @@ async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false
   } else {
     html = html.replace(/<\/body>/i, '<script src="/portfolio-loader.js?v=20260601-squarespace-speed"></script></body>');
   }
+  const publishButton = previewPublishButton(jobId);
+  if (publishButton) {
+    html = html.replace(/<\/body>/i, `${publishButton}</body>`);
+  }
   res.setHeader('Cache-Control', 'no-cache');
   return res.type('html').send(html);
 }
@@ -488,7 +510,7 @@ async function serveGeneratedHomePage(req, res, next) {
     if (!manifest) return next();
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
-    return sendPortfolioHtmlWithRuntime(res, target, portfolioRuntimeOptions(manifest, 'index.html'));
+    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id });
   } catch (err) {
     next(err);
   }
@@ -501,7 +523,7 @@ async function serveGeneratedCampaignPage(req, res, next) {
     if (!target.startsWith(siteRoot + path.sep)) return res.status(400).send('Bad path');
     if (!(await fs.pathExists(target))) return next();
     const manifest = await readManifest(req.params.id);
-    return sendPortfolioHtmlWithRuntime(res, target, { behanceProject: manifest?.sourcePlatform === 'behance' });
+    return sendPortfolioHtmlWithRuntime(res, target, { behanceProject: manifest?.sourcePlatform === 'behance', jobId: req.params.id });
   } catch (err) {
     next(err);
   }

@@ -232,6 +232,15 @@ function applyPortfolio(data) {
   }
   publishControl.setPublished(data.published, data.customDomain);
   renderProjects();
+  // Arriving from the preview page's "Publish Live" button: open the panel automatically.
+  if (params.get('publish') === '1') {
+    const toggle = document.querySelector('#publishControl [data-publish-toggle]');
+    const panel = document.querySelector('#publishControl [data-publish-panel]');
+    if (toggle && panel?.classList.contains('hidden')) {
+      toggle.click();
+      document.getElementById('publishControl')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
 }
 
 async function loadPortfolio() {
