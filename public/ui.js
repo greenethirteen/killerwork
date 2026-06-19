@@ -30,6 +30,10 @@ const importCopySlides = [...document.querySelectorAll('.import-copy-slide')];
 const squarespacePreview = document.querySelector('[data-squarespace-preview]');
 const squarespaceTabs = [...document.querySelectorAll('[data-squarespace-tab]')];
 let timer;
+let progressTimer;
+let displayPercent = 0;
+let targetPercent = 0;
+let maxPhase = -1;
 let activeButton = startBtn;
 let currentJobId = '';
 
@@ -196,23 +200,75 @@ function initLandingMotion() {
 
 initLandingMotion();
 
-function setStep(stage){
-  const s = String(stage).toLowerCase();
-  const map = s.includes('scan') ? 'scan' : s.includes('crawl') || s.includes('analyz') || s.includes('organizing') ? 'crawl' : s.includes('asset') || s.includes('download') || s.includes('saving') ? 'assets' : s.includes('build') || s.includes('generate') ? 'build' : s.includes('validat') ? 'validate' : s.includes('zip') ? 'zip' : '';
-  steps.forEach(el => el.classList.toggle('active', el.dataset.step === map));
+// Forward-only import phases. Each backend stage maps to one of these; the phase
+// index only ever increases, so the label never flips back (e.g. from "Importing
+// the media" to "Finding the work") during the per-project crawl/download loop.
+const PHASES = [
+  { title: 'Reading your portfolio', detail: 'Looking through the site and finding the work', step: 'scan' },
+  { title: 'Finding the work', detail: 'Collecting projects and campaign structure', step: 'crawl' },
+  { title: 'Importing the media', detail: 'Bringing images and videos into KillaWork', step: 'assets' },
+  { title: 'Polishing the portfolio', detail: 'Cleaning up structure, titles, and copy', step: 'build' },
+  { title: 'Building your preview', detail: 'Turning the imported work into a polished portfolio', step: 'build' },
+  { title: 'Checking the preview', detail: 'Making sure the pages are ready to view', step: 'validate' },
+  { title: 'Preparing your preview', detail: 'Getting your preview and download ready', step: 'zip' },
+];
+
+// Map a backend stage string to a phase index, or -1 when it doesn't clearly
+// belong to one (caller then holds the current phase).
+function stagePhase(stage = '') {
+  const t = String(stage).toLowerCase();
+  if (t.includes('zip') || t.includes('ready')) return 6;
+  if (t.includes('validat')) return 5;
+  if (t.includes('build') || t.includes('generate') || t.includes('static site')) return 4;
+  if (t.includes('ai') || t.includes('cleanup') || t.includes('manifest') || t.includes('polish')) return 3;
+  if (t.includes('asset') || t.includes('download') || t.includes('saving')) return 2;
+  if (t.includes('project') || t.includes('crawl') || t.includes('found') || t.includes('organizing')) return 1;
+  if (t.includes('scan') || t.includes('start') || t.includes('read')) return 0;
+  return -1;
 }
 
-function friendlyProgress(stage = '', fallback = '') {
-  const text = String(stage).toLowerCase();
-  if (text.includes('fail')) return { title: 'Import needs attention', detail: fallback || 'Something stopped the import. Please try again.' };
-  if (text.includes('zip') || text.includes('ready')) return { title: 'Preparing your preview', detail: 'Getting your preview and download ready' };
-  if (text.includes('validat')) return { title: 'Checking the preview', detail: 'Making sure the pages are ready to view' };
-  if (text.includes('build') || text.includes('generate')) return { title: 'Building your preview', detail: 'Turning the imported work into a polished portfolio' };
-  if (text.includes('ai') || text.includes('cleanup')) return { title: 'Polishing the portfolio', detail: 'Cleaning up structure, titles, and copy' };
-  if (text.includes('asset') || text.includes('download') || text.includes('saving')) return { title: 'Importing the media', detail: 'Bringing images and videos into KillaWork' };
-  if (text.includes('project') || text.includes('crawl') || text.includes('found') || text.includes('organizing')) return { title: 'Finding the work', detail: 'Collecting projects and campaign structure' };
-  if (text.includes('scan') || text.includes('start')) return { title: 'Reading your portfolio', detail: 'Looking through the site and finding the work' };
-  return { title: 'Import running', detail: fallback || 'Your preview is being created' };
+function renderBar(value) {
+  const v = Math.max(0, Math.min(100, value));
+  bar.style.width = `${v}%`;
+  pct.textContent = `${Math.round(v)}%`;
+}
+
+// Smoothly eases the displayed bar toward real backend progress while always
+// trickling a little further, so it never sits frozen on one number then jumps.
+function tickProgress() {
+  const ceiling = Math.min(95, targetPercent + 14);
+  if (displayPercent < targetPercent) {
+    displayPercent += Math.max(0.5, (targetPercent - displayPercent) * 0.16);
+  } else if (displayPercent < ceiling) {
+    displayPercent += Math.max(0.08, (ceiling - displayPercent) * 0.045);
+  }
+  displayPercent = Math.min(displayPercent, 99);
+  renderBar(displayPercent);
+}
+
+function startProgressAnim() {
+  if (progressTimer) return;
+  progressTimer = setInterval(tickProgress, 150);
+}
+
+function stopProgressAnim() {
+  clearInterval(progressTimer);
+  progressTimer = null;
+}
+
+function resetProgress(startAt = 2) {
+  displayPercent = startAt;
+  targetPercent = startAt;
+  maxPhase = -1;
+  renderBar(startAt);
+  startProgressAnim();
+}
+
+function completeProgress() {
+  stopProgressAnim();
+  displayPercent = 100;
+  targetPercent = 100;
+  renderBar(100);
 }
 
 async function poll(id){
@@ -220,13 +276,18 @@ async function poll(id){
   const res = await fetch(`/api/jobs/${id}`, { headers });
   const job = await res.json();
   const last = job.progress?.[job.progress.length-1];
-  const friendly = friendlyProgress(last?.stage, job.url);
   panel.classList.remove('hidden');
   pill.textContent = job.status === 'running' ? 'Working' : job.status;
-  title.textContent = friendly.title;
-  detail.textContent = friendly.detail;
-  bar.style.width = `${job.percent || 0}%`;
-  pct.textContent = `${job.percent || 0}%`;
+  // Advance the phase forward only — never regress to an earlier label/step.
+  const phase = stagePhase(last?.stage);
+  if (phase > maxPhase) maxPhase = phase;
+  if (maxPhase >= 0) {
+    title.textContent = PHASES[maxPhase].title;
+    detail.textContent = PHASES[maxPhase].detail;
+  }
+  // Feed real progress as a monotonic floor; the animation loop renders it smoothly.
+  targetPercent = Math.max(targetPercent, job.percent || 0);
+  if (job.status === 'running') startProgressAnim();
   if (logs) {
     const entries = job.progress || [];
     const atBottom = logs.scrollHeight - logs.scrollTop <= logs.clientHeight + 32;
@@ -247,9 +308,13 @@ async function poll(id){
     }
     if (atBottom) logs.scrollTop = logs.scrollHeight;
   }
-  setStep(last?.stage || '');
+  if (maxPhase >= 0) {
+    const stepName = PHASES[maxPhase].step;
+    steps.forEach(el => el.classList.toggle('active', el.dataset.step === stepName));
+  }
   if(job.status === 'done'){
     clearInterval(timer);
+    completeProgress();
     pill.textContent = 'Complete';
     title.textContent = 'Your preview is ready';
     detail.textContent = 'Open it now, make edits, or publish when you are ready';
@@ -271,6 +336,7 @@ async function poll(id){
   }
   if(job.status === 'error'){
     clearInterval(timer);
+    stopProgressAnim();
     pill.textContent = 'Error';
     title.textContent = 'Import needs attention';
     detail.textContent = job.error || 'Something stopped the import. Please try again.';
@@ -289,7 +355,7 @@ form.addEventListener('submit', async (e) => {
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   startBtn.disabled = true;
   startBtn.textContent = 'Signing in...';
-  bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Getting ready'; detail.textContent = 'We will sign you in and start building a preview';
+  resetProgress(2); title.textContent = 'Getting ready'; detail.textContent = 'We will sign you in and start building a preview';
   let token = '';
   try {
     token = await window.KillerWorkAuth.requireToken();
@@ -320,7 +386,7 @@ if (uploadForm) {
     panel.classList.remove('hidden');
     buildUploadBtn.disabled = true;
     buildUploadBtn.textContent = 'Signing in...';
-    bar.style.width = '2%'; pct.textContent = '2%'; title.textContent = 'Starting upload build'; detail.textContent = `${uploadFiles.files.length} file(s)`;
+    resetProgress(2); title.textContent = 'Starting upload build'; detail.textContent = `${uploadFiles.files.length} file(s)`;
     let token = '';
     try {
       token = await window.KillerWorkAuth.requireToken();
