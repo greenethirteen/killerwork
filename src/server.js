@@ -466,19 +466,23 @@ function previewPublishButton(jobId) {
   if (!jobId) return '';
   const safeId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
   const fallbackHref = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
-  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed">
+  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed4">
 <style>
 .kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 .kw-preview-bar a,.kw-preview-bar button{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border:0;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap;cursor:pointer;font-family:inherit}
-.kw-preview-bar .kw-home{color:#fffaf2;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
-.kw-preview-bar .kw-home:hover{background:rgba(255,255,255,.12)}
+.kw-preview-bar .kw-actions{display:inline-flex;align-items:center;gap:10px}
+.kw-preview-bar .kw-home,.kw-preview-bar .kw-edit{color:#fffaf2;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
+.kw-preview-bar .kw-home:hover,.kw-preview-bar .kw-edit:hover{background:rgba(255,255,255,.12)}
 .kw-preview-bar .kw-pub{background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c}
 .kw-preview-bar .kw-pub:hover{filter:brightness(1.05)}
 @media print{.kw-preview-bar{display:none!important}}
 </style>
 <div class="kw-preview-bar" id="kwPreviewBar">
   <a class="kw-home" href="https://killa.work/" target="_blank" rel="noopener">⌂ Home</a>
-  <button class="kw-pub" id="kwPubBtn" type="button" aria-label="Publish this portfolio live">⬆ Publish Live</button>
+  <div class="kw-actions">
+    <a class="kw-edit" href="/ai-editor.html?job=${safeId}" target="_top" rel="noopener" aria-label="Edit this portfolio in the editor">✎ Edit</a>
+    <button class="kw-pub" id="kwPubBtn" type="button" aria-label="Publish this portfolio live">⬆ Publish Live</button>
+  </div>
 </div>
 <div id="kwPublishControl" class="publish-control publish-modal hidden" data-publish-domain="killa.work">
   <button type="button" data-publish-toggle style="display:none"></button>
@@ -490,6 +494,7 @@ function previewPublishButton(jobId) {
     <p class="publish-result hidden" data-publish-result></p>
     <div class="custom-domain-block" data-custom-domain-block>
       <div class="publish-divider">Or connect your own domain</div>
+      <p class="custom-domain-note">Publish to a free .killa.work URL above first — then you can connect a domain you own.</p>
       <form data-custom-domain-form>
         <label><span>Owned domain</span><input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" disabled></label>
         <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
@@ -570,6 +575,7 @@ async function serveGeneratedHomePage(req, res, next) {
     if (!manifest) return next();
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
+    await refreshStylesIfStale(req.params.id, manifest);
     return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id });
   } catch (err) {
     next(err);
@@ -1414,6 +1420,24 @@ async function ensureStylesCss(id, manifest) {
     await fs.writeFile(path.join(siteDir(id), 'styles.css'), css);
   } catch (e) {
     console.error('[ensureStylesCss] failed for', id, e.message);
+  }
+}
+
+// Regenerate styles.css only when the base portfolio.css is newer than the baked
+// copy — so CSS tweaks reach already-generated previews on the next load without
+// rewriting the file on every request.
+async function refreshStylesIfStale(id, manifest) {
+  try {
+    const stylesPath = path.join(siteDir(id), 'styles.css');
+    const basePath = path.join(root, 'public', 'portfolio.css');
+    const [sStat, bStat] = await Promise.all([
+      fs.stat(stylesPath).catch(() => null),
+      fs.stat(basePath).catch(() => null)
+    ]);
+    if (!bStat) return;
+    if (!sStat || bStat.mtimeMs > sStat.mtimeMs) await ensureStylesCss(id, manifest);
+  } catch {
+    /* non-fatal — fall back to whatever styles.css is on disk */
   }
 }
 

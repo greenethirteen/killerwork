@@ -4,6 +4,10 @@
 #kwPublishControl{position:static}
 #kwPublishControl.hidden{display:none}
 #kwPublishControl .hidden{display:none}
+/* The panel is portaled onto the backdrop (out of #kwPublishControl), so .hidden
+   must also resolve for its descendants here — otherwise segment switching can't
+   hide the inactive form / DNS instructions. */
+.publish-modal-backdrop .hidden{display:none!important}
 body.publish-modal-open{overflow:hidden}
 .publish-modal-backdrop{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:20px;background:rgba(4,6,12,.66);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;animation:kwPubFade .18s ease}
 .publish-modal-backdrop.hidden{display:none}
@@ -27,6 +31,8 @@ body.publish-modal-open{overflow:hidden}
 .publish-result span{font-weight:900;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 .publish-result a{color:#8cffc1;font-weight:900;word-break:break-word}
 .custom-domain-block .publish-divider{display:none}
+.custom-domain-note{margin:0 0 12px;padding:9px 12px;border:1px solid rgba(123,223,242,.28);border-radius:12px;background:rgba(123,223,242,.09);color:#bfe7f1;font-size:12.5px;line-height:1.45;font-weight:700}
+.custom-domain-block[data-enabled="true"] .custom-domain-note{display:none}
 .custom-domain-block form{display:grid;gap:12px;margin-top:14px}
 .custom-domain-block input:disabled,.custom-domain-block button:disabled{cursor:not-allowed;opacity:.58}
 .custom-domain-instructions{margin-top:14px;color:#e8e3db;font-size:13px;line-height:1.45}

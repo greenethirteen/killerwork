@@ -94,7 +94,7 @@ function publishControlHtml() {
           <label>
             <span>Portfolio URL</span>
             <div class="publish-url-field">
-              <input data-publish-input type="text" placeholder="abdullahfarouk" autocomplete="off" />
+              <input data-publish-input type="text" placeholder="yourname" autocomplete="off" />
               <b>.killa.work</b>
             </div>
           </label>
@@ -103,6 +103,7 @@ function publishControlHtml() {
         <p class="publish-result hidden" data-publish-result></p>
         <div class="custom-domain-block" data-custom-domain-block>
           <div class="publish-divider">Or connect your own domain</div>
+          <p class="custom-domain-note">Publish to a free .killa.work URL above first — then you can connect a domain you own.</p>
           <form data-custom-domain-form>
             <label>
               <span>Owned domain</span>

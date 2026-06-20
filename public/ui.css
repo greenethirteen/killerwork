@@ -849,3 +849,5 @@ body{top:0!important}
 .action-platform-select{appearance:none;-webkit-appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:var(--fg);border-radius:999px;padding:10px 14px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit}
 .action-platform-select option{color:#111}
 @media(max-width:760px){.action-platform-select{padding:9px 10px;font-size:12px}}
+.custom-domain-note{margin:0 0 12px;padding:9px 12px;border:1px solid rgba(123,223,242,.28);border-radius:12px;background:rgba(123,223,242,.09);color:#bfe7f1;font-size:12.5px;line-height:1.45;font-weight:700}
+.custom-domain-block[data-enabled="true"] .custom-domain-note{display:none}
