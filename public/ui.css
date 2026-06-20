@@ -131,7 +131,7 @@ body.publish-modal-open{overflow:hidden}
 }
 
 .import-copy-flip{position:relative;display:block;height:var(--import-copy-height,210px)}
-.highlight-site{font-weight:900;text-shadow:0 0 20px rgba(255,255,255,.18)}
+.highlight-site{font-weight:900}
 .highlight-behance{color:#ff8ad4}
 .highlight-squarespace{color:#ffd166}
 .highlight-wix{color:#7bdff2}
