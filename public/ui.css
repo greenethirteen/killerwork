@@ -781,8 +781,9 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .site-footer-base a:hover{color:var(--fg)}
 @media(max-width:680px){.site-footer-main{gap:28px}.site-footer-nav{gap:24px 44px}.site-footer-base{flex-direction:column;align-items:flex-start;gap:8px}}
 /* Single static import headline (replaces the rotating slides) — sized down for the longer line */
-.dual-panel-import h1.import-headline{margin:0 0 4px;font-size:clamp(30px,3.7vw,52px);line-height:1.04;letter-spacing:-.035em;text-wrap:balance}
-@media(max-width:760px){.dual-switcher[data-active-panel="import"] .dual-panel-import h1.import-headline{font-size:clamp(27px,7vw,40px);line-height:1.07;letter-spacing:-.03em}}
+.dual-panel-import h1.import-headline{margin:0;font-size:clamp(34px,4.5vw,64px);line-height:1.02;letter-spacing:-.04em;text-wrap:balance}
+.import-subhead{margin:-4px 0 0;max-width:36ch;color:var(--muted);font-size:clamp(15px,1.3vw,19px);line-height:1.45;font-weight:600}
+@media(max-width:760px){.dual-switcher[data-active-panel="import"] .dual-panel-import h1.import-headline{font-size:clamp(29px,7.6vw,44px);line-height:1.06;letter-spacing:-.03em}.import-subhead{font-size:16px}}
 /* "Never lose your work" backup / ownership section */
 .backup-shield{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,430px);gap:32px;align-items:center;margin-top:24px;padding:36px 32px;border:1px solid rgba(255,255,255,.14);border-radius:26px;background:linear-gradient(135deg,rgba(255,107,107,.09),rgba(255,255,255,.05) 52%,rgba(140,255,193,.06));box-shadow:0 28px 90px rgba(0,0,0,.25);overflow:hidden}
 .backup-shield-copy{display:grid;gap:15px;align-content:start}
@@ -800,3 +801,10 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .backup-card b{font-size:18px;letter-spacing:-.02em;color:var(--fg)}
 .backup-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.42}
 @media(max-width:860px){.backup-shield{grid-template-columns:1fr;gap:24px;padding:28px 22px}}
+/* Import → Publish → Pay flow badge */
+.savings-badge.import-flow{gap:8px 10px;flex-wrap:wrap;padding:9px 18px}
+.savings-badge.import-flow:before{display:none}
+.import-flow .flow-step{font-size:clamp(13px,1.1vw,15px);font-weight:900;white-space:nowrap;letter-spacing:0;text-shadow:none;color:#eafff2}
+.import-flow .flow-own{font-weight:800}
+.import-flow .flow-own b{color:var(--gold);font-weight:950}
+.import-flow .flow-sep{font-size:14px;font-weight:900;color:var(--green);text-shadow:none;line-height:1}
