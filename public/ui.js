@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { setupPublishControl } from './publish.js?v=20260620-namecheck';
 import { bindProtectedZipLink } from './billing.js?v=20260620-autopublish';
 
 const form = document.getElementById('importForm');

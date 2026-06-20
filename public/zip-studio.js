@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { setupPublishControl } from './publish.js?v=20260620-namecheck';
 
 const form = document.getElementById('studioForm');
 const feed = document.getElementById('studioFeed');

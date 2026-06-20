@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { setupPublishControl } from './publish.js?v=20260620-namecheck';
 import { bindProtectedZipLink, trackSubscriptionCheckoutReturn } from './billing.js?v=20260620-autopublish';
 
 const params = new URLSearchParams(location.search);

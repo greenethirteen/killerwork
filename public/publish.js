@@ -20,6 +20,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   const customBlock = control.querySelector('[data-custom-domain-block]');
   let publishedState = null;
   let unpublishBtn = null;
+  let errorEl = null;
 
   if (!toggle || !panel || !form || !input || !submit) {
     console.warn('Publish control is missing required elements and has been disabled.');
@@ -77,6 +78,16 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
     }
     const href = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? published.localPreview : published.url;
     linkResult(result, 'Published at', href, published.url);
+  }
+
+  // Show publish errors (taken name, invalid name, failures) inside the popup itself,
+  // not just via the host page's status line.
+  function showError(msg) {
+    if (errorEl) {
+      errorEl.textContent = msg || '';
+      errorEl.classList.toggle('hidden', !msg);
+    }
+    if (msg) setStatus?.(msg, 'error');
   }
 
   function customResultLink(customDomain) {
@@ -205,16 +216,24 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   });
   form.after(unpublishBtn);
 
+  errorEl = document.createElement('p');
+  errorEl.className = 'publish-error hidden';
+  errorEl.dataset.publishError = 'true';
+  errorEl.setAttribute('role', 'alert');
+  form.after(errorEl);
+
   toggle.addEventListener('click', openPanel);
   input.addEventListener('input', () => {
     input.value = clean(input.value);
+    showError('');
   });
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const jobId = getJobId();
     const subdomain = clean(input.value);
-    if (!jobId) return setStatus?.('Build or import a portfolio before publishing.', 'error');
-    if (!subdomain) return setStatus?.('Choose a subdomain before publishing.', 'error');
+    showError('');
+    if (!jobId) return showError('Build or import a portfolio before publishing.');
+    if (!subdomain) return showError('Choose a subdomain before publishing.');
     submit.disabled = true;
     submit.textContent = 'Publishing...';
     setStatus?.(`Publishing to ${subdomain}.${domain}...`);
@@ -235,7 +254,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
       setOpen(false);
       setStatus?.(`Published at ${data.published.url}`, 'ok');
     } catch (err) {
-      setStatus?.(err.message || 'Publish failed.', 'error');
+      showError(err.message || 'Publish failed.');
     } finally {
       submit.disabled = false;
       submit.textContent = 'Publish';

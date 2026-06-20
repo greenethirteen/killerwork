@@ -95,6 +95,39 @@ const zipUpload = multer({
 await fs.ensureDir(generatedRoot);
 await fs.ensureDir(tmpUploadsDir);
 
+// Stripe webhook must read the RAW body to verify the signature, so it is
+// registered before express.json(). It completes the post-payment publish even
+// if the buyer closes the tab before the redirect-confirm runs. No-ops safely
+// until STRIPE_WEBHOOK_SECRET is set (and the endpoint is added in Stripe).
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !stripeWebhookSecret) return res.status(503).end();
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], stripeWebhookSecret);
+  } catch (err) {
+    console.error('Stripe webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    try {
+      const jobId = session.metadata?.jobId;
+      const subdomain = session.metadata?.subdomain;
+      const uid = session.metadata?.firebaseUid || session.client_reference_id;
+      if (jobId && subdomain && session.payment_status === 'paid') {
+        const manifest = await readManifest(jobId).catch(() => null);
+        if (manifest && canAccessPortfolio(manifest, { uid })) {
+          const result = await publishPortfolioSubdomain(jobId, manifest, subdomain);
+          if (result.error) console.warn('Webhook auto-publish skipped:', result.error.body?.error);
+        }
+      }
+    } catch (err) {
+      console.error('Stripe webhook publish failed:', err.message);
+    }
+  }
+  res.json({ received: true });
+});
+
 app.use(express.json({ limit: '2mb' }));
 app.use(compression());
 app.get('*', serveCustomDomainIfMapped);
@@ -201,6 +234,7 @@ const firebaseAdmin = firebaseAccount ? admin.initializeApp({
 }) : null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const stripeProductId = process.env.STRIPE_PRODUCT_ID || 'prod_Uio91cAmqETWVG';
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function requestHostname(req) {
@@ -466,7 +500,7 @@ function previewPublishButton(jobId) {
   if (!jobId) return '';
   const safeId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
   const fallbackHref = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
-  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed5">
+  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed6">
 <style>
 .kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 .kw-preview-bar a,.kw-preview-bar button{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border:0;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap;cursor:pointer;font-family:inherit}
@@ -525,7 +559,7 @@ function previewPublishButton(jobId) {
         // publish.js is all the modal needs; auth.js is only used at submit time,
         // so load it in the background and don't block opening the popup on it.
         import('/auth.js?v=20260605-nav-auth-cta').catch(() => {});
-        const mod = await import('/publish.js?v=20260620-autopublish');
+        const mod = await import('/publish.js?v=20260620-namecheck');
         const ctrl = mod.setupPublishControl({ control: document.getElementById('kwPublishControl'), getJobId: () => '${safeId}', setStatus });
         ctrl.show();
         document.getElementById('kwPubBtn').addEventListener('click', () => {
@@ -2196,10 +2230,10 @@ app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
 
 const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'assets', 'static', 'cdn', 'mail', 'support', 'help', 'killawork']);
 
-// Core publish: validate the requested subdomain, ensure it's free, and write it
-// onto the manifest. Shared by the publish endpoint and the post-payment auto-publish
-// so both behave identically. Returns { error } or { published, customDomain, paid }.
-async function publishPortfolioSubdomain(id, manifest, requestedRaw) {
+// Validate a requested subdomain and confirm it isn't taken by another portfolio.
+// Returns { error } or { requested }. Checked BEFORE the payment gate so a bad/taken
+// name is reported in the popup rather than after the user has paid.
+async function subdomainAvailability(id, requestedRaw) {
   const requested = normalizeSubdomain(requestedRaw || '');
   if (!validSubdomain(requested) || RESERVED_SUBDOMAINS.has(requested)) {
     return { error: { status: 400, body: { error: 'Choose a valid subdomain using letters, numbers, or hyphens.' } } };
@@ -2207,8 +2241,18 @@ async function publishPortfolioSubdomain(id, manifest, requestedRaw) {
   const index = await publishedIndex();
   const existing = index.get(requested);
   if (existing && existing.id !== id) {
-    return { error: { status: 409, body: { error: `${requested}.${publicHost()} is already taken.` } } };
+    return { error: { status: 409, body: { error: `${requested}.${publicHost()} is already taken. Try another name.` } } };
   }
+  return { requested };
+}
+
+// Core publish: validate availability, then write the subdomain onto the manifest.
+// Shared by the publish endpoint and the post-payment auto-publish so both behave
+// identically. Returns { error } or { published, customDomain, paid }.
+async function publishPortfolioSubdomain(id, manifest, requestedRaw) {
+  const availability = await subdomainAvailability(id, requestedRaw);
+  if (availability.error) return availability;
+  const requested = availability.requested;
   manifest.paid = true;
   manifest.published = {
     subdomain: requested,
@@ -2226,12 +2270,26 @@ async function publishPortfolioSubdomain(id, manifest, requestedRaw) {
   return { published: manifest.published, customDomain: manifest.customDomain || null, paid: manifest.paid };
 }
 
-app.post('/api/publish/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {
+app.post('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
   const id = req.params.id;
   const manifest = await readManifest(id);
   if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
   if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
-  const result = await publishPortfolioSubdomain(id, manifest, req.body?.subdomain);
+  // Check the name BEFORE the payment gate so a taken/invalid subdomain is reported
+  // in the popup and never sends the user to checkout for a name they can't have.
+  const availability = await subdomainAvailability(id, req.body?.subdomain);
+  if (availability.error) return res.status(availability.error.status).json(availability.error.body);
+  // Then require the one-time payment (inlined from requireActiveSubscription so it
+  // runs only after the name is confirmed available).
+  const state = await subscriptionStateFor(req.user);
+  if (!state.configured) return res.status(503).json({ error: 'Subscriptions are not configured yet.', code: 'billing_not_configured' });
+  if (!state.active) {
+    return res.status(402).json({
+      error: 'A one-time $9.99 payment unlocks publishing, custom domains, and ZIP downloads.',
+      code: 'subscription_required'
+    });
+  }
+  const result = await publishPortfolioSubdomain(id, manifest, availability.requested);
   if (result.error) return res.status(result.error.status).json(result.error.body);
   res.json({ ok: true, published: result.published, customDomain: result.customDomain, paid: result.paid });
 });

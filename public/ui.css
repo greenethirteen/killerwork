@@ -854,3 +854,5 @@ body{top:0!important}
 .publish-panel .publish-unpublish{margin-top:10px;background:transparent;border:1px solid rgba(255,107,107,.42);color:#ff8585;font-weight:800}
 .publish-panel .publish-unpublish:hover{background:rgba(255,107,107,.1)}
 .publish-panel .publish-unpublish.hidden{display:none}
+.publish-error{margin:10px 0 0;padding:9px 12px;border:1px solid rgba(255,107,107,.45);border-radius:12px;background:rgba(255,107,107,.1);color:#ff8a8a;font-size:13px;font-weight:800;line-height:1.4}
+.publish-error.hidden{display:none}

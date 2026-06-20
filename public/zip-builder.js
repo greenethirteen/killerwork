@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { setupPublishControl } from './publish.js?v=20260620-namecheck';
 
 const panels = [...document.querySelectorAll('[data-step-panel]')];
 const markers = [...document.querySelectorAll('[data-step-marker]')];

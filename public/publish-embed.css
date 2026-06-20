@@ -35,6 +35,7 @@ body.publish-modal-open{overflow:hidden}
 .custom-domain-block[data-enabled="true"] .custom-domain-note{display:none}
 .publish-modal-backdrop .publish-panel .publish-unpublish{margin-top:10px;background:transparent;border:1px solid rgba(255,107,107,.45);color:#ff8585}
 .publish-modal-backdrop .publish-panel .publish-unpublish:hover{background:rgba(255,107,107,.12)}
+.publish-modal-backdrop .publish-error{margin:10px 0 0;padding:9px 12px;border:1px solid rgba(255,107,107,.45);border-radius:12px;background:rgba(255,107,107,.1);color:#ff8a8a;font-size:13px;font-weight:800;line-height:1.4}
 .custom-domain-block form{display:grid;gap:12px;margin-top:14px}
 .custom-domain-block input:disabled,.custom-domain-block button:disabled{cursor:not-allowed;opacity:.58}
 .custom-domain-instructions{margin-top:14px;color:#e8e3db;font-size:13px;line-height:1.45}

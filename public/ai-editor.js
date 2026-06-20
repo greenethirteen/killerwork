@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { setupPublishControl } from './publish.js?v=20260620-namecheck';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job') || localStorage.getItem('killerwork:lastJobId') || '';

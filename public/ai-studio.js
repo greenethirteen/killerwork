@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { setupPublishControl } from './publish.js?v=20260620-namecheck';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const form = document.getElementById('asForm');
