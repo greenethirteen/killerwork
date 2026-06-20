@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260620-buildqa" />
+  <link rel="stylesheet" href="/ui.css?v=20260620-lang" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -82,11 +82,24 @@
         <a href="/contact.html">Contact</a>
       </nav>
       <div class="topnav-actions">
+        <select class="lang-select notranslate" id="langSelect" aria-label="Language" translate="no">
+          <option value="en">🌐 English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="pt">Português</option>
+          <option value="it">Italiano</option>
+          <option value="ar">العربية</option>
+          <option value="zh-CN">中文</option>
+          <option value="ja">日本語</option>
+          <option value="hi">हिन्दी</option>
+        </select>
         <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
         <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
         <a data-auth-link class="top-signin" href="#">Sign up / Sign in</a>
         <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
+      <div id="google_translate_element" class="gt-hidden" aria-hidden="true"></div>
     </nav>
     <section id="import" class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
       <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
@@ -594,6 +607,28 @@
       </div>
     </footer>
   </main>
+  <script>
+    // Language switcher: cookie-driven Google Translate of the home page.
+    (function () {
+      function cookie(name) { var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return m ? m.pop() : ''; }
+      var sel = document.getElementById('langSelect');
+      var current = (cookie('googtrans') || '').split('/').pop() || 'en';
+      if (sel) {
+        if ([...sel.options].some(o => o.value === current)) sel.value = current;
+        sel.addEventListener('change', function () {
+          var t = this.value;
+          if (t === 'en') document.cookie = 'googtrans=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          else document.cookie = 'googtrans=/en/' + t + ';path=/';
+          window.location.reload();
+        });
+      }
+      window.googleTranslateElementInit = function () {
+        /* global google */
+        new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false, includedLanguages: 'en,es,fr,de,pt,it,ar,zh-CN,ja,hi,ru,ko,tr,nl,pl' }, 'google_translate_element');
+      };
+    })();
+  </script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   <script type="module">
     import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260619-progress-creep'));
   </script>

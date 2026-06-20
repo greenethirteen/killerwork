@@ -822,3 +822,11 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 #actions #publishControl{order:-1}
 #actions #previewLink{order:9}
 #actions #previewLink,#actions #publishControl .publish-cta{font-size:16px}
+/* Language switcher (home) + hide Google Translate injected chrome */
+.lang-select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);border-radius:999px;padding:9px 13px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit}
+.lang-select option{color:#111}
+.gt-hidden{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.goog-te-banner-frame,.goog-te-balloon-frame,#goog-gt-tt,.goog-tooltip,.goog-te-spinner-pop{display:none!important}
+.skiptranslate>iframe{display:none!important}
+.goog-te-gadget{height:0;font-size:0!important;line-height:0;overflow:hidden}
+body{top:0!important}
