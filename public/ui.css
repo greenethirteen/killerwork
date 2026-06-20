@@ -830,3 +830,18 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .skiptranslate>iframe{display:none!important}
 .goog-te-gadget{height:0;font-size:0!important;line-height:0;overflow:hidden}
 body{top:0!important}
+/* Campaign "Create a new page" modal — force a light (white/black) theme */
+.build-page #builderFlow .builder-flow-top,.build-page #builderFlow .builder-flow-layout,.build-page #builderFlow .builder-generation-progress{background:#fff;color:#111;border-color:#e6e2da}
+.build-page #builderFlow .builder-flow-top h1,.build-page #builderFlow .builder-generation-progress h2,.build-page #builderFlow .campaign-card-top h2{color:#111}
+.build-page #builderFlow .builder-back{background:#f1efe9;color:#111;border:1px solid #e1ded7}
+.build-page #builderFlow .builder-back:hover{background:#e8e5dd}
+.build-page #builderFlow .campaign-card{background:#fff;border:1px solid #e6e2da;color:#111;box-shadow:0 2px 12px rgba(20,20,15,.05)}
+.build-page #builderFlow .builder-field span,.build-page #builderFlow .field-opt,.build-page #builderFlow .builder-generation-progress p{color:#5b6068}
+.build-page #builderFlow .builder-field input,.build-page #builderFlow .builder-field textarea{background:#f7f6f2;border:1px solid #ddd9d1;color:#111}
+.build-page #builderFlow .builder-field input::placeholder,.build-page #builderFlow .builder-field textarea::placeholder{color:#9a958c}
+.build-page #builderFlow .asset-drop{background:#fbfbfa;border:1px dashed #c2bfb7;color:#111}
+.build-page #builderFlow .asset-drop strong{color:#111}
+.build-page #builderFlow .asset-drop small{color:#6d727b}
+.build-page #builderFlow .asset-drop input{color:#626974}
+.build-page #builderFlow .asset-drop-icon{background:#ece9e2;color:#5b6068}
+.build-page #builderFlow [data-file-summary]{color:#6d727b}
