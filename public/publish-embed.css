@@ -1,0 +1,41 @@
+/* Self-contained styles for the publish modal embedded into a preview page.
+   Literal colors (no CSS vars) so it never depends on / clashes with the
+   generated portfolio's own stylesheet. */
+#kwPublishControl{position:static}
+#kwPublishControl.hidden{display:none}
+#kwPublishControl .hidden{display:none}
+body.publish-modal-open{overflow:hidden}
+.publish-modal-backdrop{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:20px;background:rgba(4,6,12,.66);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;animation:kwPubFade .18s ease}
+.publish-modal-backdrop.hidden{display:none}
+@keyframes kwPubFade{from{opacity:0}to{opacity:1}}
+.publish-modal-backdrop>.publish-panel{position:relative;margin:0;width:min(420px,calc(100vw - 40px));max-height:min(88vh,660px);overflow:auto;padding:20px 20px 18px;border:1px solid rgba(140,255,193,.28);border-radius:22px;background:linear-gradient(135deg,rgba(18,22,28,.98),rgba(29,31,42,.96));box-shadow:0 24px 70px rgba(0,0,0,.5);color:#fffaf2;text-align:left}
+.publish-modal-backdrop .publish-panel form{display:grid;gap:12px;margin:0}
+.publish-modal-backdrop .publish-panel label{display:grid;gap:8px;color:#e8e3db;font-weight:800}
+.publish-modal-backdrop .publish-panel label>span{font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.publish-url-field{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(0,0,0,.28);overflow:hidden}
+.publish-url-field input{border:0;background:transparent;border-radius:0;padding:14px 12px 14px 14px;font-size:16px;color:#fffaf2;outline:none;width:100%}
+.publish-url-field b{padding-right:14px;color:#8cffc1;font-size:15px;white-space:nowrap}
+.publish-modal-backdrop .publish-panel button{width:100%;border:none;border-radius:16px;padding:13px 16px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c;font-size:15px}
+.publish-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.publish-modal-head strong{font-size:18px;letter-spacing:-.02em;color:#fffaf2}
+.publish-modal-backdrop .publish-panel .publish-modal-close{flex:0 0 auto;width:32px;height:32px;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fffaf2;font-size:20px;line-height:1;display:grid;place-items:center}
+.publish-modal-backdrop .publish-panel .publish-modal-close:hover{background:rgba(255,255,255,.13)}
+.publish-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.05)}
+.publish-modal-backdrop .publish-panel .publish-seg button{width:auto;border-radius:10px;padding:9px 10px;background:transparent;color:#fffaf2;font-size:13px;font-weight:900}
+.publish-modal-backdrop .publish-panel .publish-seg button.active{background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c}
+.publish-result{display:grid;gap:4px;margin:12px 0 0;color:#e8e3db;font-size:13px;line-height:1.35}
+.publish-result span{font-weight:900;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.publish-result a{color:#8cffc1;font-weight:900;word-break:break-word}
+.custom-domain-block .publish-divider{display:none}
+.custom-domain-block form{display:grid;gap:12px;margin-top:14px}
+.custom-domain-block input:disabled,.custom-domain-block button:disabled{cursor:not-allowed;opacity:.58}
+.custom-domain-instructions{margin-top:14px;color:#e8e3db;font-size:13px;line-height:1.45}
+.custom-domain-instructions h4{margin:0 0 6px;color:#fffaf2;font-size:13px}
+.dns-record{margin:8px 0;padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(0,0,0,.28);font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;color:#fffaf2}
+.publish-help{margin:16px 0 0;padding:12px 13px;border:1px solid rgba(255,209,102,.22);border-radius:14px;background:rgba(255,209,102,.07);color:#e8e3db;font-size:13px;line-height:1.35}
+.publish-help a{color:#ffd166;font-weight:900;text-decoration:none}
+/* Toast for publish status feedback on the preview */
+.kw-pub-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483601;max-width:min(520px,calc(100vw - 32px));padding:12px 18px;border-radius:14px;background:rgba(8,9,13,.95);color:#fffaf2;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 50px rgba(0,0,0,.45);font:800 14px/1.4 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center}
+.kw-pub-toast.hidden{display:none}
+.kw-pub-toast.err{border-color:rgba(255,107,107,.5)}
+.kw-pub-toast.ok{border-color:rgba(140,255,193,.5)}

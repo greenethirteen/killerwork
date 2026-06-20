@@ -464,10 +464,12 @@ function addBodyClass(html, className) {
 // pushes the page down so it never covers the site's own nav.
 function previewPublishButton(jobId) {
   if (!jobId) return '';
-  const href = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
-  return `<style>
-.kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483647;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-.kw-preview-bar a{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap}
+  const safeId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
+  const fallbackHref = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
+  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed">
+<style>
+.kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.kw-preview-bar a,.kw-preview-bar button{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border:0;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap;cursor:pointer;font-family:inherit}
 .kw-preview-bar .kw-home{color:#fffaf2;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
 .kw-preview-bar .kw-home:hover{background:rgba(255,255,255,.12)}
 .kw-preview-bar .kw-pub{background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c}
@@ -476,9 +478,61 @@ function previewPublishButton(jobId) {
 </style>
 <div class="kw-preview-bar" id="kwPreviewBar">
   <a class="kw-home" href="https://killa.work/" target="_blank" rel="noopener">⌂ Home</a>
-  <a class="kw-pub" href="${href}" target="_top" rel="noopener" aria-label="Publish this portfolio live">⬆ Publish Live</a>
+  <button class="kw-pub" id="kwPubBtn" type="button" aria-label="Publish this portfolio live">⬆ Publish Live</button>
 </div>
-<script>(function(){try{if(window.top===window.self){var b=document.getElementById('kwPreviewBar');b.style.display='flex';document.documentElement.style.scrollPaddingTop='46px';document.body.style.marginTop='46px';}}catch(e){}})();</script>`;
+<div id="kwPublishControl" class="publish-control publish-modal hidden" data-publish-domain="killa.work">
+  <button type="button" data-publish-toggle style="display:none"></button>
+  <div class="publish-panel hidden" data-publish-panel>
+    <form data-publish-form>
+      <label><span>Portfolio URL</span><div class="publish-url-field"><input data-publish-input type="text" placeholder="yourname" autocomplete="off"><b>.killa.work</b></div></label>
+      <button data-publish-submit type="submit">Publish</button>
+    </form>
+    <p class="publish-result hidden" data-publish-result></p>
+    <div class="custom-domain-block" data-custom-domain-block>
+      <div class="publish-divider">Or connect your own domain</div>
+      <form data-custom-domain-form>
+        <label><span>Owned domain</span><input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" disabled></label>
+        <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
+      </form>
+      <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
+        <h4>DNS setup</h4>
+        <p>Add this CNAME record where you bought your domain.</p>
+        <div class="dns-record"><strong>Type:</strong> CNAME<br><strong>Name:</strong> <span data-dns-name>www.yourportfolio.com</span><br><strong>Value:</strong> <span data-dns-value>your-name.killa.work</span></div>
+      </div>
+      <p class="publish-result hidden" data-custom-domain-result></p>
+    </div>
+  </div>
+</div>
+<div class="kw-pub-toast hidden" id="kwPubToast" aria-live="polite"></div>
+<script>(function(){try{if(window.top===window.self){var b=document.getElementById('kwPreviewBar');b.style.display='flex';document.documentElement.style.scrollPaddingTop='46px';document.body.style.marginTop='46px';}}catch(e){}})();</script>
+<script type="module">
+  if (window.top === window.self) {
+    (async () => {
+      const toast = document.getElementById('kwPubToast');
+      const setStatus = (msg, tone) => {
+        if (!msg) return;
+        toast.textContent = msg;
+        toast.className = 'kw-pub-toast' + (tone === 'error' ? ' err' : tone === 'ok' ? ' ok' : '');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.add('hidden'), tone === 'ok' ? 9000 : 5000);
+      };
+      try {
+        // publish.js is all the modal needs; auth.js is only used at submit time,
+        // so load it in the background and don't block opening the popup on it.
+        import('/auth.js?v=20260605-nav-auth-cta').catch(() => {});
+        const mod = await import('/publish.js?v=20260620-modalportal');
+        const ctrl = mod.setupPublishControl({ control: document.getElementById('kwPublishControl'), getJobId: () => '${safeId}', setStatus });
+        ctrl.show();
+        document.getElementById('kwPubBtn').addEventListener('click', () => {
+          document.querySelector('#kwPublishControl [data-publish-toggle]').click();
+        });
+      } catch (e) {
+        // publish.js failed to load — fall back to opening the publish flow on the dashboard
+        document.getElementById('kwPubBtn').addEventListener('click', () => { window.location.href = '${fallbackHref}'; });
+      }
+    })();
+  }
+</script>`;
 }
 
 async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '' } = {}) {
