@@ -742,3 +742,25 @@ html.auth-pending [data-user-badge]{visibility:hidden}
    Constrained by the longest word ("Squarespace"); the flip-slot height is
    recomputed in JS, so a taller headline won't clip. */
 @media(max-width:760px){.dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:clamp(34px,11.2vw,52px);line-height:.95;letter-spacing:-.04em}}
+/* Contact / support page */
+.contact-shell{max-width:920px}
+.contact-hero{margin-top:30px;text-align:center}
+.contact-hero h1{margin:8px 0 12px;font-size:clamp(40px,6vw,68px);line-height:1;letter-spacing:-.04em}
+.contact-hero p{max-width:56ch;margin:0 auto;color:var(--muted);font-size:17px;line-height:1.5}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:34px}
+.contact-card{display:grid;gap:5px;align-content:start;padding:24px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.03));text-decoration:none;color:var(--fg);transition:.2s transform,.2s border-color}
+.contact-card:hover{transform:translateY(-2px);border-color:rgba(140,255,193,.5)}
+.contact-card-icon{display:grid;place-items:center;width:46px;height:46px;margin-bottom:8px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--blue));color:#07120c;font-size:22px}
+.contact-card b{font-size:18px}
+.contact-card-value{font-size:16px;font-weight:800;color:var(--fg)}
+.contact-card-sub{color:var(--muted);font-size:13px}
+.contact-form-block{margin-top:34px;padding:26px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.065),rgba(123,223,242,.05) 60%,rgba(140,255,193,.05));box-shadow:0 28px 90px rgba(0,0,0,.25)}
+.contact-form-block h2{margin:0 0 18px;font-size:clamp(24px,3vw,34px);letter-spacing:-.03em}
+.contact-form{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.contact-form label{display:grid;gap:7px;color:var(--muted);font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
+.contact-form-wide{grid-column:1/-1}
+.contact-form input,.contact-form textarea{border:1px solid var(--line);border-radius:14px;padding:13px 14px;background:rgba(0,0,0,.28);color:var(--fg);font-size:15px;font-family:inherit;font-weight:500;text-transform:none;letter-spacing:0}
+.contact-form textarea{resize:vertical}
+.contact-form button{grid-column:1/-1;justify-self:start;min-height:52px;padding:0 28px}
+.contact-form-note{margin:12px 0 0;color:var(--muted);font-size:13px}
+@media(max-width:680px){.contact-grid,.contact-form{grid-template-columns:1fr}}
