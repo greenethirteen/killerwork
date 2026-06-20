@@ -742,8 +742,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
    Constrained by the longest word ("Squarespace"); the flip-slot height is
    recomputed in JS, so a taller headline won't clip. */
 @media(max-width:760px){.dual-switcher[data-active-panel="import"] .dual-panel-import h1{font-size:clamp(34px,11.2vw,52px);line-height:.95;letter-spacing:-.04em}}
-/* Contact / support page */
-.contact-shell{max-width:920px}
+/* Contact / support page — uses .dual-home-shell so the header matches home exactly */
 .contact-hero{margin-top:30px;text-align:center}
 .contact-hero h1{margin:8px 0 12px;font-size:clamp(40px,6vw,68px);line-height:1;letter-spacing:-.04em}
 .contact-hero p{max-width:56ch;margin:0 auto;color:var(--muted);font-size:17px;line-height:1.5}
@@ -781,3 +780,23 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .site-footer-base a{color:var(--muted);text-decoration:none}
 .site-footer-base a:hover{color:var(--fg)}
 @media(max-width:680px){.site-footer-main{gap:28px}.site-footer-nav{gap:24px 44px}.site-footer-base{flex-direction:column;align-items:flex-start;gap:8px}}
+/* Single static import headline (replaces the rotating slides) — sized down for the longer line */
+.dual-panel-import h1.import-headline{margin:0 0 4px;font-size:clamp(30px,3.7vw,52px);line-height:1.04;letter-spacing:-.035em;text-wrap:balance}
+@media(max-width:760px){.dual-switcher[data-active-panel="import"] .dual-panel-import h1.import-headline{font-size:clamp(27px,7vw,40px);line-height:1.07;letter-spacing:-.03em}}
+/* "Never lose your work" backup / ownership section */
+.backup-shield{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,430px);gap:32px;align-items:center;margin-top:24px;padding:36px 32px;border:1px solid rgba(255,255,255,.14);border-radius:26px;background:linear-gradient(135deg,rgba(255,107,107,.09),rgba(255,255,255,.05) 52%,rgba(140,255,193,.06));box-shadow:0 28px 90px rgba(0,0,0,.25);overflow:hidden}
+.backup-shield-copy{display:grid;gap:15px;align-content:start}
+.backup-shield-copy h2{margin:4px 0 0;font-size:clamp(30px,4vw,52px);line-height:1.03;letter-spacing:-.04em}
+.backup-emph{color:var(--hot)}
+.backup-shield-copy p{margin:0;max-width:56ch;color:var(--muted);font-size:16px;line-height:1.55}
+.backup-shield-copy .button{justify-self:start;margin-top:6px}
+.backup-shield-cards{display:grid;gap:12px}
+.backup-card{display:grid;gap:5px;padding:18px 20px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:rgba(255,255,255,.05)}
+.backup-card-tag{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
+.backup-card-risk{border-color:rgba(255,107,107,.34);background:linear-gradient(135deg,rgba(255,107,107,.12),rgba(255,107,107,.03))}
+.backup-card-risk .backup-card-tag{color:var(--hot)}
+.backup-card-safe{border-color:rgba(140,255,193,.3);background:linear-gradient(135deg,rgba(140,255,193,.09),rgba(123,223,242,.04))}
+.backup-card-safe .backup-card-tag{color:var(--green)}
+.backup-card b{font-size:18px;letter-spacing:-.02em;color:var(--fg)}
+.backup-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.42}
+@media(max-width:860px){.backup-shield{grid-template-columns:1fr;gap:24px;padding:28px 22px}}
