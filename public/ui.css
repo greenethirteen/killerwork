@@ -845,3 +845,7 @@ body{top:0!important}
 .build-page #builderFlow .asset-drop input{color:#626974}
 .build-page #builderFlow .asset-drop-icon{background:#ece9e2;color:#5b6068}
 .build-page #builderFlow [data-file-summary]{color:#6d727b}
+/* see-it-in-action: platform (Behance/Squarespace) selector */
+.action-platform-select{appearance:none;-webkit-appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:var(--fg);border-radius:999px;padding:10px 14px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit}
+.action-platform-select option{color:#111}
+@media(max-width:760px){.action-platform-select{padding:9px 10px;font-size:12px}}

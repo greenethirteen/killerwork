@@ -7,7 +7,7 @@
   <title>See It In Action | KillaWork™</title>
   <meta name="description" content="See how KillaWork turns a Behance portfolio into a polished portfolio site." />
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260620-buildlight" />
+  <link rel="stylesheet" href="/ui.css?v=20260620-seeit" />
 </head>
 <body class="action-page">
   <main class="action-shell" aria-label="Before and after portfolio preview">
@@ -15,6 +15,10 @@
       <a class="action-logo" href="/" aria-label="KillaWork home">
         <img src="/logos/killa-work-logo.png" alt="KillaWork™" width="612" height="408" />
       </a>
+      <select class="action-platform-select" id="platformSelect" aria-label="Platform">
+        <option value="behance">Behance</option>
+        <option value="squarespace">Squarespace</option>
+      </select>
       <div class="action-toggle" role="tablist" aria-label="Preview state">
         <button class="active" type="button" data-preview-tab="before" role="tab" aria-selected="true">Before</button>
         <button type="button" data-preview-tab="after" role="tab" aria-selected="false">After</button>
@@ -23,19 +27,19 @@
 
     <section class="action-preview-frame" data-preview-state="before">
       <div class="action-preview-track">
-        <article class="action-preview-panel" aria-label="Before Behance portfolio">
-          <a href="https://www.behance.net/gautamwadher" target="_blank" rel="noopener">
+        <article class="action-preview-panel" aria-label="Before portfolio">
+          <a id="beforeLink" href="https://www.behance.net/gautamwadher" target="_blank" rel="noopener">
             <picture>
-              <source media="(max-width: 760px)" srcset="/showcase/gautam-before-mobile.jpg" />
-              <img src="/showcase/gautam-before.jpg" alt="Gautam Wadher Behance portfolio before KillaWork import" />
+              <source id="beforeSrc" media="(max-width: 760px)" srcset="/showcase/gautam-before-mobile.jpg" />
+              <img id="beforeImg" src="/showcase/gautam-before.jpg" alt="Behance portfolio before KillaWork import" />
             </picture>
           </a>
         </article>
         <article class="action-preview-panel" aria-label="After KillaWork portfolio">
-          <a href="https://killa.work/generated/1780238978336-9b86b97ddce1/site/index.html" target="_blank" rel="noopener">
+          <a id="afterLink" href="https://killa.work/generated/1780238978336-9b86b97ddce1/site/index.html" target="_blank" rel="noopener">
             <picture>
-              <source media="(max-width: 760px)" srcset="/showcase/gautam-after-mobile.jpg" />
-              <img src="/showcase/gautam-after.jpg" alt="Gautam Wadher KillaWork portfolio after import" />
+              <source id="afterSrc" media="(max-width: 760px)" srcset="/showcase/gautam-after-mobile.jpg" />
+              <img id="afterImg" src="/showcase/gautam-after.jpg" alt="KillaWork portfolio after import" />
             </picture>
           </a>
         </article>
@@ -56,6 +60,28 @@
         });
       };
       buttons.forEach(button => button.addEventListener('click', () => setState(button.dataset.previewTab)));
+
+      const platforms = {
+        behance: {
+          before: { d: '/showcase/gautam-before.jpg', m: '/showcase/gautam-before-mobile.jpg', link: 'https://www.behance.net/gautamwadher', alt: 'Behance portfolio before KillaWork import' },
+          after:  { d: '/showcase/gautam-after.jpg',  m: '/showcase/gautam-after-mobile.jpg',  link: 'https://killa.work/generated/1780238978336-9b86b97ddce1/site/index.html', alt: 'KillaWork portfolio after import' }
+        },
+        squarespace: {
+          before: { d: '/showcase/kapil-squarespace.jpg', m: '/showcase/kapil-squarespace-mobile.jpg', link: 'https://killa.work/', alt: 'Squarespace portfolio before KillaWork import' },
+          after:  { d: '/showcase/kapil-squarespace.jpg', m: '/showcase/kapil-squarespace-mobile.jpg', link: 'https://killa.work/', alt: 'KillaWork portfolio after one-to-one import' }
+        }
+      };
+      const beforeImg = document.getElementById('beforeImg'), beforeSrc = document.getElementById('beforeSrc'), beforeLink = document.getElementById('beforeLink');
+      const afterImg = document.getElementById('afterImg'), afterSrc = document.getElementById('afterSrc'), afterLink = document.getElementById('afterLink');
+      const platformSelect = document.getElementById('platformSelect');
+      const setPlatform = key => {
+        const data = platforms[key];
+        if (!data) return;
+        beforeImg.src = data.before.d; beforeSrc.srcset = data.before.m; beforeLink.href = data.before.link; beforeImg.alt = data.before.alt;
+        afterImg.src = data.after.d; afterSrc.srcset = data.after.m; afterLink.href = data.after.link; afterImg.alt = data.after.alt;
+        setState('before');
+      };
+      platformSelect?.addEventListener('change', () => setPlatform(platformSelect.value));
     })();
   </script>
 </body>
