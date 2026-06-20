@@ -814,3 +814,6 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge.import-flow .flow-step{font-size:clamp(10px,2.85vw,13px);white-space:nowrap}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge.import-flow .flow-sep{font-size:11px}
 }
+/* Import savings line: gold price, bigger on desktop */
+.savings-badge .save-amt{color:var(--gold)}
+@media(min-width:761px){.dual-panel-import .savings-badge span{font-size:clamp(19px,1.7vw,24px)}}
