@@ -784,22 +784,14 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .dual-panel-import h1.import-headline{margin:0;font-size:clamp(38px,5.2vw,74px);line-height:1.0;letter-spacing:-.042em;text-wrap:balance}
 @media(max-width:760px){.dual-switcher[data-active-panel="import"] .dual-panel-import h1.import-headline{font-size:clamp(31px,8.4vw,50px);line-height:1.05;letter-spacing:-.03em}}
 /* "Never lose your work" backup / ownership section */
-.backup-shield{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,430px);gap:32px;align-items:center;margin-top:24px;padding:36px 32px;border:1px solid rgba(255,255,255,.14);border-radius:26px;background:linear-gradient(135deg,rgba(255,107,107,.09),rgba(255,255,255,.05) 52%,rgba(140,255,193,.06));box-shadow:0 28px 90px rgba(0,0,0,.25);overflow:hidden}
-.backup-shield-copy{display:grid;gap:15px;align-content:start}
-.backup-shield-copy h2{margin:4px 0 0;font-size:clamp(30px,4vw,52px);line-height:1.03;letter-spacing:-.04em}
+.backup-shield{text-align:center;margin-top:24px;padding:40px 32px;border:1px solid rgba(255,255,255,.14);border-radius:26px;background:linear-gradient(135deg,rgba(255,107,107,.09),rgba(255,255,255,.05) 52%,rgba(140,255,193,.06));box-shadow:0 28px 90px rgba(0,0,0,.25);overflow:hidden}
+.backup-shield .section-kicker{display:block}
+.backup-shield h2{margin:10px auto 0;max-width:24ch;font-size:clamp(28px,4.2vw,54px);line-height:1.05;letter-spacing:-.04em}
 .backup-emph{color:var(--hot)}
-.backup-shield-copy p{margin:0;max-width:56ch;color:var(--muted);font-size:16px;line-height:1.55}
-.backup-shield-copy .button{justify-self:start;margin-top:6px}
-.backup-shield-cards{display:grid;gap:12px}
-.backup-card{display:grid;gap:5px;padding:18px 20px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:rgba(255,255,255,.05)}
-.backup-card-tag{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-.backup-card-risk{border-color:rgba(255,107,107,.34);background:linear-gradient(135deg,rgba(255,107,107,.12),rgba(255,107,107,.03))}
-.backup-card-risk .backup-card-tag{color:var(--hot)}
-.backup-card-safe{border-color:rgba(140,255,193,.3);background:linear-gradient(135deg,rgba(140,255,193,.09),rgba(123,223,242,.04))}
-.backup-card-safe .backup-card-tag{color:var(--green)}
-.backup-card b{font-size:18px;letter-spacing:-.02em;color:var(--fg)}
-.backup-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.42}
-@media(max-width:860px){.backup-shield{grid-template-columns:1fr;gap:24px;padding:28px 22px}}
+.backup-points{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:28px}
+.backup-point{display:inline-flex;align-items:center;gap:9px;padding:13px 20px;border:1px solid rgba(140,255,193,.3);border-radius:14px;background:linear-gradient(135deg,rgba(140,255,193,.09),rgba(123,223,242,.04));color:var(--fg);font-weight:900;font-size:15px}
+.backup-point:before{content:"✓";display:grid;place-items:center;width:20px;height:20px;border-radius:999px;background:linear-gradient(135deg,var(--green),var(--blue));color:#07120c;font-size:11px;font-weight:900}
+@media(max-width:560px){.backup-points{flex-direction:column;align-items:stretch}.backup-point{justify-content:center}}
 /* Import → Publish → Pay flow badge */
 .savings-badge.import-flow{gap:8px 10px;flex-wrap:wrap;padding:9px 18px}
 .savings-badge.import-flow:before{display:none}
