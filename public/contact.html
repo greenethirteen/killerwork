@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="auth-pending">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,7 +8,7 @@
   <link rel="canonical" href="https://killa.work/contact.html" />
   <link rel="icon" href="/favicon-logo-144.png" type="image/png" sizes="144x144" />
   <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
-  <link rel="stylesheet" href="/ui.css?v=20260620-ctas" />
+  <link rel="stylesheet" href="/ui.css?v=20260620-contact2" />
 </head>
 <body class="parallax-home contact-page">
   <div class="landing-atmosphere" aria-hidden="true">
@@ -29,7 +29,10 @@
         <a href="/#themes">Themes</a>
       </nav>
       <div class="topnav-actions">
-        <a href="/">Back to home</a>
+        <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
+        <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
+        <a data-auth-link class="top-signin" href="#">Sign up / Sign in</a>
+        <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
       </div>
     </nav>
 
@@ -59,7 +62,7 @@
       <form id="contactForm" class="contact-form" novalidate>
         <label><span>Your name</span><input name="name" type="text" autocomplete="name" required /></label>
         <label><span>Your email</span><input name="email" type="email" autocomplete="email" required /></label>
-        <label class="contact-form-wide"><span>How can we help?</span><textarea name="message" rows="5" required></textarea></label>
+        <label class="contact-form-wide"><span>How can we help?</span><textarea name="message" rows="3" required></textarea></label>
         <button class="button hot" type="submit">Send message</button>
       </form>
       <p class="contact-form-note">This opens your email app with a message addressed to abdullah@killa.work.</p>
@@ -93,6 +96,7 @@
       </div>
     </footer>
   </main>
+  <script type="module">import('/auth.js?v=20260605-nav-auth-cta');</script>
   <script>
     document.getElementById('contactForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
