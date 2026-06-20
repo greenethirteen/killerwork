@@ -6,7 +6,7 @@
   <script src="/tracking.js?v=20260604-clarity-direct"></script>
   <title>Build from Work Files — KillaWork™</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/ui.css?v=20260620-modalfix" />
+  <link rel="stylesheet" href="/ui.css?v=20260620-buildqa" />
 </head>
 <body class="build-page">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -113,8 +113,7 @@
       <div class="builder-flow-top">
         <button id="builderBack" class="builder-back" type="button" aria-label="Close create page">×</button>
         <div>
-          <h1 id="builderTitle">Add a campaign page</h1>
-          <p>Upload your work files and campaign details — AI builds a sharp, polished portfolio page.</p>
+          <h1 id="builderTitle">Create a new page</h1>
         </div>
       </div>
 
@@ -140,7 +139,6 @@
         <section class="builder-panel builder-upload-panel">
           <div id="campaignList" class="campaign-list"></div>
           <div class="builder-actions-row">
-            <button class="add-campaign-btn" type="button" id="addCampaignBtn">+ Add another campaign</button>
             <button id="buildCampaigns" class="build-submit" type="submit">Create Page</button>
           </div>
         </section>
@@ -159,11 +157,11 @@
           <div class="asset-drop-icon">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
           </div>
-          <strong>Drop files here or click to browse</strong>
+          <strong>Drop files or upload</strong>
           <small>Images · Videos · PDFs · Audio · Case study decks</small>
         </div>
         <input data-field="files" type="file" multiple accept="image/*,video/*,audio/*,application/pdf" required>
-        <span data-file-summary>No files selected</span>
+        <span data-file-summary></span>
       </label>
       <div class="builder-form-grid">
         <label class="builder-field">
@@ -185,7 +183,7 @@
       </div>
       <label class="builder-field builder-notes-field">
         <span>Notes for AI <span class="field-opt">(optional)</span></span>
-        <textarea data-field="notes" placeholder="Campaign strategy, key insight, results, awards — the more context you give, the better the AI copy."></textarea>
+        <textarea data-field="notes" placeholder="Strategy, results, awards…"></textarea>
       </label>
     </article>
   </template>
@@ -196,7 +194,6 @@
         <div>
           <p class="about-modal-kicker">About page</p>
           <h2 id="aboutModalTitle">Build your About page</h2>
-          <p class="about-modal-sub">Add your details and the AI writes a sharp, professional bio — then instantly adds it to your portfolio.</p>
         </div>
         <button class="about-modal-close" id="aboutModalClose" type="button" aria-label="Close">✕</button>
       </header>
@@ -224,15 +221,15 @@
             <input id="aboutAwards" type="text" placeholder="Cannes Lions Gold, D&AD Pencil…" />
           </label>
           <label class="about-field about-field--full">
-            <span>Bio <span class="about-field-opt">(AI will rewrite this into compelling copy)</span></span>
-            <textarea id="aboutBio" rows="4" placeholder="Write a few sentences about yourself, your approach, the work you do and who you've worked with. The more you give, the better the AI output."></textarea>
+            <span>Bio</span>
+            <textarea id="aboutBio" rows="4" placeholder="A few sentences about you and your work."></textarea>
           </label>
           <label class="about-field">
             <span>Contact email <span class="about-field-opt">(optional)</span></span>
             <input id="aboutEmail" type="email" autocomplete="email" placeholder="jane@example.com" />
           </label>
           <label class="about-field">
-            <span>LinkedIn URL <span class="about-field-opt">(optional — AI extracts extra info)</span></span>
+            <span>LinkedIn URL <span class="about-field-opt">(optional)</span></span>
             <input id="aboutLinkedin" type="url" autocomplete="url" placeholder="https://linkedin.com/in/janedoe" />
           </label>
         </div>
@@ -241,7 +238,7 @@
           <p id="aboutFormError" class="about-form-error hidden"></p>
           <button id="aboutSubmit" class="about-submit-btn" type="submit">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Build About Page with AI
+            Create
           </button>
         </div>
       </form>
@@ -255,7 +252,7 @@
   </div>
 
   <script type="module">
-    import('/auth.js?v=20260603-ads-base2').then(() => import('/build.js?v=20260610-campaign-v2'));
+    import('/auth.js?v=20260603-ads-base2').then(() => import('/build.js?v=20260620-buildqa'));
   </script>
 </body>
 </html>

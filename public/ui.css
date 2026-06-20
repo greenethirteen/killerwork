@@ -603,6 +603,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .about-submit-btn:hover{background:#1d7af2}
 .about-submit-btn:disabled{opacity:.5;cursor:not-allowed;background:#111}
 .about-building{display:grid;place-items:center;gap:14px;padding:48px 24px;text-align:center;color:#6d7179;font-size:15px}
+.about-building.hidden{display:none}
 .about-building-spinner{width:36px;height:36px;border:3px solid #e8e5de;border-top-color:#1d7af2;border-radius:50%;animation:about-spin .7s linear infinite}
 @keyframes about-spin{to{transform:rotate(360deg)}}
 @media(max-width:560px){.about-form-grid{grid-template-columns:1fr}.about-field--full{grid-column:auto}}
@@ -817,3 +818,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 /* Import savings line: gold price, bigger on desktop */
 .savings-badge .save-amt{color:var(--gold)}
 @media(min-width:761px){.dual-panel-import .savings-badge span{font-size:clamp(19px,1.7vw,24px)}}
+/* Actions row: Publish first, Preview last, matched font size */
+#actions #publishControl{order:-1}
+#actions #previewLink{order:9}
+#actions #previewLink,#actions #publishControl .publish-cta{font-size:16px}

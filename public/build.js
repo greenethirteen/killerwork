@@ -144,7 +144,7 @@ function updateFileSummary(card) {
   const input = card.querySelector('[data-field="files"]');
   const summary = card.querySelector('[data-file-summary]');
   const count = input.files?.length || 0;
-  summary.textContent = count ? `${count} file${count === 1 ? '' : 's'} selected` : 'No files selected';
+  summary.textContent = count ? `${count} file${count === 1 ? '' : 's'} selected` : '';
 }
 
 function addCampaignCard(scroll = true) {

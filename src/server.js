@@ -457,22 +457,28 @@ function addBodyClass(html, className) {
   });
 }
 
-// Floating "Publish Live" button injected into PREVIEW pages only. Published/live
-// sites are served through serveSiteFile and never pass through here, so visitors
-// of a published portfolio never see this control.
+// Thin "KillaWork preview" top bar injected into PREVIEW pages only (Home + Publish
+// Live). Published/live sites are served through serveSiteFile and never pass through
+// here, so visitors of a published portfolio never see this bar. It is shown only when
+// the preview is the top-level document (kept out of the editor preview iframes) and it
+// pushes the page down so it never covers the site's own nav.
 function previewPublishButton(jobId) {
   if (!jobId) return '';
   const href = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
-  // Hidden by default; revealed only when the preview is the top-level document.
-  // This keeps it out of the editor preview iframes (ai-studio, zip-studio, ad-builder).
   return `<style>
-.kw-preview-publish{position:fixed;top:18px;right:18px;z-index:2147483647;display:none;align-items:center;gap:8px;padding:13px 20px;border-radius:999px;background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c;font:950 15px/1 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;text-decoration:none;box-shadow:0 14px 40px rgba(0,0,0,.32);transition:transform .15s ease,box-shadow .15s ease}
-.kw-preview-publish:hover{transform:translateY(-1px);box-shadow:0 18px 52px rgba(0,0,0,.4)}
-@media(max-width:760px){.kw-preview-publish{top:12px;right:12px;padding:11px 16px;font-size:14px}}
-@media print{.kw-preview-publish{display:none!important}}
+.kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483647;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.kw-preview-bar a{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap}
+.kw-preview-bar .kw-home{color:#fffaf2;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
+.kw-preview-bar .kw-home:hover{background:rgba(255,255,255,.12)}
+.kw-preview-bar .kw-pub{background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c}
+.kw-preview-bar .kw-pub:hover{filter:brightness(1.05)}
+@media print{.kw-preview-bar{display:none!important}}
 </style>
-<a id="kwPreviewPublish" class="kw-preview-publish" href="${href}" target="_top" rel="noopener" aria-label="Publish this portfolio live">⬆ Publish Live</a>
-<script>(function(){try{if(window.top===window.self){document.getElementById('kwPreviewPublish').style.display='inline-flex';}}catch(e){}})();</script>`;
+<div class="kw-preview-bar" id="kwPreviewBar">
+  <a class="kw-home" href="https://killa.work/" target="_blank" rel="noopener">⌂ Home</a>
+  <a class="kw-pub" href="${href}" target="_top" rel="noopener" aria-label="Publish this portfolio live">⬆ Publish Live</a>
+</div>
+<script>(function(){try{if(window.top===window.self){var b=document.getElementById('kwPreviewBar');b.style.display='flex';document.documentElement.style.scrollPaddingTop='46px';document.body.style.marginTop='46px';}}catch(e){}})();</script>`;
 }
 
 async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '' } = {}) {
