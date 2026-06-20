@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260620-modalportal';
+import { setupPublishControl } from './publish.js?v=20260620-autopublish';
 
 const panels = [...document.querySelectorAll('[data-step-panel]')];
 const markers = [...document.querySelectorAll('[data-step-marker]')];

@@ -10,12 +10,12 @@ function track(name, params = {}) {
   window.KillerWorkTracking?.trackEvent?.(name, { page_path: window.location.pathname, ...params });
 }
 
-export async function startSubscriptionCheckout(setStatus, { jobId } = {}) {
+export async function startSubscriptionCheckout(setStatus, { jobId, subdomain } = {}) {
   setStatus?.('Opening secure checkout...');
   const res = await fetch('/api/billing/checkout', {
     method: 'POST',
     headers: await authHeaders(true),
-    body: JSON.stringify({ jobId: jobId || null })
+    body: JSON.stringify({ jobId: jobId || null, subdomain: subdomain || null })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data.error || 'Could not open checkout.');
@@ -55,13 +55,21 @@ export async function trackSubscriptionCheckoutReturn(setStatus) {
   params.delete('session_id');
   const query = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+  // If the payment completed the publish the user started, send them straight to
+  // their now-live site instead of leaving them to re-publish.
+  if (data.published?.url) {
+    setStatus?.(`You're live at ${data.published.url}. Opening your site…`, 'ok');
+    setTimeout(() => window.location.assign(data.published.url), 1400);
+    return data.published;
+  }
   setStatus?.('Payment confirmed. Publishing, custom domains, and ZIP downloads are unlocked.', 'ok');
+  return null;
 }
 
-export async function handleSubscriptionRequired(res, data = {}, setStatus, { jobId } = {}) {
+export async function handleSubscriptionRequired(res, data = {}, setStatus, { jobId, subdomain } = {}) {
   if (res.status !== 402 || data.code !== 'subscription_required') return false;
   setStatus?.(data.error || 'A one-time $9.99 payment unlocks publishing, custom domains, and ZIP downloads.', 'error');
-  await startSubscriptionCheckout(setStatus, { jobId });
+  await startSubscriptionCheckout(setStatus, { jobId, subdomain });
   return true;
 }
 

@@ -466,7 +466,7 @@ function previewPublishButton(jobId) {
   if (!jobId) return '';
   const safeId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
   const fallbackHref = `/manage.html?job=${encodeURIComponent(jobId)}&publish=1`;
-  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed4">
+  return `<link rel="stylesheet" href="/publish-embed.css?v=20260620-pubembed5">
 <style>
 .kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 .kw-preview-bar a,.kw-preview-bar button{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border:0;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap;cursor:pointer;font-family:inherit}
@@ -480,7 +480,7 @@ function previewPublishButton(jobId) {
 <div class="kw-preview-bar" id="kwPreviewBar">
   <a class="kw-home" href="https://killa.work/" target="_blank" rel="noopener">⌂ Home</a>
   <div class="kw-actions">
-    <a class="kw-edit" href="/ai-editor.html?job=${safeId}" target="_top" rel="noopener" aria-label="Edit this portfolio in the editor">✎ Edit</a>
+    <a class="kw-edit" href="/pixel-editor.html?job=${safeId}" target="_top" rel="noopener" aria-label="Edit this portfolio in the editor">✎ Edit</a>
     <button class="kw-pub" id="kwPubBtn" type="button" aria-label="Publish this portfolio live">⬆ Publish Live</button>
   </div>
 </div>
@@ -525,7 +525,7 @@ function previewPublishButton(jobId) {
         // publish.js is all the modal needs; auth.js is only used at submit time,
         // so load it in the background and don't block opening the popup on it.
         import('/auth.js?v=20260605-nav-auth-cta').catch(() => {});
-        const mod = await import('/publish.js?v=20260620-modalportal');
+        const mod = await import('/publish.js?v=20260620-autopublish');
         const ctrl = mod.setupPublishControl({ control: document.getElementById('kwPublishControl'), getJobId: () => '${safeId}', setStatus });
         ctrl.show();
         document.getElementById('kwPubBtn').addEventListener('click', () => {
@@ -2111,11 +2111,24 @@ app.get('/api/billing/checkout-session/:sessionId', requireFirebaseAuth, async (
     if (session.mode !== 'payment' || session.status !== 'complete' || session.payment_status !== 'paid') {
       return res.status(409).json({ error: 'Your payment has not been confirmed yet.', code: 'payment_pending' });
     }
+    // Finish the publish the user started before paying, using the subdomain captured
+    // at checkout — so they land on a live site instead of having to re-publish.
+    let published = null;
+    const pendingJob = session.metadata?.jobId;
+    const pendingSubdomain = session.metadata?.subdomain;
+    if (pendingJob && pendingSubdomain) {
+      const manifest = await readManifest(pendingJob).catch(() => null);
+      if (manifest && canAccessPortfolio(manifest, req.user)) {
+        const result = await publishPortfolioSubdomain(pendingJob, manifest, pendingSubdomain);
+        if (!result.error) published = result.published;
+      }
+    }
     res.json({
       confirmed: true,
       transactionId: session.id,
       value: Number.isFinite(session.amount_total) ? session.amount_total / 100 : 9.99,
-      currency: String(session.currency || 'usd').toUpperCase()
+      currency: String(session.currency || 'usd').toUpperCase(),
+      published
     });
   } catch (err) {
     console.error('Stripe checkout confirmation failed', err);
@@ -2129,6 +2142,7 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
     const customer = await stripeCustomerFor(req.user, { create: true });
     const origin = requestOrigin(req);
     const jobId = String(req.body?.jobId || '').trim().slice(0, 80);
+    const subdomain = normalizeSubdomain(req.body?.subdomain || '');
     const sourceUrl = jobId ? String((await readManifest(jobId).catch(() => null))?.sourceUrl || '').slice(0, 500) : '';
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -2141,7 +2155,7 @@ app.post('/api/billing/checkout', requireFirebaseAuth, async (req, res) => {
       success_url: `${origin}/manage.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/manage.html?payment=cancelled`,
       allow_promotion_codes: true,
-      metadata: { firebaseUid: req.user.uid, ...(jobId && { jobId }), ...(sourceUrl && { sourceUrl }) }
+      metadata: { firebaseUid: req.user.uid, ...(jobId && { jobId }), ...(subdomain && { subdomain }), ...(sourceUrl && { sourceUrl }) }
     });
     res.json({ url: session.url });
   } catch (err) {
@@ -2180,19 +2194,21 @@ app.put('/api/manage/:id', requireFirebaseAuth, async (req, res) => {
   res.json(publicPortfolio(id, manifest, validation));
 });
 
-app.post('/api/publish/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {
-  const id = req.params.id;
-  const manifest = await readManifest(id);
-  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
-  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
-  const requested = normalizeSubdomain(req.body?.subdomain || '');
-  const reserved = new Set(['www', 'app', 'api', 'admin', 'assets', 'static', 'cdn', 'mail', 'support', 'help', 'killawork']);
-  if (!validSubdomain(requested) || reserved.has(requested)) {
-    return res.status(400).json({ error: 'Choose a valid subdomain using letters, numbers, or hyphens.' });
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'assets', 'static', 'cdn', 'mail', 'support', 'help', 'killawork']);
+
+// Core publish: validate the requested subdomain, ensure it's free, and write it
+// onto the manifest. Shared by the publish endpoint and the post-payment auto-publish
+// so both behave identically. Returns { error } or { published, customDomain, paid }.
+async function publishPortfolioSubdomain(id, manifest, requestedRaw) {
+  const requested = normalizeSubdomain(requestedRaw || '');
+  if (!validSubdomain(requested) || RESERVED_SUBDOMAINS.has(requested)) {
+    return { error: { status: 400, body: { error: 'Choose a valid subdomain using letters, numbers, or hyphens.' } } };
   }
   const index = await publishedIndex();
   const existing = index.get(requested);
-  if (existing && existing.id !== id) return res.status(409).json({ error: `${requested}.${publicHost()} is already taken.` });
+  if (existing && existing.id !== id) {
+    return { error: { status: 409, body: { error: `${requested}.${publicHost()} is already taken.` } } };
+  }
   manifest.paid = true;
   manifest.published = {
     subdomain: requested,
@@ -2200,9 +2216,38 @@ app.post('/api/publish/:id', requireFirebaseAuth, requireActiveSubscription, asy
     localPreview: `/published/${requested}/`,
     publishedAt: new Date().toISOString()
   };
+  // Connected custom domains pin their DNS target to the subdomain — keep it in sync
+  // when the URL changes so the instructions never go stale.
+  if (manifest.customDomain?.domain) {
+    manifest.customDomain.dnsValue = `${requested}.${publicHost()}`;
+  }
   await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
   await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
-  res.json({ ok: true, published: manifest.published, customDomain: manifest.customDomain || null, paid: manifest.paid });
+  return { published: manifest.published, customDomain: manifest.customDomain || null, paid: manifest.paid };
+}
+
+app.post('/api/publish/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  const result = await publishPortfolioSubdomain(id, manifest, req.body?.subdomain);
+  if (result.error) return res.status(result.error.status).json(result.error.body);
+  res.json({ ok: true, published: result.published, customDomain: result.customDomain, paid: result.paid });
+});
+
+// Unpublish: take a live site offline. The custom domain (if any) is kept on the
+// manifest so reconnecting later is one click, but the site stops resolving.
+app.delete('/api/publish/:id', requireFirebaseAuth, async (req, res) => {
+  const id = req.params.id;
+  const manifest = await readManifest(id);
+  if (!manifest) return res.status(404).json({ error: 'Portfolio not found.' });
+  if (!canAccessPortfolio(manifest, req.user)) return res.status(403).json({ error: 'Not your portfolio.' });
+  if (!manifest.published) return res.json({ ok: true, published: null, customDomain: manifest.customDomain || null });
+  manifest.published = null;
+  await fs.writeJson(path.join(jobDir(id), 'manifest.json'), manifest, { spaces: 2 });
+  await fs.writeJson(path.join(jobDir(id), 'manifest.cleaned.json'), manifest, { spaces: 2 });
+  res.json({ ok: true, published: null, customDomain: manifest.customDomain || null });
 });
 
 app.post('/api/custom-domain/:id', requireFirebaseAuth, requireActiveSubscription, async (req, res) => {

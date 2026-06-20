@@ -1,5 +1,5 @@
-import { setupPublishControl } from './publish.js?v=20260620-modalportal';
-import { bindProtectedZipLink } from './billing.js?v=20260617-price999';
+import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { bindProtectedZipLink } from './billing.js?v=20260620-autopublish';
 
 const form = document.getElementById('importForm');
 const uploadForm = document.getElementById('uploadForm');

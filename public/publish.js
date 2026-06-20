@@ -1,4 +1,4 @@
-import { handleSubscriptionRequired } from './billing.js?v=20260617-price999';
+import { handleSubscriptionRequired } from './billing.js?v=20260620-autopublish';
 
 export function setupPublishControl({ control, getJobId, setStatus }) {
   const noop = { show() {}, hide() {}, setPublished() {} };
@@ -19,6 +19,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   const dnsValue = control.querySelector('[data-dns-value]');
   const customBlock = control.querySelector('[data-custom-domain-block]');
   let publishedState = null;
+  let unpublishBtn = null;
 
   if (!toggle || !panel || !form || !input || !submit) {
     console.warn('Publish control is missing required elements and has been disabled.');
@@ -67,6 +68,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   }
 
   function resultLink(published) {
+    if (unpublishBtn) unpublishBtn.classList.toggle('hidden', !published);
     if (!result) return;
     if (!published) {
       result.classList.add('hidden');
@@ -168,6 +170,41 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
     setOpen(panel.classList.contains('hidden'));
   }
 
+  // "Take site offline" — only visible while a site is live (toggled in resultLink).
+  unpublishBtn = document.createElement('button');
+  unpublishBtn.type = 'button';
+  unpublishBtn.className = 'publish-unpublish hidden';
+  unpublishBtn.dataset.unpublish = 'true';
+  unpublishBtn.textContent = 'Take site offline';
+  unpublishBtn.addEventListener('click', async () => {
+    const jobId = getJobId();
+    if (!jobId) return;
+    if (!window.confirm('Take your live site offline? Your URL will stop working until you publish again.')) return;
+    unpublishBtn.disabled = true;
+    unpublishBtn.textContent = 'Taking offline...';
+    setStatus?.('Taking your site offline...');
+    try {
+      const token = await window.KillerWorkAuth.requireToken();
+      const res = await fetch(`/api/publish/${encodeURIComponent(jobId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not take the site offline.');
+      publishedState = null;
+      input.value = '';
+      resultLink(null);
+      updateCustomDomainState(data.customDomain);
+      setStatus?.('Your site is now offline. Publish again any time.', 'ok');
+    } catch (err) {
+      setStatus?.(err.message || 'Could not take the site offline.', 'error');
+    } finally {
+      unpublishBtn.disabled = false;
+      unpublishBtn.textContent = 'Take site offline';
+    }
+  });
+  form.after(unpublishBtn);
+
   toggle.addEventListener('click', openPanel);
   input.addEventListener('input', () => {
     input.value = clean(input.value);
@@ -189,7 +226,7 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
         body: JSON.stringify({ subdomain })
       });
       const data = await res.json().catch(() => ({}));
-      if (await handleSubscriptionRequired(res, data, setStatus, { jobId })) return;
+      if (await handleSubscriptionRequired(res, data, setStatus, { jobId, subdomain })) return;
       if (!res.ok) throw new Error(data.error || 'Publish failed.');
       input.value = data.published?.subdomain || subdomain;
       publishedState = data.published;

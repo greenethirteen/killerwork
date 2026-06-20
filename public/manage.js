@@ -1,5 +1,5 @@
-import { setupPublishControl } from './publish.js?v=20260620-modalportal';
-import { bindProtectedZipLink, trackSubscriptionCheckoutReturn } from './billing.js?v=20260617-price999';
+import { setupPublishControl } from './publish.js?v=20260620-autopublish';
+import { bindProtectedZipLink, trackSubscriptionCheckoutReturn } from './billing.js?v=20260620-autopublish';
 
 const params = new URLSearchParams(location.search);
 const jobId = params.get('job');

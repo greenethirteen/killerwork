@@ -33,6 +33,8 @@ body.publish-modal-open{overflow:hidden}
 .custom-domain-block .publish-divider{display:none}
 .custom-domain-note{margin:0 0 12px;padding:9px 12px;border:1px solid rgba(123,223,242,.28);border-radius:12px;background:rgba(123,223,242,.09);color:#bfe7f1;font-size:12.5px;line-height:1.45;font-weight:700}
 .custom-domain-block[data-enabled="true"] .custom-domain-note{display:none}
+.publish-modal-backdrop .publish-panel .publish-unpublish{margin-top:10px;background:transparent;border:1px solid rgba(255,107,107,.45);color:#ff8585}
+.publish-modal-backdrop .publish-panel .publish-unpublish:hover{background:rgba(255,107,107,.12)}
 .custom-domain-block form{display:grid;gap:12px;margin-top:14px}
 .custom-domain-block input:disabled,.custom-domain-block button:disabled{cursor:not-allowed;opacity:.58}
 .custom-domain-instructions{margin-top:14px;color:#e8e3db;font-size:13px;line-height:1.45}

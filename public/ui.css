@@ -851,3 +851,6 @@ body{top:0!important}
 @media(max-width:760px){.action-platform-select{padding:9px 10px;font-size:12px}}
 .custom-domain-note{margin:0 0 12px;padding:9px 12px;border:1px solid rgba(123,223,242,.28);border-radius:12px;background:rgba(123,223,242,.09);color:#bfe7f1;font-size:12.5px;line-height:1.45;font-weight:700}
 .custom-domain-block[data-enabled="true"] .custom-domain-note{display:none}
+.publish-panel .publish-unpublish{margin-top:10px;background:transparent;border:1px solid rgba(255,107,107,.42);color:#ff8585;font-weight:800}
+.publish-panel .publish-unpublish:hover{background:rgba(255,107,107,.1)}
+.publish-panel .publish-unpublish.hidden{display:none}
