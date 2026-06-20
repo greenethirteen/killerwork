@@ -748,13 +748,13 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .contact-hero h1{margin:8px 0 12px;font-size:clamp(40px,6vw,68px);line-height:1;letter-spacing:-.04em}
 .contact-hero p{max-width:56ch;margin:0 auto;color:var(--muted);font-size:17px;line-height:1.5}
 .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:34px}
-.contact-card{display:grid;gap:5px;align-content:start;padding:24px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.03));text-decoration:none;color:var(--fg);transition:.2s transform,.2s border-color}
-.contact-card:hover{transform:translateY(-2px);border-color:rgba(140,255,193,.5)}
+.contact-card{display:grid;gap:5px;align-content:start;padding:24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.06));box-shadow:0 24px 70px rgba(0,0,0,.34);backdrop-filter:blur(22px);text-decoration:none;color:var(--fg);transition:.2s transform,.2s border-color,.2s box-shadow}
+.contact-card:hover{transform:translateY(-3px);border-color:rgba(140,255,193,.5);box-shadow:0 30px 80px rgba(0,0,0,.42)}
 .contact-card-icon{display:grid;place-items:center;width:46px;height:46px;margin-bottom:8px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--blue));color:#07120c;font-size:22px}
 .contact-card b{font-size:18px}
 .contact-card-value{font-size:16px;font-weight:800;color:var(--fg)}
 .contact-card-sub{color:var(--muted);font-size:13px}
-.contact-form-block{margin-top:34px;padding:26px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.065),rgba(123,223,242,.05) 60%,rgba(140,255,193,.05));box-shadow:0 28px 90px rgba(0,0,0,.25)}
+.contact-form-block{margin-top:16px;padding:28px;border:1px solid var(--line);border-radius:28px;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(123,223,242,.05) 60%,rgba(140,255,193,.05));box-shadow:0 30px 90px rgba(0,0,0,.3);backdrop-filter:blur(22px)}
 .contact-form-block h2{margin:0 0 18px;font-size:clamp(24px,3vw,34px);letter-spacing:-.03em}
 .contact-form{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .contact-form label{display:grid;gap:7px;color:var(--muted);font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
@@ -764,3 +764,20 @@ html.auth-pending [data-user-badge]{visibility:hidden}
 .contact-form button{grid-column:1/-1;justify-self:start;min-height:52px;padding:0 28px}
 .contact-form-note{margin:12px 0 0;color:var(--muted);font-size:13px}
 @media(max-width:680px){.contact-grid,.contact-form{grid-template-columns:1fr}}
+.contact-page .landing-atmosphere .landing-wordmark-b{top:120vh}
+/* Shared site footer (home + support) */
+.site-footer{display:block;margin-top:56px;padding:34px 0 30px;border-top:1px solid var(--line);color:var(--muted)}
+.site-footer-main{display:flex;flex-wrap:wrap;justify-content:space-between;gap:34px 48px}
+.site-footer-brand{max-width:330px;display:grid;gap:14px;align-content:start}
+.site-footer-brand .logo-image{max-width:150px;max-height:96px;width:auto;height:auto}
+.site-footer-brand p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.site-footer-nav{display:flex;gap:30px 60px;flex-wrap:wrap}
+.site-footer-col{display:grid;gap:11px;align-content:start}
+.site-footer-col b{color:var(--fg);font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.09em}
+.site-footer-col a{color:var(--muted);font-size:14px;font-weight:600;text-decoration:none;transition:color .15s ease}
+.site-footer-col a:hover{color:var(--fg)}
+.site-footer-base{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:32px;padding-top:20px;border-top:1px solid var(--line);font-size:13px}
+.site-footer-base b{color:var(--fg);font-weight:900}
+.site-footer-base a{color:var(--muted);text-decoration:none}
+.site-footer-base a:hover{color:var(--fg)}
+@media(max-width:680px){.site-footer-main{gap:28px}.site-footer-nav{gap:24px 44px}.site-footer-base{flex-direction:column;align-items:flex-start;gap:8px}}
