@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260619-publish-modal';
+import { setupPublishControl } from './publish.js?v=20260620-modalportal';
 import { bindProtectedZipLink, trackSubscriptionCheckoutReturn } from './billing.js?v=20260617-price999';
 
 const params = new URLSearchParams(location.search);

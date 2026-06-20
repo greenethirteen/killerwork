@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260619-publish-modal';
+import { setupPublishControl } from './publish.js?v=20260620-modalportal';
 
 const form = document.getElementById('studioForm');
 const feed = document.getElementById('studioFeed');

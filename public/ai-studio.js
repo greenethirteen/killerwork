@@ -1,4 +1,4 @@
-import { setupPublishControl } from './publish.js?v=20260619-publish-modal';
+import { setupPublishControl } from './publish.js?v=20260620-modalportal';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const form = document.getElementById('asForm');
