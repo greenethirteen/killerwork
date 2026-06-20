@@ -71,20 +71,20 @@ html{scroll-behavior:smooth}
 /* Home-page publish presented as a compact centered modal (.publish-modal). */
 .publish-control.publish-modal{position:static}
 body.publish-modal-open{overflow:hidden}
-.publish-modal-backdrop{position:fixed;inset:0;z-index:2147483000;background:rgba(4,6,12,.66);backdrop-filter:blur(6px);animation:publishFade .18s ease}
+.publish-modal-backdrop{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:20px;background:rgba(4,6,12,.66);backdrop-filter:blur(6px);animation:publishFade .18s ease}
 .publish-modal-backdrop.hidden{display:none}
 @keyframes publishFade{from{opacity:0}to{opacity:1}}
-.publish-control.publish-modal .publish-panel{position:fixed;top:50%;left:50%;right:auto;transform:translate(-50%,-50%);z-index:2147483001;width:min(420px,calc(100vw - 32px));max-height:min(88vh,660px);overflow:auto;padding:20px 20px 18px}
+.publish-modal-backdrop>.publish-panel{position:relative;inset:auto;top:auto;left:auto;right:auto;transform:none;margin:0;z-index:1;width:min(420px,calc(100vw - 40px));max-height:min(88vh,660px);overflow:auto;padding:20px 20px 18px}
 .publish-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .publish-modal-head strong{font-size:18px;letter-spacing:-.02em;color:#fffaf2}
-.publish-modal-close{width:32px;height:32px;min-height:0;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fffaf2;font-size:20px;line-height:1;display:grid;place-items:center}
-.publish-modal-close:hover{background:rgba(255,255,255,.13)}
+.publish-panel .publish-modal-close{flex:0 0 auto;width:32px;height:32px;min-height:0;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fffaf2;font-size:20px;line-height:1;display:grid;place-items:center}
+.publish-panel .publish-modal-close:hover{background:rgba(255,255,255,.13)}
 .publish-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.05)}
 .publish-seg button{width:auto;min-height:0;padding:9px 10px;border-radius:10px;background:transparent;color:#fffaf2;font-size:13px;font-weight:900}
 .publish-seg button.active{background:linear-gradient(135deg,var(--green),var(--blue));color:#07120c}
-.publish-control.publish-modal .publish-divider{display:none}
-.publish-control.publish-modal .publish-help{margin-top:16px}
-@media(max-width:760px){.publish-control.publish-modal .publish-panel{position:fixed;top:50%;left:50%;right:auto;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 28px));max-height:88vh;margin-top:0}}@media(max-width:760px){.publish-control{display:grid;width:100%}.publish-control>[data-publish-toggle]{width:100%}.publish-panel{position:relative;right:auto;top:auto;width:100%;margin-top:10px}.publish-url-field{grid-template-columns:1fr}.publish-url-field b{padding:0 14px 14px}}
+.publish-modal-backdrop .publish-divider{display:none}
+.publish-modal-backdrop .publish-help{margin-top:16px}
+@media(max-width:760px){.publish-modal-backdrop{padding:14px}.publish-modal-backdrop>.publish-panel{width:min(430px,calc(100vw - 24px))}}@media(max-width:760px){.publish-control{display:grid;width:100%}.publish-control>[data-publish-toggle]{width:100%}.publish-panel{position:relative;right:auto;top:auto;width:100%;margin-top:10px}.publish-url-field{grid-template-columns:1fr}.publish-url-field b{padding:0 14px 14px}}
 
 .custom-domain-instructions{margin-top:16px;padding:16px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(255,255,255,.03)}.custom-domain-instructions h4{margin:0 0 12px;color:var(--fg);font-size:16px;font-weight:950;letter-spacing:-.03em}.custom-domain-instructions p{margin:8px 0;color:var(--muted);font-size:14px;line-height:1.4}.dns-record{margin:12px 0;padding:12px;border:1px solid rgba(123,223,242,.3);border-radius:12px;background:rgba(123,223,242,.05);font-family:monospace;font-size:13px;line-height:1.5;color:var(--blue)}.dns-record strong{color:var(--fg);font-weight:950;text-transform:uppercase;letter-spacing:.05em;font-size:11px}.note{color:#ffd166;font-size:13px;font-style:italic}
 

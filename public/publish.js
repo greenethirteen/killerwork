@@ -126,11 +126,6 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
   }
 
   if (isModal) {
-    backdrop = document.createElement('div');
-    backdrop.className = 'publish-modal-backdrop hidden';
-    backdrop.addEventListener('click', () => setOpen(false));
-    document.body.appendChild(backdrop);
-
     const head = document.createElement('div');
     head.className = 'publish-modal-head';
     const heading = document.createElement('strong');
@@ -151,6 +146,18 @@ export function setupPublishControl({ control, getJobId, setStatus }) {
       btn.addEventListener('click', () => selectSegment(btn.dataset.seg));
     });
     head.after(segWrap);
+
+    // Portal the panel + backdrop out to <body>. The panel is position:fixed but an
+    // ancestor (#progressPanel.glass) has backdrop-filter, which makes it the
+    // containing block AND stacking context for fixed descendants — trapping the
+    // panel beneath the body-level backdrop (the whole modal looked blurred).
+    backdrop = document.createElement('div');
+    backdrop.className = 'publish-modal-backdrop hidden';
+    backdrop.addEventListener('click', event => {
+      if (event.target === backdrop) setOpen(false);
+    });
+    document.body.appendChild(backdrop);
+    backdrop.appendChild(panel);
 
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !panel.classList.contains('hidden')) setOpen(false);
