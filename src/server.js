@@ -576,9 +576,10 @@ function previewPublishButton(jobId) {
       var oldFont=document.getElementById('kwTemplateFont'); if(oldFont) oldFont.remove();
       if(t && t!=='default'){
         if(FONTS[t]){ var f=document.createElement('link'); f.id='kwTemplateFont'; f.rel='stylesheet'; f.href=FONTS[t]; document.head.appendChild(f); }
-        // Template CSS is served immutable/long-cache, so version the URL to bust
-        // the browser cache whenever the templates change (bump on each edit).
-        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css?v=20260621-tmpl6'; document.head.appendChild(l);
+        // Template CSS is served immutable/long-cache. In this live preview we
+        // always want the newest version, so bust the cache every load — small
+        // files, and it guarantees edits are never masked by a stale cached copy.
+        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css?v='+Date.now(); document.head.appendChild(l);
       }
     });
   }
