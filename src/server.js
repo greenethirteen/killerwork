@@ -578,7 +578,7 @@ function previewPublishButton(jobId) {
         if(FONTS[t]){ var f=document.createElement('link'); f.id='kwTemplateFont'; f.rel='stylesheet'; f.href=FONTS[t]; document.head.appendChild(f); }
         // Template CSS is served immutable/long-cache, so version the URL to bust
         // the browser cache whenever the templates change (bump on each edit).
-        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css?v=20260621-tmpl2'; document.head.appendChild(l);
+        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css?v=20260621-tmpl3'; document.head.appendChild(l);
       }
     });
   }
@@ -613,8 +613,15 @@ function previewPublishButton(jobId) {
 </script>`;
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '' } = {}) {
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '', imageUpgrades = [] } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
+  // Swap the small 900px grid thumbnails for the full-resolution source so home
+  // cards stay sharp when templates display them large (esp. on retina). Sites
+  // generated before high-res cards still have the thumb baked into the HTML, so
+  // we upgrade on the fly from the manifest's thumb→src mapping.
+  for (const [from, to] of imageUpgrades) {
+    if (from && to && from !== to) html = html.split(`src="${from}"`).join(`src="${to}"`);
+  }
   if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
   if (/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i.test(html)) {
     html = html.replace(/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
@@ -649,7 +656,14 @@ async function serveGeneratedHomePage(req, res, next) {
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
     await refreshStylesIfStale(req.params.id, manifest);
-    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id });
+    const imageUpgrades = [];
+    for (const p of manifest.projects || []) {
+      const t = p.thumbnail;
+      if (t?.thumbSrc && t?.src) imageUpgrades.push([t.thumbSrc, t.src]);
+      const im = p.images?.[0];
+      if (im?.thumbSrc && im?.src) imageUpgrades.push([im.thumbSrc, im.src]);
+    }
+    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id, imageUpgrades });
   } catch (err) {
     next(err);
   }
