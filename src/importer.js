@@ -2726,18 +2726,11 @@ export async function generateSite(manifest, outDir, progress) {
   await fs.writeFile(path.join(siteDir, 'portfolio.js'), await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.js'), 'utf8'));
 
   const cards = manifest.projects.map(p => {
-    // Prefer the full-resolution image for home thumbnails so cards stay sharp
-    // when displayed large; fall back to the smaller generated thumb only if the
-    // full src is unavailable. For Behance the cover comes from the low-res
-    // profile grid, so use the first full-res project module image instead.
-    const behanceHero = manifest.sourcePlatform === 'behance' ? (p.images || []).find(im => im?.src)?.src : '';
-    const thumb = behanceHero
-      ? relFromPage('', behanceHero)
+    const thumb = p.thumbnail?.thumbSrc
+      ? relFromPage('', p.thumbnail.thumbSrc)
       : p.thumbnail?.src
         ? relFromPage('', p.thumbnail.src)
-        : p.thumbnail?.thumbSrc
-          ? relFromPage('', p.thumbnail.thumbSrc)
-          : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : (p.images?.[0]?.thumbSrc ? relFromPage('', p.images[0].thumbSrc) : ''));
+        : (p.images?.[0]?.thumbSrc ? relFromPage('', p.images[0].thumbSrc) : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : ''));
     const media = thumb
       ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="lazy" decoding="async">`
       : `<div class="work-card-placeholder">${(p.videos || []).length ? 'Video' : (p.documents || []).length ? 'PDF' : 'Work'}</div>`;

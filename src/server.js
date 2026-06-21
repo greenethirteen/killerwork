@@ -613,15 +613,8 @@ function previewPublishButton(jobId) {
 </script>`;
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '', imageUpgrades = [] } = {}) {
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '' } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
-  // Swap the small 900px grid thumbnails for the full-resolution source so home
-  // cards stay sharp when templates display them large (esp. on retina). Sites
-  // generated before high-res cards still have the thumb baked into the HTML, so
-  // we upgrade on the fly from the manifest's thumb→src mapping.
-  for (const [from, to] of imageUpgrades) {
-    if (from && to && from !== to) html = html.split(`src="${from}"`).join(`src="${to}"`);
-  }
   if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
   if (/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i.test(html)) {
     html = html.replace(/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
@@ -656,18 +649,7 @@ async function serveGeneratedHomePage(req, res, next) {
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
     await refreshStylesIfStale(req.params.id, manifest);
-    // Behance covers come from the low-res profile grid, so the card's thumbnail
-    // (and its "full" src) are both small. The sharp pixels live in the first
-    // downloaded project module image — swap the home card to that on the fly.
-    const imageUpgrades = [];
-    if (manifest.sourcePlatform === 'behance') {
-      for (const p of manifest.projects || []) {
-        const current = p.thumbnail?.thumbSrc || p.thumbnail?.src || p.images?.[0]?.thumbSrc || p.images?.[0]?.src;
-        const hero = (p.images || []).find(im => im?.src)?.src;
-        if (current && hero && current !== hero) imageUpgrades.push([current, hero]);
-      }
-    }
-    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id, imageUpgrades });
+    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id });
   } catch (err) {
     next(err);
   }
