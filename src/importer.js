@@ -1844,6 +1844,14 @@ function singlePageProject(url, siteUrl) {
   };
 }
 
+// Behance serves project covers from the profile grid at 404px wide. The same
+// cover is available at 808 (2x) via the size segment in the CDN path — request
+// that so home thumbnails stay sharp when a template displays them large.
+function upgradeBehanceCoverUrl(url) {
+  if (!url || !/mir-s3(?:-cdn|-cdn-cf)?\.behance\.net\/projects\//i.test(url)) return url;
+  return url.replace(/(\.behance\.net\/projects)\/(?:\d{2,4}|max_\d+)\//i, '$1/808/');
+}
+
 async function downloadAsset(url, assetsDir, progress, cache) {
   if (!url || isBadMediaUrl(url)) return null;
   const type = mediaType(url);
@@ -3139,12 +3147,14 @@ export async function runImport({ url, outDir, onProgress, aiCleanup = undefined
 
     let thumbnail = null;
     if (base.thumbnailUrl) {
-      const dl = await downloadAsset(normalizeUrl(base.thumbnailUrl, base.url), assetsDir, progress, cache);
-      if (dl?.src) thumbnail = { src: dl.src, thumbSrc: dl.thumbSrc || '', original: base.thumbnailUrl };
+      const coverUrl = upgradeBehanceCoverUrl(normalizeUrl(base.thumbnailUrl, base.url));
+      const dl = await downloadAsset(coverUrl, assetsDir, progress, cache);
+      if (dl?.src) thumbnail = { src: dl.src, thumbSrc: dl.thumbSrc || '', original: coverUrl };
     }
     if (!thumbnail && data.thumbnailUrl) {
-      const dl = await downloadAsset(normalizeUrl(data.thumbnailUrl, base.url), assetsDir, progress, cache);
-      if (dl?.src) thumbnail = { src: dl.src, thumbSrc: dl.thumbSrc || '', original: data.thumbnailUrl };
+      const coverUrl = upgradeBehanceCoverUrl(normalizeUrl(data.thumbnailUrl, base.url));
+      const dl = await downloadAsset(coverUrl, assetsDir, progress, cache);
+      if (dl?.src) thumbnail = { src: dl.src, thumbSrc: dl.thumbSrc || '', original: coverUrl };
     }
     if (!thumbnail && downloadedImages[0]) thumbnail = { src: downloadedImages[0].src, thumbSrc: downloadedImages[0].thumbSrc || '', original: downloadedImages[0].original };
 

@@ -614,8 +614,13 @@ function previewPublishButton(jobId) {
 </script>`;
 }
 
-async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '' } = {}) {
+async function sendPortfolioHtmlWithRuntime(res, filePath, { behanceHome = false, behanceProject = false, pageTitle = '', jobId = '', imageUpgrades = [] } = {}) {
   let html = await fs.readFile(filePath, 'utf8');
+  // Existing Behance sites have 404px covers baked in; point the home cards at
+  // Behance's 808px rendition of the same cover so the thumbnails stay crisp.
+  for (const [from, to] of imageUpgrades) {
+    if (from && to && from !== to) html = html.split(`src="${from}"`).join(`src="${to}"`);
+  }
   if (pageTitle) html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlText(pageTitle)}</title>`);
   if (/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i.test(html)) {
     html = html.replace(/<link\b[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/i, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
@@ -650,7 +655,20 @@ async function serveGeneratedHomePage(req, res, next) {
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
     await refreshStylesIfStale(req.params.id, manifest);
-    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id });
+    // Behance covers were downloaded at 404px; serve the same cover at 808px
+    // (2x) from Behance's CDN so home thumbnails stay sharp when shown large.
+    const imageUpgrades = [];
+    if (manifest.sourcePlatform === 'behance') {
+      for (const p of manifest.projects || []) {
+        const local = p.thumbnail?.thumbSrc;
+        const orig = p.thumbnail?.original || '';
+        const m = orig.match(/\.behance\.net\/projects\/(\d{2,4})\//i);
+        if (local && m && Number(m[1]) < 808) {
+          imageUpgrades.push([local, orig.replace(/(\.behance\.net\/projects)\/\d{2,4}\//i, '$1/808/')]);
+        }
+      }
+    }
+    return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id, imageUpgrades });
   } catch (err) {
     next(err);
   }
