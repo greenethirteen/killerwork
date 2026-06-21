@@ -505,6 +505,9 @@ function previewPublishButton(jobId) {
 .kw-preview-bar{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;align-items:center;justify-content:space-between;gap:12px;height:46px;padding:0 14px;box-sizing:border-box;background:rgba(8,9,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 .kw-preview-bar a,.kw-preview-bar button{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border:0;border-radius:999px;text-decoration:none;font-weight:900;font-size:14px;line-height:1;white-space:nowrap;cursor:pointer;font-family:inherit}
 .kw-preview-bar .kw-actions{display:inline-flex;align-items:center;gap:10px}
+.kw-preview-bar select.kw-template{padding:8px 12px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(255,255,255,.06);color:#fffaf2;font-weight:900;font-size:13px;line-height:1;cursor:pointer;font-family:inherit}
+.kw-preview-bar select.kw-template:hover{background:rgba(255,255,255,.12)}
+.kw-preview-bar select.kw-template option{color:#111}
 .kw-preview-bar .kw-home,.kw-preview-bar .kw-edit{color:#fffaf2;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
 .kw-preview-bar .kw-home:hover,.kw-preview-bar .kw-edit:hover{background:rgba(255,255,255,.12)}
 .kw-preview-bar .kw-pub{background:linear-gradient(135deg,#8cffc1,#7bdff2);color:#07120c}
@@ -514,6 +517,17 @@ function previewPublishButton(jobId) {
 <div class="kw-preview-bar" id="kwPreviewBar">
   <a class="kw-home" href="https://killa.work/" target="_blank" rel="noopener">⌂ Home</a>
   <div class="kw-actions">
+    <select class="kw-template" id="kwTemplateSelect" aria-label="Preview a template style">
+      <option value="default">Template: Default</option>
+      <option value="editorial">Editorial</option>
+      <option value="bold">Bold</option>
+      <option value="neo">Neo</option>
+      <option value="cinema">Cinema</option>
+      <option value="studio">Studio</option>
+      <option value="gallery">Gallery</option>
+      <option value="french">French</option>
+      <option value="agency">Agency</option>
+    </select>
     <a class="kw-edit" href="/pixel-editor.html?job=${safeId}" target="_top" rel="noopener" aria-label="Edit this portfolio in the editor">✎ Edit</a>
     <button class="kw-pub" id="kwPubBtn" type="button" aria-label="Publish this portfolio live">⬆ Publish Live</button>
   </div>
@@ -543,7 +557,28 @@ function previewPublishButton(jobId) {
   </div>
 </div>
 <div class="kw-pub-toast hidden" id="kwPubToast" aria-live="polite"></div>
-<script>(function(){try{if(window.top===window.self){var b=document.getElementById('kwPreviewBar');b.style.display='flex';document.documentElement.style.scrollPaddingTop='46px';document.body.style.marginTop='46px';}}catch(e){}})();</script>
+<script>(function(){try{if(window.top===window.self){var b=document.getElementById('kwPreviewBar');b.style.display='flex';document.documentElement.style.scrollPaddingTop='46px';document.body.style.marginTop='46px';
+  // Live-preview-only template switcher: swaps the overlay stylesheet (and its font)
+  // in <head> so it cascades over the base styles.css. Not persisted to the manifest.
+  var sel=document.getElementById('kwTemplateSelect');
+  if(sel){
+    var FONTS={
+      editorial:'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap',
+      cinema:'https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap',
+      studio:'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap',
+      gallery:'https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap'
+    };
+    sel.addEventListener('change',function(){
+      var t=sel.value;
+      var oldCss=document.getElementById('kwTemplateOverlay'); if(oldCss) oldCss.remove();
+      var oldFont=document.getElementById('kwTemplateFont'); if(oldFont) oldFont.remove();
+      if(t && t!=='default'){
+        if(FONTS[t]){ var f=document.createElement('link'); f.id='kwTemplateFont'; f.rel='stylesheet'; f.href=FONTS[t]; document.head.appendChild(f); }
+        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css'; document.head.appendChild(l);
+      }
+    });
+  }
+}}catch(e){}})();</script>
 <script type="module">
   if (window.top === window.self) {
     (async () => {
