@@ -22,26 +22,27 @@ body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);c
 .home h1{color:var(--fg);font-weight:800;text-transform:uppercase;letter-spacing:-.025em;line-height:.94}
 .home .intro{color:var(--muted)}
 
-/* Grid — 3-column, square images, always-visible bottom title strip */
-.work-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:46px}
+/* Grid — 3-column, uncropped images; title blurs in centered on hover */
+.work-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:46px;align-items:start}
 @media(max-width:900px){.work-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.work-grid{grid-template-columns:1fr}}
-.work-card{aspect-ratio:auto;min-height:0;border:0;border-radius:0;background:#1a1c1f;overflow:hidden}
+.work-card{position:relative;aspect-ratio:auto;min-height:0;border:0;border-radius:0;background:#1a1c1f;overflow:hidden}
 .work-card:after{display:none}
-.work-card img{aspect-ratio:1;width:100%;height:auto;min-height:0;object-fit:cover;border-radius:0;transition:transform .4s cubic-bezier(.2,.7,.2,1);transform:none}
-.work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:color .2s ease;padding:13px 14px;margin:0;background:#1a1c1f;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.3;text-align:left;text-shadow:none}
-.work-card:hover img{transform:scale(1.02)}
-.work-card:hover span{color:#f5a623}
-.work-card-placeholder{aspect-ratio:1;min-height:0;height:auto;background:#1a1c1f;color:#3a3d42}
+.work-card img{aspect-ratio:auto;width:100%;height:auto;min-height:0;object-fit:contain;border-radius:0;transition:filter .35s ease;transform:none}
+.work-card span{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:none;transition:opacity .25s ease;padding:18px;margin:0;background:rgba(17,18,20,.5);backdrop-filter:none;border-radius:0;color:#f5a623;font-size:clamp(13px,1.5vw,18px);font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.3;text-align:center;text-shadow:0 2px 16px rgba(0,0,0,.6)}
+.work-card:hover img{filter:blur(6px) brightness(.55)}
+.work-card:hover span{opacity:1;color:#f5a623}
+.work-card-placeholder{aspect-ratio:16/10;min-height:0;height:auto;background:#1a1c1f;color:#3a3d42}
 
-/* Behance square grid — same strip treatment */
-.behance-home .work-card{aspect-ratio:auto;border:0;border-radius:0;background:#1a1c1f;overflow:hidden}
+/* Behance grid — same uncropped, hover-centered treatment */
+.behance-home .work-grid{align-items:start}
+.behance-home .work-card{position:relative;aspect-ratio:auto;border:0;border-radius:0;background:#1a1c1f;overflow:hidden}
 .behance-home .work-card:after{display:none}
-.behance-home .work-card img{aspect-ratio:1;height:auto;object-fit:cover;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
-.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;opacity:1;transform:none;transition:color .2s ease;padding:13px 14px;background:#1a1c1f;color:var(--fg);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.3;text-align:left;text-shadow:none}
-.behance-home .work-card:hover img{transform:scale(1.02)}
-.behance-home .work-card:hover span{color:#f5a623}
-.behance-home .work-card-placeholder{aspect-ratio:1;height:auto}
+.behance-home .work-card img{aspect-ratio:auto;height:auto;width:100%;object-fit:contain;transition:filter .35s ease}
+.behance-home .work-card span{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:none;transition:opacity .25s ease;padding:18px;background:rgba(17,18,20,.5);color:#f5a623;font-size:clamp(12px,1.4vw,17px);font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.3;text-align:center;text-shadow:0 2px 16px rgba(0,0,0,.6)}
+.behance-home .work-card:hover img{filter:blur(6px) brightness(.55)}
+.behance-home .work-card:hover span{opacity:1;color:#f5a623}
+.behance-home .work-card-placeholder{aspect-ratio:16/10;height:auto}
 
 /* Project pages */
 .project-header h1{color:var(--fg);font-weight:800;text-transform:uppercase;letter-spacing:-.02em}

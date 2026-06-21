@@ -2708,12 +2708,10 @@ export async function generateSite(manifest, outDir, progress) {
     await fs.copy(stagingAssetsDir, path.join(siteDir, 'assets', 'imported'), { overwrite: true });
   }
   await fs.copy(path.join(__dirname, '..', 'public', 'favicon-logo-144.png'), path.join(siteDir, 'favicon.png'));
-  const ALLOWED_TEMPLATES = ['default', 'grid-3', 'grid-4', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
+  const ALLOWED_TEMPLATES = ['default', 'grid-3', 'grid-4', 'editorial', 'bold', 'neo', 'cinema', 'gallery', 'french', 'agency'];
   const templateName = ALLOWED_TEMPLATES.includes(manifest.portfolioTemplate) ? manifest.portfolioTemplate : 'default';
   const TEMPLATE_FONT_IMPORTS = {
-    editorial: "@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap');\n",
     cinema: "@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap');\n",
-    studio: "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');\n",
     gallery: "@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap');\n",
   };
   let styles = await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.css'), 'utf8');
@@ -2728,11 +2726,14 @@ export async function generateSite(manifest, outDir, progress) {
   await fs.writeFile(path.join(siteDir, 'portfolio.js'), await fs.readFile(path.join(__dirname, '..', 'public', 'portfolio.js'), 'utf8'));
 
   const cards = manifest.projects.map(p => {
-    const thumb = p.thumbnail?.thumbSrc
-      ? relFromPage('', p.thumbnail.thumbSrc)
-      : p.thumbnail?.src
-        ? relFromPage('', p.thumbnail.src)
-        : (p.images?.[0]?.thumbSrc ? relFromPage('', p.images[0].thumbSrc) : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : ''));
+    // Prefer the full-resolution image for home thumbnails so cards stay sharp
+    // when displayed large; fall back to the smaller generated thumb only if the
+    // full src is unavailable.
+    const thumb = p.thumbnail?.src
+      ? relFromPage('', p.thumbnail.src)
+      : p.thumbnail?.thumbSrc
+        ? relFromPage('', p.thumbnail.thumbSrc)
+        : (p.images?.[0]?.src ? relFromPage('', p.images[0].src) : (p.images?.[0]?.thumbSrc ? relFromPage('', p.images[0].thumbSrc) : ''));
     const media = thumb
       ? `<img src="${htmlEscape(thumb)}" alt="${htmlEscape(p.title)}" loading="lazy" decoding="async">`
       : `<div class="work-card-placeholder">${(p.videos || []).length ? 'Video' : (p.documents || []).length ? 'PDF' : 'Work'}</div>`;

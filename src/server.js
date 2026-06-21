@@ -180,9 +180,7 @@ app.use('/generated', express.static(generatedRoot, { setHeaders: setGeneratedSt
 // Per-template display fonts. Prepended (as @import, which must lead the stylesheet)
 // so each template reads as a distinct design system, not just recoloured Inter.
 const TEMPLATE_FONT_IMPORTS = {
-  editorial: "@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap');\n",
   cinema: "@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap');\n",
-  studio: "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');\n",
   gallery: "@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap');\n",
 };
 
@@ -525,7 +523,6 @@ function previewPublishButton(jobId) {
       <option value="bold">Bold</option>
       <option value="neo">Neo</option>
       <option value="cinema">Cinema</option>
-      <option value="studio">Studio</option>
       <option value="gallery">Gallery</option>
       <option value="french">French</option>
       <option value="agency">Agency</option>
@@ -560,14 +557,17 @@ function previewPublishButton(jobId) {
 </div>
 <div class="kw-pub-toast hidden" id="kwPubToast" aria-live="polite"></div>
 <script>(function(){try{if(window.top===window.self){var b=document.getElementById('kwPreviewBar');b.style.display='flex';document.documentElement.style.scrollPaddingTop='46px';document.body.style.marginTop='46px';
+  // Some templates animate the <body> with a transform (page-in). A transform on
+  // an ancestor makes position:fixed resolve against that ancestor instead of the
+  // viewport, which pushed this fixed bar down by the body margin and left a gap
+  // above it. Re-parent the preview chrome to <html> so it ignores body transforms.
+  ['kwPreviewBar','kwPublishControl','kwPubToast'].forEach(function(id){var el=document.getElementById(id);if(el) document.documentElement.appendChild(el);});
   // Live-preview-only template switcher: swaps the overlay stylesheet (and its font)
   // in <head> so it cascades over the base styles.css. Not persisted to the manifest.
   var sel=document.getElementById('kwTemplateSelect');
   if(sel){
     var FONTS={
-      editorial:'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap',
       cinema:'https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap',
-      studio:'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap',
       gallery:'https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap'
     };
     sel.addEventListener('change',function(){
@@ -2832,7 +2832,7 @@ app.post('/api/code-editor/:id/template', requireFirebaseAuth, async (req, res) 
   try {
     const id = req.params.id;
     const manifest = await requireEditablePortfolio(id, req.user);
-    const ALLOWED = ['default', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
+    const ALLOWED = ['default', 'grid-3', 'grid-4', 'editorial', 'bold', 'neo', 'cinema', 'gallery', 'french', 'agency'];
     const templateName = String(req.body?.template || 'default');
     if (!ALLOWED.includes(templateName)) return res.status(400).json({ error: 'Unknown template.' });
     manifest.portfolioTemplate = templateName;

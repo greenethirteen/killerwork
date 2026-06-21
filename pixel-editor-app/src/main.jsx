@@ -1340,7 +1340,7 @@ function VisualEditor() {
             <button onClick={() => setTemplatesOpen(o => !o)}
               style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:6, border:'1px solid #333', cursor:'pointer', fontSize:11, fontWeight:500,
                 background: templatesOpen ? '#1e1e26' : 'transparent', color: activeTemplate !== 'default' ? '#ff8040' : '#bbb' }}>
-              Theme{activeTemplate !== 'default' ? `: ${[{id:'editorial',name:'Editorial'},{id:'bold',name:'Bold'},{id:'neo',name:'Neo'},{id:'cinema',name:'Cinema'},{id:'studio',name:'Studio'},{id:'gallery',name:'Gallery'},{id:'french',name:'French'},{id:'agency',name:'Agency'}].find(t=>t.id===activeTemplate)?.name || activeTemplate}` : ''} {templatesOpen ? '▲' : '▼'}
+              Theme{activeTemplate !== 'default' ? `: ${[{id:'editorial',name:'Editorial'},{id:'bold',name:'Bold'},{id:'neo',name:'Neo'},{id:'cinema',name:'Cinema'},{id:'gallery',name:'Gallery'},{id:'french',name:'French'},{id:'agency',name:'Agency'}].find(t=>t.id===activeTemplate)?.name || activeTemplate}` : ''} {templatesOpen ? '▲' : '▼'}
             </button>
             {templatesOpen && (
               <div style={{ position:'absolute', top:34, left:0, background:'#1c1c22', border:'1px solid #2a2a36', borderRadius:9, padding:5, zIndex:300, minWidth:180, boxShadow:'0 10px 30px rgba(0,0,0,.6)' }}>
@@ -1348,7 +1348,6 @@ function VisualEditor() {
                   { id:'default', name:'Minimal', desc:'Dark · rounded card grid' },
                   { id:'editorial', name:'Editorial', desc:'Numbered index · hover reveal' },
                   { id:'cinema', name:'Cinema', desc:'Full-bleed scroll · dark' },
-                  { id:'studio', name:'Studio', desc:'Staggered blocks · white' },
                   { id:'gallery', name:'Gallery', desc:'Masonry wall · cream' },
                   { id:'bold', name:'Bold', desc:'Swiss · black on white' },
                   { id:'neo', name:'Neo', desc:'Dark luxe · electric accents' },

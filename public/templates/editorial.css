@@ -4,7 +4,7 @@
    inline page colors stay readable; only chrome is hardcoded. */
 
 :root{--bg:#faf9f5;--fg:#191511;--muted:#8d867a;--line:rgba(25,20,12,.14);--card:#f1efe8}
-body{font-family:'Fraunces','Times New Roman',Times,serif;font-optical-sizing:auto;background:var(--bg);color:var(--fg)}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg)}
 
 /* Header — paper, hairline rule, small-caps nav */
 .site-header{background:rgba(250,249,245,.94);backdrop-filter:blur(12px);color:var(--fg);border-bottom:1px solid var(--line);box-shadow:none;padding:24px 4vw}
@@ -19,7 +19,7 @@ body{font-family:'Fraunces','Times New Roman',Times,serif;font-optical-sizing:au
 .source-import-header nav{color:var(--muted)}
 
 /* Home heading — serif, lighter weight */
-.home h1{font-weight:500;letter-spacing:-.035em}
+.home h1{font-weight:700;letter-spacing:-.04em}
 .home .intro{font-family:Inter,Arial,sans-serif;color:var(--muted)}
 
 /* Home — typographic index. Big serif-italic project names stacked as rows;
@@ -28,8 +28,8 @@ body{font-family:'Fraunces','Times New Roman',Times,serif;font-optical-sizing:au
 .work-card{position:relative;aspect-ratio:auto;min-height:0;display:flex;align-items:baseline;gap:24px;padding:24px 6px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;overflow:visible}
 .work-card:after{display:none}
 .work-card:before{counter-increment:kw-idx;content:counter(kw-idx,decimal-leading-zero);font-family:Inter,Arial,sans-serif;font-style:normal;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;flex:0 0 auto;width:2.6em;transition:color .25s}
-.work-card img{position:absolute;right:6px;top:50%;width:min(30vw,320px);height:auto;aspect-ratio:4/3;min-height:0;object-fit:cover;border-radius:3px;background:#ece9e1;opacity:0;transform:translateY(-40%) scale(.96);transition:opacity .3s ease,transform .45s cubic-bezier(.2,.7,.2,1);pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
-.work-card span{position:static;inset:auto;display:block;place-items:unset;flex:1;opacity:1;transform:none;padding:0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:clamp(28px,5vw,62px);font-weight:500;font-style:italic;letter-spacing:-.025em;line-height:1;text-align:left;text-shadow:none;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.work-card img{position:absolute;right:6px;top:50%;width:min(44vw,560px);height:auto;aspect-ratio:auto;min-height:0;object-fit:contain;border-radius:3px;background:#ece9e1;opacity:0;transform:translateY(-40%) scale(.96);transition:opacity .3s ease,transform .45s cubic-bezier(.2,.7,.2,1);pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
+.work-card span{position:static;inset:auto;display:block;place-items:unset;flex:1;opacity:1;transform:none;padding:0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:clamp(26px,4.4vw,54px);font-weight:600;font-style:normal;letter-spacing:-.025em;line-height:1.02;text-align:left;text-shadow:none;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
 .work-card:hover:before{color:var(--fg)}
 .work-card:hover img{opacity:1;transform:translateY(-50%) scale(1)}
 .work-card:hover span{transform:translateX(20px)}
@@ -42,8 +42,8 @@ body{font-family:'Fraunces','Times New Roman',Times,serif;font-optical-sizing:au
 .behance-home .work-card{position:relative;aspect-ratio:auto;display:flex;align-items:baseline;gap:24px;padding:24px 6px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;overflow:visible}
 .behance-home .work-card:after{display:none}
 .behance-home .work-card:before{counter-increment:kw-idx;content:counter(kw-idx,decimal-leading-zero);font-family:Inter,Arial,sans-serif;font-style:normal;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;flex:0 0 auto;width:2.6em;transition:color .25s}
-.behance-home .work-card img{position:absolute;right:6px;top:50%;width:min(28vw,300px);height:auto;aspect-ratio:1;min-height:0;object-fit:cover;border-radius:3px;opacity:0;transform:translateY(-40%) scale(.96);transition:opacity .3s ease,transform .45s cubic-bezier(.2,.7,.2,1);pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
-.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;flex:1;opacity:1;transform:none;padding:0;background:transparent;backdrop-filter:none;color:var(--fg);font-size:clamp(28px,5vw,62px);font-weight:500;font-style:italic;letter-spacing:-.025em;line-height:1;text-align:left;text-shadow:none;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.behance-home .work-card img{position:absolute;right:6px;top:50%;width:min(44vw,560px);height:auto;aspect-ratio:auto;min-height:0;object-fit:contain;border-radius:3px;background:#ece9e1;opacity:0;transform:translateY(-40%) scale(.96);transition:opacity .3s ease,transform .45s cubic-bezier(.2,.7,.2,1);pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
+.behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;flex:1;opacity:1;transform:none;padding:0;background:transparent;backdrop-filter:none;color:var(--fg);font-size:clamp(26px,4.4vw,54px);font-weight:600;font-style:normal;letter-spacing:-.025em;line-height:1.02;text-align:left;text-shadow:none;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
 .behance-home .work-card:hover:before{color:var(--fg)}
 .behance-home .work-card:hover img{opacity:1;transform:translateY(-50%) scale(1)}
 .behance-home .work-card:hover span{transform:translateX(20px)}
