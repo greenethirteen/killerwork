@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260621-hero4" />
+  <link rel="stylesheet" href="/ui.css?v=20260621-picker" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -132,11 +132,38 @@
           <p><span>Drop in the work and let AI build </span><span>your portfolio in minutes, not days.</span></p>
           <div class="dual-actions">
             <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
-            <a id="adZipBuildBtn" class="button secondary" href="/ad-builder.html">AI build from ZIP</a>
+            <a id="adZipBuildBtn" class="button secondary is-disabled" aria-disabled="true" role="button" tabindex="-1" title="Coming soon">AI build from ZIP</a>
           </div>
         </div>
       </article>
     </section>
+
+    <div class="tpl-picker hidden" id="tplPicker" role="dialog" aria-modal="true" aria-label="Choose a starting template" data-demo="https://killa.work/generated/1782019420726-da2fbac41f60/site/index.html">
+      <div class="tpl-picker-backdrop" data-tpl-close></div>
+      <div class="tpl-picker-card glass">
+        <div class="tpl-picker-head">
+          <div>
+            <h2>Pick a starting template</h2>
+            <p>See the look, then build from your files. You can change it anytime.</p>
+          </div>
+          <button class="tpl-picker-x" type="button" data-tpl-close aria-label="Close">✕</button>
+        </div>
+        <div class="tpl-toggle" role="tablist" aria-label="Templates">
+          <button class="tpl-opt is-active" type="button" role="tab" data-tpl="default">Minimal</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="editorial">Editorial</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="bold">Bold</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="neo">Neo</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="cinema">Cinema</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="gallery">Gallery</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="french">French</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="agency">Agency</button>
+        </div>
+        <div class="tpl-preview"><iframe class="tpl-frame" title="Template preview" loading="lazy" scrolling="no"></iframe></div>
+        <div class="tpl-picker-foot">
+          <button class="button hot tpl-continue" type="button">Continue with <b data-tpl-name>Minimal</b> →</button>
+        </div>
+      </div>
+    </div>
 
     <section class="proof-strip proof-strip-top" aria-label="Agency proof" data-nosnippet>
       <div class="proof-copy">
@@ -605,6 +632,94 @@
     </footer>
   </main>
   <script src="/i18n.js?v=20260620-i18n"></script>
+  <script>
+    // Template picker: clicking "Build from files" first lets the user pick a
+    // starting template (with a live preview of the demo portfolio), then
+    // continues to /build.html?template=X.
+    (() => {
+      const picker = document.getElementById('tplPicker');
+      const buildBtn = document.getElementById('buildUploadBtn');
+      if (!picker || !buildBtn) return;
+      const frame = picker.querySelector('.tpl-frame');
+      const preview = picker.querySelector('.tpl-preview');
+      const nameEl = picker.querySelector('[data-tpl-name]');
+      const opts = [...picker.querySelectorAll('.tpl-opt')];
+      const DEMO = picker.dataset.demo;
+      const FONTS = {
+        cinema: 'https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap',
+        gallery: 'https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap'
+      };
+      let chosen = 'default';
+      let frameReady = false;
+
+      const fitFrame = () => {
+        const scale = preview.clientWidth / 1280;
+        frame.style.transform = `scale(${scale})`;
+        preview.style.height = `${preview.clientWidth * (840 / 1280)}px`;
+      };
+
+      const applyToFrame = (t) => {
+        if (!frameReady) return;
+        let doc;
+        try { doc = frame.contentDocument; } catch (e) { return; }
+        if (!doc) return;
+        doc.getElementById('tplOverlay')?.remove();
+        doc.getElementById('tplFont')?.remove();
+        if (t && t !== 'default') {
+          if (FONTS[t]) {
+            const f = doc.createElement('link');
+            f.id = 'tplFont'; f.rel = 'stylesheet'; f.href = FONTS[t];
+            doc.head.appendChild(f);
+          }
+          const l = doc.createElement('link');
+          l.id = 'tplOverlay'; l.rel = 'stylesheet'; l.href = '/templates/' + t + '.css?v=' + Date.now();
+          doc.head.appendChild(l);
+        }
+      };
+
+      const selectTpl = (t) => {
+        chosen = t;
+        opts.forEach(b => b.classList.toggle('is-active', b.dataset.tpl === t));
+        nameEl.textContent = opts.find(b => b.dataset.tpl === t)?.textContent || '';
+        applyToFrame(t);
+      };
+
+      frame.addEventListener('load', () => {
+        frameReady = true;
+        preview.classList.remove('is-loading');
+        fitFrame();
+        applyToFrame(chosen);
+      });
+
+      const open = () => {
+        picker.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        if (!frame.src) { preview.classList.add('is-loading'); frame.src = DEMO; }
+        else fitFrame();
+        selectTpl(chosen);
+      };
+      const close = () => {
+        picker.classList.add('hidden');
+        document.body.style.overflow = '';
+      };
+
+      buildBtn.addEventListener('click', (e) => {
+        // When the build panel isn't active yet, let ui.js switch panels first.
+        if (buildBtn.classList.contains('button-disabled') || buildBtn.getAttribute('aria-disabled') === 'true') return;
+        e.preventDefault();
+        open();
+      });
+      opts.forEach(b => b.addEventListener('click', () => selectTpl(b.dataset.tpl)));
+      picker.querySelectorAll('[data-tpl-close]').forEach(el => el.addEventListener('click', close));
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !picker.classList.contains('hidden')) close(); });
+      window.addEventListener('resize', () => { if (!picker.classList.contains('hidden')) fitFrame(); });
+      picker.querySelector('.tpl-continue').addEventListener('click', () => {
+        try { localStorage.setItem('killerwork:buildTemplate', chosen); } catch (e) {}
+        const q = chosen && chosen !== 'default' ? ('?template=' + encodeURIComponent(chosen)) : '';
+        window.location.href = '/build.html' + q;
+      });
+    })();
+  </script>
   <script type="module">
     import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260621-busyactions'));
   </script>

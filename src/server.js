@@ -341,6 +341,12 @@ async function requireActiveSubscription(req, res, next) {
   }
 }
 
+const PORTFOLIO_TEMPLATES = ['default', 'grid-3', 'grid-4', 'editorial', 'bold', 'neo', 'cinema', 'gallery', 'french', 'agency'];
+function applyChosenTemplate(manifest, template) {
+  const name = String(template || '').trim();
+  if (PORTFOLIO_TEMPLATES.includes(name) && name !== 'default') manifest.portfolioTemplate = name;
+}
+
 function attachOwner(manifest, user) {
   manifest.ownerUid = user.uid;
   manifest.owner = { uid: user.uid };
@@ -865,6 +871,7 @@ app.post('/api/upload-build', requireFirebaseAuth, upload.array('files', 60), as
       if (job.progress.length > 300) job.progress.shift();
     }});
     attachOwner(result.manifest, req.user);
+    applyChosenTemplate(result.manifest, req.body?.template);
     await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
     finaliseJob(job);
@@ -1025,6 +1032,7 @@ app.post('/api/campaign-build', requireFirebaseAuth, upload.any(), async (req, r
       if (job.progress.length > 300) job.progress.shift();
     }});
     attachOwner(result.manifest, req.user);
+    applyChosenTemplate(result.manifest, req.body?.template);
     await saveManifestAndRebuild(id, result.manifest);
     job.status = 'done';
     finaliseJob(job);

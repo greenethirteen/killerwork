@@ -856,3 +856,24 @@ body{top:0!important}
 .publish-panel .publish-unpublish.hidden{display:none}
 .publish-error{margin:10px 0 0;padding:9px 12px;border:1px solid rgba(255,107,107,.45);border-radius:12px;background:rgba(255,107,107,.1);color:#ff8a8a;font-size:13px;font-weight:800;line-height:1.4}
 .publish-error.hidden{display:none}
+.button.is-disabled,.button[aria-disabled="true"]{opacity:.4;cursor:not-allowed;pointer-events:none}
+.tpl-picker{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.tpl-picker.hidden{display:none}
+.tpl-picker-backdrop{position:absolute;inset:0;background:rgba(4,4,9,.74);backdrop-filter:blur(7px)}
+.tpl-picker-card{position:relative;z-index:1;width:min(780px,100%);max-height:92vh;overflow:auto;border-radius:28px;padding:24px}
+.tpl-picker-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
+.tpl-picker-head h2{margin:0 0 4px;font-size:clamp(22px,3vw,30px);letter-spacing:-.03em}
+.tpl-picker-head p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.tpl-picker-x{flex:0 0 auto;width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);font-size:15px;font-weight:900;cursor:pointer}
+.tpl-picker-x:hover{background:rgba(255,255,255,.12)}
+.tpl-toggle{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tpl-opt{padding:9px 15px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted);font-weight:800;font-size:13.5px;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
+.tpl-opt:hover{color:var(--fg);border-color:rgba(255,255,255,.3)}
+.tpl-opt.is-active{background:var(--fg);color:#111;border-color:transparent}
+.tpl-preview{position:relative;width:100%;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0b0b0f}
+.tpl-frame{width:1280px;height:840px;border:0;transform-origin:top left;background:#0b0b0f;pointer-events:none}
+.tpl-preview.is-loading::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,rgba(255,255,255,.04),rgba(255,255,255,.1),rgba(255,255,255,.04));background-size:200% 100%;animation:tpl-shimmer 1.1s linear infinite}
+@keyframes tpl-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.tpl-picker-foot{display:flex;justify-content:flex-end;margin-top:18px}
+.tpl-continue{font-size:15px}
+@media(max-width:600px){.tpl-picker-card{padding:18px;border-radius:22px}.tpl-picker-foot{justify-content:stretch}.tpl-continue{width:100%}}

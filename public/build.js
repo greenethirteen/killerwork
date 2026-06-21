@@ -492,6 +492,8 @@ form.addEventListener('submit', async event => {
   body.append('title', portfolioHeader === 'Enter Your Name' ? '' : portfolioHeader);
   body.append('subtitle', portfolioSubhead);
   body.append('campaigns', JSON.stringify(campaigns));
+  const chosenTemplate = new URLSearchParams(location.search).get('template') || localStorage.getItem('killerwork:buildTemplate') || '';
+  if (chosenTemplate) body.append('template', chosenTemplate);
   cards.forEach((card, index) => {
     const files = card.querySelector('[data-field="files"]')?.files || [];
     [...files].forEach(file => body.append(`campaignFiles-${index}`, file));
