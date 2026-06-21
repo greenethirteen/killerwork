@@ -2708,7 +2708,7 @@ export async function generateSite(manifest, outDir, progress) {
     await fs.copy(stagingAssetsDir, path.join(siteDir, 'assets', 'imported'), { overwrite: true });
   }
   await fs.copy(path.join(__dirname, '..', 'public', 'favicon-logo-144.png'), path.join(siteDir, 'favicon.png'));
-  const ALLOWED_TEMPLATES = ['default', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
+  const ALLOWED_TEMPLATES = ['default', 'grid-3', 'grid-4', 'editorial', 'bold', 'neo', 'cinema', 'studio', 'gallery', 'french', 'agency'];
   const templateName = ALLOWED_TEMPLATES.includes(manifest.portfolioTemplate) ? manifest.portfolioTemplate : 'default';
   const TEMPLATE_FONT_IMPORTS = {
     editorial: "@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap');\n",

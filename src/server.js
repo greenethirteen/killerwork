@@ -519,6 +519,8 @@ function previewPublishButton(jobId) {
   <div class="kw-actions">
     <select class="kw-template" id="kwTemplateSelect" aria-label="Preview a template style">
       <option value="default">Template: Default</option>
+      <option value="grid-3">Default · 3 across</option>
+      <option value="grid-4">Default · 4 across</option>
       <option value="editorial">Editorial</option>
       <option value="bold">Bold</option>
       <option value="neo">Neo</option>
