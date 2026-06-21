@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260621-picker" />
+  <link rel="stylesheet" href="/ui.css?v=20260621-picker2" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -95,7 +95,7 @@
       </div>
     </nav>
     <header class="landing-hero" data-reveal>
-      <h1 class="landing-hero-title">Portfolios, without the <span class="landing-hero-accent">subscription trap</span>.</h1>
+      <h1 class="landing-hero-title">Host your portfolio without the <span class="landing-hero-accent">subscription trap</span></h1>
       <p class="landing-hero-sub">Pay <b>$9.99</b> once. Not forever.</p>
     </header>
     <section id="import" class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
@@ -146,22 +146,23 @@
             <h2>Pick a starting template</h2>
             <p>See the look, then build from your files. You can change it anytime.</p>
           </div>
-          <button class="tpl-picker-x" type="button" data-tpl-close aria-label="Close">✕</button>
+          <div class="tpl-head-actions">
+            <button class="button hot tpl-continue" type="button">Start →</button>
+            <button class="tpl-picker-x" type="button" data-tpl-close aria-label="Close">✕</button>
+          </div>
         </div>
         <div class="tpl-toggle" role="tablist" aria-label="Templates">
           <button class="tpl-opt is-active" type="button" role="tab" data-tpl="default">Minimal</button>
-          <button class="tpl-opt" type="button" role="tab" data-tpl="editorial">Editorial</button>
           <button class="tpl-opt" type="button" role="tab" data-tpl="bold">Bold</button>
           <button class="tpl-opt" type="button" role="tab" data-tpl="neo">Neo</button>
           <button class="tpl-opt" type="button" role="tab" data-tpl="cinema">Cinema</button>
           <button class="tpl-opt" type="button" role="tab" data-tpl="gallery">Gallery</button>
           <button class="tpl-opt" type="button" role="tab" data-tpl="french">French</button>
           <button class="tpl-opt" type="button" role="tab" data-tpl="agency">Agency</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="editorial">Editorial</button>
         </div>
-        <div class="tpl-preview"><iframe class="tpl-frame" title="Template preview" loading="lazy" scrolling="no"></iframe></div>
-        <div class="tpl-picker-foot">
-          <button class="button hot tpl-continue" type="button">Continue with <b data-tpl-name>Minimal</b> →</button>
-        </div>
+        <p class="tpl-hover-hint">Hover the preview to feel the interactions.</p>
+        <div class="tpl-preview"><iframe class="tpl-frame" title="Template preview" loading="lazy"></iframe></div>
       </div>
     </div>
 
@@ -642,7 +643,6 @@
       if (!picker || !buildBtn) return;
       const frame = picker.querySelector('.tpl-frame');
       const preview = picker.querySelector('.tpl-preview');
-      const nameEl = picker.querySelector('[data-tpl-name]');
       const opts = [...picker.querySelectorAll('.tpl-opt')];
       const DEMO = picker.dataset.demo;
       const FONTS = {
@@ -655,7 +655,7 @@
       const fitFrame = () => {
         const scale = preview.clientWidth / 1280;
         frame.style.transform = `scale(${scale})`;
-        preview.style.height = `${preview.clientWidth * (840 / 1280)}px`;
+        preview.style.height = `${Math.min(preview.clientWidth * (840 / 1280), window.innerHeight * 0.5)}px`;
       };
 
       const applyToFrame = (t) => {
@@ -680,13 +680,23 @@
       const selectTpl = (t) => {
         chosen = t;
         opts.forEach(b => b.classList.toggle('is-active', b.dataset.tpl === t));
-        nameEl.textContent = opts.find(b => b.dataset.tpl === t)?.textContent || '';
         applyToFrame(t);
       };
 
       frame.addEventListener('load', () => {
         frameReady = true;
         preview.classList.remove('is-loading');
+        // Let users hover the preview (to feel the template interactions) but
+        // block clicks/navigation inside the iframe.
+        try {
+          const doc = frame.contentDocument;
+          if (doc && !doc.getElementById('tplClickBlock')) {
+            const s = doc.createElement('script');
+            s.id = 'tplClickBlock';
+            s.textContent = "addEventListener('click',function(e){e.preventDefault();e.stopPropagation();},true);addEventListener('submit',function(e){e.preventDefault();},true);";
+            doc.body.appendChild(s);
+          }
+        } catch (e) {}
         fitFrame();
         applyToFrame(chosen);
       });
