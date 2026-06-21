@@ -22,7 +22,26 @@ const editorLink = document.getElementById('editorLink');
 const reviewLink = document.getElementById('reviewLink');
 const manifestLink = document.getElementById('manifestLink');
 const downloadLink = document.getElementById('downloadLink');
+const actionLinks = [previewLink, manageLink, editorLink, reviewLink, manifestLink, downloadLink];
 const steps = [...document.querySelectorAll('.step')];
+
+// While an import is running the action buttons are shown but greyed out and
+// non-interactive — they only point somewhere (and become clickable) once the
+// job is done. `is-busy` greys the row; per-link aria-disabled also blocks the
+// click handlers (e.g. the protected ZIP download) even before hrefs are set.
+function setActionsBusy(busy) {
+  actions.classList.toggle('is-busy', busy);
+  actionLinks.forEach(link => {
+    if (!link) return;
+    if (busy) {
+      link.setAttribute('aria-disabled', 'true');
+      link.setAttribute('tabindex', '-1');
+    } else {
+      link.removeAttribute('aria-disabled');
+      link.removeAttribute('tabindex');
+    }
+  });
+}
 const switcher = document.querySelector('.dual-switcher');
 const panels = [...document.querySelectorAll('.dual-panel')];
 const importCopyFlip = document.querySelector('.import-copy-flip');
@@ -327,6 +346,7 @@ async function poll(id){
     reviewLink.href = job.links.review;
     manifestLink.href = job.links.manifest;
     downloadLink.href = job.links.zip;
+    setActionsBusy(false);
     publishControl.show();
     publishControl.setPublished(job.published, job.customDomain);
     activeButton.disabled = false;
@@ -340,6 +360,8 @@ async function poll(id){
     pill.textContent = 'Error';
     title.textContent = 'Import needs attention';
     detail.textContent = job.error || 'Something stopped the import. Please try again.';
+    actions.classList.add('hidden');
+    setActionsBusy(false);
     activeButton.disabled = false;
     activeButton.textContent = 'Try again';
   }
@@ -348,7 +370,8 @@ async function poll(id){
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   activeButton = startBtn;
-  actions.classList.add('hidden');
+  actions.classList.remove('hidden');
+  setActionsBusy(true);
   publishControl.hide();
   if (logs) logs.innerHTML = '';
   panel.classList.remove('hidden');
@@ -380,7 +403,8 @@ if (uploadForm) {
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     activeButton = buildUploadBtn;
-    actions.classList.add('hidden');
+    actions.classList.remove('hidden');
+    setActionsBusy(true);
     publishControl.hide();
     if (logs) logs.textContent = '';
     panel.classList.remove('hidden');
