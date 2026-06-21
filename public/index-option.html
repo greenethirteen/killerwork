@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/tracking.js?v=20260604-clarity-direct"></script>
+  <title>KillaWork™ — Home B (test)</title>
+  <meta name="description" content="Turn your Behance page into a pro site, import Squarespace portfolios in a click, or move your portfolio out of Wix. Import and preview free. Publish for a one-time $9.99." />
+  <meta name="robots" content="index,follow,max-snippet:160,max-image-preview:large" />
+  <meta name="application-name" content="KillaWork™" />
+  <link rel="canonical" href="https://killa.work/" />
+  <link rel="icon" href="/favicon-logo-144.png" type="image/png" sizes="144x144" />
+  <link rel="apple-touch-icon" href="/favicon-logo-144.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="KillaWork™" />
+  <meta property="og:title" content="KillaWork™" />
+  <meta property="og:description" content="Turn your Behance page into a pro site, import Squarespace portfolios in a click, or move your portfolio out of Wix. One-time $9.99." />
+  <meta property="og:url" content="https://killa.work/" />
+  <meta property="og:image" content="https://killa.work/logos/killa-work-logo.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="KillaWork™" />
+  <meta name="twitter:description" content="Turn your Behance page into a pro site, import Squarespace portfolios in a click, or move your portfolio out of Wix. One-time $9.99." />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "url": "https://killa.work/",
+      "name": "KillaWork™",
+      "alternateName": "KillaWork"
+    }
+  </script>
+  <link rel="preload" href="/logos/killa-work-logo.png" as="image" type="image/png" fetchpriority="high" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ui.css?v=20260621-picker3" />
+</head>
+<body class="parallax-home">
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <section class="splash-intro" data-splash-intro aria-label="KillaWork introduction">
+    <button class="splash-intro-dismiss" type="button" data-splash-dismiss aria-label="Enter KillaWork">
+      <img src="/logos/killa-work-logo.png" alt="KillaWork™" width="612" height="408" />
+    </button>
+  </section>
+  <script>
+    (() => {
+      const splash = document.querySelector('[data-splash-intro]');
+      if (!splash) return;
+      let dismissed = false;
+      const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        splash.classList.add('is-exiting');
+        window.setTimeout(() => splash.remove(), 720);
+      };
+      splash.querySelector('[data-splash-dismiss]')?.addEventListener('click', dismiss);
+      window.addEventListener('wheel', dismiss, { passive: true, once: true });
+      window.addEventListener('touchmove', dismiss, { passive: true, once: true });
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') dismiss();
+      });
+      window.setTimeout(dismiss, 1700);
+    })();
+  </script>
+  <div class="landing-atmosphere" aria-hidden="true">
+    <div class="landing-grid"></div>
+    <div class="landing-wordmark landing-wordmark-a">PORTFOLIO</div>
+    <div class="landing-wordmark landing-wordmark-b">BUILT FAST</div>
+  </div>
+  <main class="shell dual-home-shell">
+    <nav class="topbar landing-topbar" aria-label="KillaWork" data-reveal>
+      <a class="logo" href="/">
+        <img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™ logo" width="612" height="408" loading="eager" decoding="sync" fetchpriority="high" />
+        <span class="logo-text">KillaWork™</span>
+      </a>
+      <nav class="landing-sectionnav" aria-label="Page sections">
+        <a href="#how-it-works">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#editor">Editor</a>
+        <a href="#themes">Themes</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+      <div class="topnav-actions">
+        <select class="lang-select notranslate" id="langSelect" aria-label="Language" translate="no">
+          <option value="en">🌐 English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="pt">Português</option>
+        </select>
+        <a data-manage-latest class="hidden" href="/manage.html">Manage projects</a>
+        <a data-user-badge class="user-badge profile-link hidden" href="/profile.html" data-clarity-mask="true"></a>
+        <a data-auth-link class="top-signin" href="#">Sign up / Sign in</a>
+        <button data-auth-logout class="auth-button hidden" type="button">Sign out</button>
+      </div>
+    </nav>
+    <header class="landing-hero" data-reveal>
+      <h1 class="landing-hero-title"><span class="hero-desktop">Portfolios, without the <span class="landing-hero-accent">subscription trap</span>.</span><span class="hero-mobile">Host your portfolio without the <span class="landing-hero-accent">subscriptions</span>.</span></h1>
+      <p class="landing-hero-sub">Pay <b>$9.99</b> once. Not forever.</p>
+    </header>
+    <section id="import" class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
+      <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
+        <div class="dual-panel-inner">
+          <span class="section-tab">Import your portfolio</span>
+          <div class="import-copy-flip" data-nosnippet aria-label="Squarespace, Behance, and Wix import messages">
+            <div class="import-copy-slide">
+              <h1>Import your<br class="brk-m"> portfolio <br class="brk-d"><span class="headline-second">from <br class="mobile-break"><span class="highlight-site highlight-squarespace">Squarespace</span></span></h1>
+            </div>
+            <div class="import-copy-slide">
+              <h1>Import your<br class="brk-m"> portfolio <br class="brk-d"><span class="headline-second">from <br class="mobile-break"><span class="highlight-site highlight-behance">Behance</span></span></h1>
+            </div>
+            <div class="import-copy-slide">
+              <h1>Import your<br class="brk-m"> portfolio <br class="brk-d"><span class="headline-second">from <br class="mobile-break"><span class="highlight-site highlight-wix">Wix</span></span></h1>
+            </div>
+          </div>
+          <div class="savings-badge"><span>Import and pay <b class="save-amt">$9.99</b> once. Not $25 every month.</span></div>
+          <form id="importForm" class="url-form">
+            <input id="urlInput" type="url" placeholder="Enter your Behance/Portfolio URL" required data-clarity-mask="true" />
+            <div class="import-action-row">
+              <button id="startBtn" type="submit">Import it</button>
+              <a class="button see-action-button" href="/see-it-in-action.html" target="_blank" rel="noopener"><span class="see-action-icon" aria-hidden="true">▶</span>How it works</a>
+            </div>
+          </form>
+        </div>
+      </article>
+
+      <article class="glass dual-panel dual-panel-build" data-panel="build" tabindex="0" aria-label="Build from raw work">
+        <div class="dual-panel-inner">
+          <span class="section-tab">Build from raw work</span>
+          <h2>Upload the ads.<br>Get a portfolio.</h2>
+          <span class="collapsed-note">Powered by AI</span>
+          <p><span>Drop in the work and let AI build </span><span>your portfolio in minutes, not days.</span></p>
+          <div class="dual-actions">
+            <a id="buildUploadBtn" class="button hot" href="/build.html">Build from files</a>
+            <a id="adZipBuildBtn" class="button secondary is-disabled" aria-disabled="true" role="button" tabindex="-1" title="Coming soon">AI build from ZIP</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="tpl-picker hidden" id="tplPicker" role="dialog" aria-modal="true" aria-label="Choose a starting template" data-demo="https://killa.work/generated/1782019420726-da2fbac41f60/site/index.html">
+      <div class="tpl-picker-backdrop" data-tpl-close></div>
+      <div class="tpl-picker-card glass">
+        <div class="tpl-picker-head">
+          <div>
+            <h2>Pick a starting template</h2>
+            <p>See the look, then build from your files. You can change it anytime.</p>
+          </div>
+          <div class="tpl-head-actions">
+            <button class="button hot tpl-continue" type="button">Start →</button>
+            <button class="tpl-picker-x" type="button" data-tpl-close aria-label="Close">✕</button>
+          </div>
+        </div>
+        <div class="tpl-toggle" role="tablist" aria-label="Templates">
+          <button class="tpl-opt is-active" type="button" role="tab" data-tpl="default">Minimal</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="gallery">Gallery</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="editorial">Editorial</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="bold">Bold</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="neo">Neo</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="cinema">Cinema</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="french">French</button>
+          <button class="tpl-opt" type="button" role="tab" data-tpl="agency">Agency</button>
+        </div>
+        <p class="tpl-hover-hint">Hover the preview to feel the interactions.</p>
+        <div class="tpl-preview"><iframe class="tpl-frame" title="Template preview" loading="lazy"></iframe></div>
+      </div>
+    </div>
+
+    <section id="progressPanel" class="glass progress-panel hidden">
+      <div class="panel-top">
+        <div><span class="status-pill" id="statusPill">Waiting</span><h2 id="stageTitle">Ready to import</h2><p id="stageDetail">Paste a URL to begin.</p></div>
+        <div class="percent" id="percentText">0%</div>
+      </div>
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      <div class="steps">
+        <div class="step" data-step="scan">Read site</div>
+        <div class="step" data-step="crawl">Find work</div>
+        <div class="step" data-step="assets">Import media</div>
+        <div class="step" data-step="build">Build preview</div>
+        <div class="step" data-step="validate">Check pages</div>
+        <div class="step" data-step="zip">Ready</div>
+      </div>
+      <div id="logBox" class="log-box"></div>
+      <div id="actions" class="actions hidden">
+        <a id="previewLink" class="button" target="_blank">Preview site</a>
+        <a id="manageLink" class="button secondary" target="_blank">Manage projects</a>
+        <a id="editorLink" class="button secondary" target="_blank">Edit site</a>
+        <a id="reviewLink" class="button secondary hidden" target="_blank">Review import</a>
+        <a id="manifestLink" class="button ghost hidden" target="_blank">Manifest</a>
+        <a id="downloadLink" class="button hot">Download ZIP</a>
+        <div id="publishControl" class="publish-control publish-modal hidden" data-publish-domain="killa.work">
+          <button class="button publish-cta" type="button" data-publish-toggle>⬆ Publish</button>
+          <div class="publish-panel hidden" data-publish-panel>
+            <form data-publish-form>
+              <label>
+                <span>Portfolio URL</span>
+                <div class="publish-url-field">
+                  <input data-publish-input type="text" placeholder="yourname" autocomplete="off" />
+                  <b>.killa.work</b>
+                </div>
+              </label>
+              <button data-publish-submit type="submit">Publish</button>
+            </form>
+            <p class="publish-result hidden" data-publish-result></p>
+            <div class="custom-domain-block" data-custom-domain-block>
+              <div class="publish-divider">Or connect your own domain</div>
+              <p class="custom-domain-note">Publish to a free .killa.work URL above first — then you can connect a domain you own.</p>
+              <form data-custom-domain-form>
+                <label>
+                  <span>Owned domain</span>
+                  <input data-custom-domain-input type="text" placeholder="www.yourportfolio.com" autocomplete="off" disabled />
+                </label>
+                <button data-custom-domain-submit type="submit" disabled>Connect domain</button>
+              </form>
+              <div class="domain-guide-strip">
+                <span class="domain-guide-label">Don't have a domain yet?</span>
+                <a class="domain-guide-link" href="https://www.namecheap.com" target="_blank" rel="noreferrer noopener">Buy one on Namecheap →</a>
+                <a class="domain-guide-link" href="https://www.youtube.com/results?search_query=how+to+connect+namecheap+domain+to+website" target="_blank" rel="noreferrer noopener">Watch how to connect it ↗</a>
+              </div>
+              <div class="custom-domain-instructions hidden" data-custom-domain-instructions>
+                <h4>DNS setup</h4>
+                <p>Add this CNAME record where you bought your domain.</p>
+                <div class="dns-record">
+                  <strong>Type:</strong> CNAME<br>
+                  <strong>Name:</strong> <span data-dns-name>www.yourportfolio.com</span><br>
+                  <strong>Value:</strong> <span data-dns-value>your-name.killa.work</span>
+                </div>
+                <p class="note">DNS changes can take up to 24 hours to appear everywhere.</p>
+              </div>
+              <p class="publish-result hidden" data-custom-domain-result></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="proof-strip proof-strip-top" aria-label="Agency proof" data-nosnippet>
+      <div class="proof-copy">
+        <span>Trusted by creatives</span>
+      </div>
+      <div class="logo-marquee" aria-hidden="true">
+        <div class="logo-track">
+          <figure class="agency-logo"><img src="/logos/ogilvy.svg" alt="Ogilvy logo" /></figure><figure class="agency-logo"><img src="/logos/tbwa.svg" alt="TBWA logo" /></figure><figure class="agency-logo"><img src="/logos/bbdo.svg" alt="BBDO logo" /></figure><figure class="agency-logo"><img src="/logos/ddb.svg" alt="DDB logo" /></figure><figure class="agency-logo"><img src="/logos/leo-burnett.png" alt="Leo Burnett logo" /></figure><figure class="agency-logo"><img src="/logos/mccann.jpg" alt="McCann logo" /></figure><figure class="agency-logo"><img src="/logos/publicis.svg" alt="Publicis logo" /></figure>
+          <figure class="agency-logo"><img src="/logos/ogilvy.svg" alt="Ogilvy logo" /></figure><figure class="agency-logo"><img src="/logos/tbwa.svg" alt="TBWA logo" /></figure><figure class="agency-logo"><img src="/logos/bbdo.svg" alt="BBDO logo" /></figure><figure class="agency-logo"><img src="/logos/ddb.svg" alt="DDB logo" /></figure><figure class="agency-logo"><img src="/logos/leo-burnett.png" alt="Leo Burnett logo" /></figure><figure class="agency-logo"><img src="/logos/mccann.jpg" alt="McCann logo" /></figure><figure class="agency-logo"><img src="/logos/publicis.svg" alt="Publicis logo" /></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="backup-shield" aria-label="Never lose your portfolio" data-nosnippet data-reveal>
+      <span class="section-kicker">Never lose your work</span>
+      <h2>One missed Squarespace payment can <span class="backup-emph">delete your portfolio</span>.</h2>
+      <p class="backup-subhead">KillaWork™ charges one-time. No monthly payments.</p>
+      <div class="backup-points">
+        <span class="backup-point" data-reveal-item>Import portfolio in minutes</span>
+        <span class="backup-point" data-reveal-item>Publish or get a zip</span>
+        <span class="backup-point" data-reveal-item>$9.99 one-time-fee</span>
+      </div>
+    </section>
+
+    <section class="clicks-compare" aria-label="Effort comparison" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">The math</span>
+        <h2>Hundreds of clicks there.<br>A few clicks here.</h2>
+        <p>On Squarespace, Wix, or Webflow you build every page yourself — templates, grids, galleries, captions, mobile breakpoints. KillaWork's AI builder does the building. You just bring the work.</p>
+      </div>
+      <div class="clicks-grid">
+        <article class="clicks-col clicks-them" data-reveal-item>
+          <span class="clicks-label">Squarespace &amp; other builders</span>
+          <div class="clicks-count">100s<small>of clicks &middot; days of work</small></div>
+          <ul>
+            <li>Pick a template that almost fits</li>
+            <li>Fight the grid for every single page</li>
+            <li>Upload, crop, and place each image by hand</li>
+            <li>Write every title and caption yourself</li>
+            <li>Rebuild it all again for mobile</li>
+          </ul>
+        </article>
+        <article class="clicks-col clicks-us" data-reveal-item>
+          <span class="clicks-label">KillaWork™ AI builder</span>
+          <div class="clicks-count">3<small>clicks &middot; minutes, not days</small></div>
+          <ol>
+            <li><b>1</b>Paste your URL or drop in raw work</li>
+            <li><b>2</b>AI builds every page, caption, and layout</li>
+            <li><b>3</b>Publish to your own .com</li>
+          </ol>
+          <a class="button hot" href="#urlInput">Start free</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="before-after" aria-label="Before and after" data-nosnippet data-reveal>
+      <div class="before-after-col">
+        <span>Before</span>
+        <h2>Manual portfolio upkeep.</h2>
+        <p>Scattered files, old builder pages, slow copy/paste updates, and monthly site-builder rates.</p>
+      </div>
+      <div class="before-after-col after">
+        <span>After</span>
+        <h2>Generated, editable, online.</h2>
+        <p>Imported work, organized campaign pages, an editor, previews, and a downloadable portfolio.</p>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="behance-import-showcase" aria-label="Behance import before and after" data-nosnippet data-reveal>
+      <div class="showcase-copy">
+        <span class="section-kicker">Behance import</span>
+        <h2>From a Behance site into a polished <span class="dotcom-highlight">.com</span> portfolio</h2>
+        <p>KillaWork imports the work, keeps the campaign structure, and turns a Behance profile into a clean portfolio preview you can edit before publishing.</p>
+      </div>
+      <div class="showcase-stage">
+        <article class="behance-before" aria-label="Before Behance profile">
+          <div class="browser-bar"><b>Behance</b><span>Search...</span></div>
+          <div class="behance-profile-row">
+            <img class="avatar-demo" src="/showcase/behance-gautam/gautam-profile.jpg" alt="Gautam Wadher profile photo" loading="lazy">
+            <div><h3>Gautam Wadher</h3><p>Creative Director</p><small>Dubai, United Arab Emirates</small></div>
+            <dl><div><dt>Project Views</dt><dd>40,346</dd></div><div><dt>Appreciations</dt><dd>4,610</dd></div></dl>
+          </div>
+          <div class="behance-tabs"><b>Work</b><span>Moodboards</span><span>Appreciations</span></div>
+          <div class="behance-grid-demo">
+            <figure class="demo-tile tile-ikea"><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="Ikea Sustainability campaign" loading="lazy"><span>Ikea - Sustainability</span></figure>
+            <figure class="demo-tile tile-kino"><img src="/showcase/behance-gautam/kinokuniya-lean.jpg" alt="Kinokuniya Lean on a book campaign" loading="lazy"><span>Kinokuniya - Lean on a book</span></figure>
+            <figure class="demo-tile tile-snickers"><img src="/showcase/behance-gautam/snickers.png" alt="Snickers You're not you when you're hungry campaign" loading="lazy"><span>Snickers - You're not you when you're hungry.</span></figure>
+            <figure class="demo-tile tile-mercedes"><img src="/showcase/behance-gautam/mercedes-parking.png" alt="Mercedes Science of stability campaign" loading="lazy"><span>Mercedes - Science of stability</span></figure>
+            <figure class="demo-tile tile-mercedes"><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="Mercedes Active parking assist campaign" loading="lazy"><span>Mercedes - Active parking assist</span></figure>
+          </div>
+        </article>
+        <div class="showcase-arrow" aria-hidden="true">→</div>
+        <article class="killa-after" aria-label="After KillaWork portfolio">
+          <nav><b>Gautam Wadher</b><span>Work</span><span>About</span></nav>
+          <div class="after-hero">
+            <img class="after-portrait" src="/showcase/behance-gautam/gautam-profile.jpg" alt="Gautam Wadher profile photo" loading="lazy">
+            <div>
+              <h3>Gautam<br>Wadher</h3>
+              <p class="after-role">Creative Director</p>
+              <p>I create ideas that move people and build brands. Work imported, cleaned up, and ready to publish.</p>
+            </div>
+          </div>
+          <h4>Featured Work</h4>
+          <div class="after-grid-demo">
+            <figure class="demo-tile tile-ikea"><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="Ikea Sustainability campaign" loading="lazy"><span>Ikea - Sustainability</span></figure>
+            <figure class="demo-tile tile-kino"><img src="/showcase/behance-gautam/kinokuniya-lean.jpg" alt="Kinokuniya Lean on a book campaign" loading="lazy"><span>Kinokuniya - Lean on a book</span></figure>
+            <figure class="demo-tile tile-snickers"><img src="/showcase/behance-gautam/snickers.png" alt="Snickers You're not you when you're hungry campaign" loading="lazy"><span>Snickers - You're not you when you're hungry.</span></figure>
+            <figure class="demo-tile tile-mercedes"><img src="/showcase/behance-gautam/mercedes-parking.png" alt="Mercedes Science of stability campaign" loading="lazy"><span>Mercedes - Science of stability</span></figure>
+            <figure class="demo-tile tile-mercedes"><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="Mercedes Active parking assist campaign" loading="lazy"><span>Mercedes - Active parking assist</span></figure>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="one-to-one-showcase" aria-label="Squarespace one to one import preview" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Squarespace import</span>
+        <h2>One-to-one imports for portfolio sites</h2>
+        <p>Move the same portfolio over without rebuilding the layout. Preview the original and the KillaWork import side by side in one place.</p>
+      </div>
+      <div class="one-to-one-frame" data-squarespace-preview="before">
+        <div class="one-to-one-controls" role="tablist" aria-label="Squarespace preview state">
+          <button class="active" type="button" data-squarespace-tab="before" role="tab" aria-selected="true">Before</button>
+          <button type="button" data-squarespace-tab="after" role="tab" aria-selected="false">After</button>
+        </div>
+        <div class="one-to-one-track">
+          <figure class="one-to-one-panel" aria-label="Before Squarespace site">
+            <picture>
+              <source media="(max-width: 760px)" srcset="/showcase/kapil-squarespace-mobile.jpg">
+              <img src="/showcase/kapil-squarespace.jpg" alt="Kapil Bhimekar Squarespace portfolio before import" loading="lazy">
+            </picture>
+            <figcaption>kapilbhimekar.com on Squarespace</figcaption>
+          </figure>
+          <figure class="one-to-one-panel" aria-label="After KillaWork import">
+            <picture>
+              <source media="(max-width: 760px)" srcset="/showcase/kapil-squarespace-mobile.jpg">
+              <img src="/showcase/kapil-squarespace.jpg" alt="Kapil Bhimekar portfolio after one-to-one KillaWork import" loading="lazy">
+            </picture>
+            <figcaption>Same page imported into KillaWork</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="editor" class="pixel-editor-showcase" aria-label="Pixel perfect editor" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Pixel perfect editor</span>
+        <h2>Click anything.<br>Move everything.</h2>
+        <p>Your portfolio opens in a visual editor that works like a design tool. Drag, resize, and snap any element into place, rewrite text right on the page, swap images, and undo anything. No code, no settings maze.</p>
+      </div>
+      <div class="pixel-demo" aria-hidden="true">
+        <div class="pixel-demo-chrome">
+          <span class="pd-dot"></span><span class="pd-dot"></span><span class="pd-dot"></span>
+          <div class="pd-modes"><span>Browse</span><b>Select</b><span>Text edit</span></div>
+          <div class="pd-save">Save changes</div>
+        </div>
+        <div class="pixel-demo-canvas">
+          <div class="pd-guide-v"></div>
+          <div class="pd-headline">Jane Carter <em>| Art Director</em></div>
+          <div class="pd-selected">
+            <div class="pd-toolbar"><b>✕ Delete</b><span>⧉ Duplicate</span><span>↑ Layer</span></div>
+            <div class="pd-img"></div>
+            <i class="pd-h pd-h-nw"></i><i class="pd-h pd-h-ne"></i><i class="pd-h pd-h-sw"></i><i class="pd-h pd-h-se"></i>
+            <span class="pd-badge">640 × 360</span>
+          </div>
+          <div class="pd-textrow"><span class="pd-textline"></span><span class="pd-textline short"></span></div>
+        </div>
+      </div>
+      <div class="pixel-feature-row">
+        <div data-reveal-item><b>Drag &amp; snap</b><span>Elements snap to alignment guides like a real design tool.</span></div>
+        <div data-reveal-item><b>Edit text in place</b><span>Click any headline or paragraph and just type.</span></div>
+        <div data-reveal-item><b>Resize anything</b><span>Pull the handles. Hold Shift to keep proportions.</span></div>
+        <div data-reveal-item><b>Undo everything</b><span>⌘Z works like you'd expect. Nothing is final.</span></div>
+      </div>
+    </section>
+
+    <section id="themes" class="themes-showcase" aria-label="Portfolio themes" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Themes</span>
+        <h2>Not basic templates.<br>Ones that stop the scroll.</h2>
+      </div>
+      <div class="themes-grid">
+        <article class="theme-thumb">
+          <div class="tt-window tt-cinema">
+            <div class="tt-canvas">
+              <figure class="tt-shot"><img src="/showcase/behance-gautam/snickers.png" alt="" loading="lazy"><figcaption>Snickers</figcaption></figure>
+              <figure class="tt-shot"><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="" loading="lazy"><figcaption>IKEA</figcaption></figure>
+              <figure class="tt-shot"><img src="/showcase/behance-gautam/mercedes-parking.png" alt="" loading="lazy"><figcaption>Mercedes</figcaption></figure>
+            </div>
+          </div>
+          <div class="tt-label"><b>Cinema</b><span>Full-bleed scroll</span></div>
+        </article>
+        <article class="theme-thumb">
+          <div class="tt-window tt-editorial">
+            <div class="tt-canvas">
+              <div class="tt-row"><i>01</i><b>Meridian</b></div>
+              <div class="tt-row"><i>02</i><b>Solstice</b></div>
+              <div class="tt-row"><i>03</i><b>Halcyon</b></div>
+              <div class="tt-row"><i>04</i><b>Lumen</b></div>
+              <div class="tt-row"><i>05</i><b>Verve</b></div>
+            </div>
+          </div>
+          <div class="tt-label"><b>Editorial</b><span>Numbered index</span></div>
+        </article>
+        <article class="theme-thumb">
+          <div class="tt-window tt-studio">
+            <div class="tt-canvas">
+              <figure class="tt-block tt-block-l"><img src="/showcase/behance-gautam/kinokuniya-lean.jpg" alt="" loading="lazy"></figure>
+              <figure class="tt-block tt-block-r"><img src="/showcase/behance-gautam/mercedes-parking.png" alt="" loading="lazy"></figure>
+              <figure class="tt-block tt-block-l2"><img src="/showcase/behance-gautam/snickers.png" alt="" loading="lazy"></figure>
+              <figure class="tt-block tt-block-r2"><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="" loading="lazy"></figure>
+            </div>
+          </div>
+          <div class="tt-label"><b>Studio</b><span>Staggered blocks</span></div>
+        </article>
+        <article class="theme-thumb">
+          <div class="tt-window tt-gallery">
+            <div class="tt-canvas tt-masonry">
+              <figure><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="" loading="lazy"></figure>
+              <figure><img src="/showcase/behance-gautam/snickers.png" alt="" loading="lazy"></figure>
+              <figure><img src="/showcase/behance-gautam/mercedes-parking.png" alt="" loading="lazy"></figure>
+              <figure><img src="/showcase/behance-gautam/kinokuniya-lean.jpg" alt="" loading="lazy"></figure>
+              <figure><img src="/showcase/behance-gautam/snickers.png" alt="" loading="lazy"></figure>
+              <figure><img src="/showcase/behance-gautam/ikea-sustainability.jpg" alt="" loading="lazy"></figure>
+            </div>
+          </div>
+          <div class="tt-label"><b>Gallery</b><span>Masonry wall</span></div>
+        </article>
+      </div>
+      <p class="themes-note">Switch themes anytime in the editor — your work re-flows into each layout instantly.</p>
+    </section>
+
+    <section class="comparison" data-nosnippet data-reveal>
+      <div class="comparison-copy">
+        <span>Portfolio stack check</span>
+        <h2>Why ad creatives use KillaWork™</h2>
+      </div>
+      <div class="comparison-table" role="table" aria-label="KillaWork versus Squarespace">
+        <div class="comparison-row comparison-head" role="row" data-reveal-item>
+          <div role="columnheader">Need</div>
+          <div role="columnheader">KillaWork™</div>
+          <div role="columnheader">Generic builders</div>
+        </div>
+        <div class="comparison-row" role="row" data-reveal-item>
+          <div role="cell">Cost and upkeep</div>
+          <div class="plus" role="cell"><b>$9.99. One-time fee.</b></div>
+          <div class="minus" role="cell"><b>Up to $25/mo. Forever.</b></div>
+        </div>
+        <div class="comparison-row" role="row" data-reveal-item>
+          <div role="cell">Import an existing book</div>
+          <div class="plus" role="cell"><b>Built for migration.</b></div>
+          <div class="minus" role="cell"><b>Mostly manual.</b></div>
+        </div>
+        <div class="comparison-row" role="row" data-reveal-item>
+          <div role="cell">Build from raw work</div>
+          <div class="plus" role="cell"><b>Upload your ads &amp; AI builds your portfolio</b></div>
+          <div class="minus" role="cell"><b>Blank canvas.</b></div>
+        </div>
+        <div class="comparison-row" role="row" data-reveal-item>
+          <div role="cell">Ad portfolio fit</div>
+          <div class="plus" role="cell"><b>Made for campaigns.</b></div>
+          <div class="minus" role="cell"><b>Made for websites.</b></div>
+        </div>
+        <div class="comparison-row" role="row" data-reveal-item>
+          <div role="cell">After generation</div>
+          <div class="plus" role="cell"><b>Edit, preview, export.</b></div>
+          <div class="minus" role="cell"><b>Edit from scratch.</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="purchase-block" aria-label="Pricing" data-nosnippet data-reveal>
+      <div class="section-kicker">Pricing</div>
+      <div class="pricing-compare">
+        <article class="pricing-card">
+          <div>
+            <span class="pricing-label">KillaWork™</span>
+            <h2><span>one-time </span>$9.99</h2>
+            <p class="pricing-card-sub">Import and preview free. Pay once to publish — no subscription.</p>
+          </div>
+          <a class="button hot" href="#urlInput">Import for free</a>
+        </article>
+        <div class="pricing-them">
+          <span class="pricing-label">Squarespace at $19/mo</span>
+          <h2 class="ticker-h2">
+            <span class="ticker-eq-line">$19 × <span id="tickerMonths">Jan</span> =</span>
+            <span id="tickerTotal">$19</span>
+          </h2>
+          <p class="pricing-card-sub">Charged every month. Month after month. Forever.</p>
+          <ul class="pricing-negatives">
+            <li>Billed whether you update your site or not</li>
+            <li>Cancel and your portfolio disappears</li>
+            <li>Prices only go up over time</li>
+            <li>Year 2, year 3, year 4…</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      (function () {
+        var totalEl = document.getElementById('tickerTotal');
+        var monthsEl = document.getElementById('tickerMonths');
+        if (!totalEl || !monthsEl) return;
+        var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var idx = 0;
+        var perMonth = 19;
+        function roll(el, newText) {
+          el.style.transition = 'transform 0.2s ease-in, opacity 0.2s ease-in';
+          el.style.transform = 'translateY(-14px)';
+          el.style.opacity = '0';
+          setTimeout(function () {
+            el.style.transition = 'none';
+            el.textContent = newText;
+            el.style.transform = 'translateY(14px)';
+            el.style.opacity = '0';
+            el.offsetHeight;
+            el.style.transition = 'transform 0.28s ease-out, opacity 0.28s ease-out';
+            el.style.transform = 'translateY(0)';
+            el.style.opacity = '1';
+          }, 215);
+        }
+        function tick() {
+          idx++;
+          roll(totalEl, '$' + (perMonth * (idx + 1)));
+          monthsEl.textContent = MONTHS[idx % 12];
+          setTimeout(tick, 1400);
+        }
+        setTimeout(tick, 2000);
+      })();
+    </script>
+
+    <section class="publish-howto" aria-label="How publishing works" data-nosnippet data-reveal>
+      <div class="showcase-copy compact">
+        <span class="section-kicker">Publish</span>
+        <h2>Preview for free.<br>Publish when ready.</h2>
+        <div class="pricing-upgrade-row">
+          <span class="pricing-upgrade-label">$9.99 one-time unlocks</span>
+          <ul class="pricing-includes pricing-upgrade-list">
+            <li>Publish your .killa.work site</li>
+            <li>Connect your own .com domain</li>
+            <li>ZIP download of your site</li>
+            <li>No renewals, ever</li>
+          </ul>
+        </div>
+      </div>
+      <div class="publish-panel-demo" aria-label="Publish panel preview">
+        <div class="publish-demo-head"><span>Publish panel</span><b>Go live</b></div>
+        <label><span>Your KillaWork URL</span><div>johnhegarty.killa.work</div></label>
+        <label><span>Custom domain</span><div>www.johnhegarty.com</div></label>
+        <button type="button">Publish site</button>
+      </div>
+    </section>
+
+    <section class="ownership-note" data-nosnippet data-reveal>
+      <b>Your work stays yours.</b>
+      <span>Build a polished creative portfolio or import from Behance, Squarespace, or Cargo in minutes, not days.</span>
+    </section>
+
+    <footer class="site-footer" data-nosnippet>
+      <div class="site-footer-main">
+        <div class="site-footer-brand">
+          <a href="/"><img class="logo-image" src="/logos/killa-work-logo.png" alt="KillaWork™" width="612" height="408" /></a>
+          <p>Turn your Behance, Squarespace, or Wix portfolio into a polished site you own — in minutes, not days.</p>
+        </div>
+        <nav class="site-footer-nav" aria-label="Footer">
+          <div class="site-footer-col">
+            <b>Product</b>
+            <a href="#how-it-works">How it works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#editor">Editor</a>
+            <a href="#themes">Themes</a>
+          </div>
+          <div class="site-footer-col">
+            <b>Support</b>
+            <a href="/contact.html">Contact us</a>
+            <a href="mailto:abdullah@killa.work">Email</a>
+            <a href="https://wa.me/971585002138" target="_blank" rel="noreferrer noopener">WhatsApp</a>
+          </div>
+        </nav>
+      </div>
+      <div class="site-footer-base">
+        <b>KillaWork™</b>
+        <span>© 2026 KillaWork. Your work stays yours.</span>
+      </div>
+    </footer>
+  
+    <section class="purchase-block" aria-label="Get started" data-nosnippet data-reveal style="text-align:center">
+      <div class="section-kicker">Start now</div>
+      <h2>Import your portfolio free.<br>Pay $9.99 only when you publish.</h2>
+      <p class="pricing-card-sub" style="max-width:560px;margin:14px auto 0">No subscription. No monthly fees. Your work, hosted on your terms — preview everything before you pay a cent.</p>
+      <div style="margin-top:26px"><a class="button hot" href="#urlInput">Import your portfolio →</a></div>
+    </section>
+</main>
+  <script src="/i18n.js?v=20260620-i18n"></script>
+  <script>
+    // Template picker: clicking "Build from files" first lets the user pick a
+    // starting template (with a live preview of the demo portfolio), then
+    // continues to /build.html?template=X.
+    (() => {
+      const picker = document.getElementById('tplPicker');
+      const buildBtn = document.getElementById('buildUploadBtn');
+      if (!picker || !buildBtn) return;
+      const frame = picker.querySelector('.tpl-frame');
+      const preview = picker.querySelector('.tpl-preview');
+      const opts = [...picker.querySelectorAll('.tpl-opt')];
+      const DEMO = picker.dataset.demo;
+      const FONTS = {
+        cinema: 'https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700&display=swap',
+        gallery: 'https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap'
+      };
+      let chosen = 'default';
+      let frameReady = false;
+
+      const fitFrame = () => {
+        const scale = preview.clientWidth / 1280;
+        frame.style.transform = `scale(${scale})`;
+        preview.style.height = `${Math.min(preview.clientWidth * (840 / 1280), window.innerHeight * 0.5)}px`;
+      };
+
+      const applyToFrame = (t) => {
+        if (!frameReady) return;
+        let doc;
+        try { doc = frame.contentDocument; } catch (e) { return; }
+        if (!doc) return;
+        doc.getElementById('tplOverlay')?.remove();
+        doc.getElementById('tplFont')?.remove();
+        if (t && t !== 'default') {
+          if (FONTS[t]) {
+            const f = doc.createElement('link');
+            f.id = 'tplFont'; f.rel = 'stylesheet'; f.href = FONTS[t];
+            doc.head.appendChild(f);
+          }
+          const l = doc.createElement('link');
+          l.id = 'tplOverlay'; l.rel = 'stylesheet'; l.href = '/templates/' + t + '.css?v=' + Date.now();
+          doc.head.appendChild(l);
+        }
+      };
+
+      const selectTpl = (t) => {
+        chosen = t;
+        opts.forEach(b => b.classList.toggle('is-active', b.dataset.tpl === t));
+        applyToFrame(t);
+      };
+
+      frame.addEventListener('load', () => {
+        frameReady = true;
+        preview.classList.remove('is-loading');
+        // Let users hover the preview (to feel the template interactions) but
+        // block clicks/navigation inside the iframe.
+        try {
+          const doc = frame.contentDocument;
+          if (doc && !doc.getElementById('tplClickBlock')) {
+            const s = doc.createElement('script');
+            s.id = 'tplClickBlock';
+            s.textContent = "addEventListener('click',function(e){e.preventDefault();e.stopPropagation();},true);addEventListener('submit',function(e){e.preventDefault();},true);";
+            doc.body.appendChild(s);
+          }
+        } catch (e) {}
+        fitFrame();
+        applyToFrame(chosen);
+      });
+
+      const open = () => {
+        picker.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        if (!frame.src) { preview.classList.add('is-loading'); frame.src = DEMO; }
+        else fitFrame();
+        selectTpl(chosen);
+      };
+      const close = () => {
+        picker.classList.add('hidden');
+        document.body.style.overflow = '';
+      };
+
+      buildBtn.addEventListener('click', (e) => {
+        // When the build panel isn't active yet, let ui.js switch panels first.
+        if (buildBtn.classList.contains('button-disabled') || buildBtn.getAttribute('aria-disabled') === 'true') return;
+        e.preventDefault();
+        open();
+      });
+      opts.forEach(b => b.addEventListener('click', () => selectTpl(b.dataset.tpl)));
+      picker.querySelectorAll('[data-tpl-close]').forEach(el => el.addEventListener('click', close));
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !picker.classList.contains('hidden')) close(); });
+      window.addEventListener('resize', () => { if (!picker.classList.contains('hidden')) fitFrame(); });
+      picker.querySelector('.tpl-continue').addEventListener('click', () => {
+        try { localStorage.setItem('killerwork:buildTemplate', chosen); } catch (e) {}
+        const q = chosen && chosen !== 'default' ? ('?template=' + encodeURIComponent(chosen)) : '';
+        window.location.href = '/build.html' + q;
+      });
+    })();
+  </script>
+  <script type="module">
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260621-busyactions'));
+  </script>
+</body>
+</html>
