@@ -185,13 +185,21 @@ function initLandingMotion() {
 
   revealItems.forEach(item => observer.observe(item));
 
+  const parallaxStartEl = document.getElementById('import');
   let scrollFrame = 0;
   const renderParallax = () => {
     const scrollY = window.scrollY;
     const mobileFactor = mobile ? 0.55 : 1;
+    // Parallax only kicks in after the import section has scrolled past the top.
+    let startAt = 0;
+    if (parallaxStartEl) {
+      const r = parallaxStartEl.getBoundingClientRect();
+      startAt = r.bottom + scrollY;
+    }
+    const offset = Math.max(0, scrollY - startAt);
     parallaxItems.forEach(item => {
       const speed = Number(item.dataset.parallaxSpeed || 0);
-      item.style.setProperty('--parallax-y', `${Math.round(scrollY * speed * mobileFactor)}px`);
+      item.style.setProperty('--parallax-y', `${Math.round(offset * speed * mobileFactor)}px`);
     });
     scrollFrame = 0;
   };

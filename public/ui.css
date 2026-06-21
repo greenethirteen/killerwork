@@ -880,3 +880,5 @@ body{top:0!important}
 .tpl-picker-foot{display:flex;justify-content:flex-end;margin-top:18px}
 .tpl-continue{font-size:15px}
 @media(max-width:600px){.tpl-picker-card{padding:18px;border-radius:22px}.tpl-picker-foot{justify-content:stretch}.tpl-continue{width:100%}}
+
+@media(max-width:760px){.backup-points{display:none}}

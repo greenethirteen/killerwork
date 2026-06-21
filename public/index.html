@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260621-picker3" />
+  <link rel="stylesheet" href="/ui.css?v=20260621-parallax" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -64,8 +64,8 @@
   </script>
   <div class="landing-atmosphere" aria-hidden="true">
     <div class="landing-grid"></div>
-    <div class="landing-wordmark landing-wordmark-a">PORTFOLIO</div>
-    <div class="landing-wordmark landing-wordmark-b">BUILT FAST</div>
+    <div class="landing-wordmark landing-wordmark-a" data-parallax data-parallax-speed="-0.2">PORTFOLIO</div>
+    <div class="landing-wordmark landing-wordmark-b" data-parallax data-parallax-speed="-0.32">BUILT FAST</div>
   </div>
   <main class="shell dual-home-shell">
     <nav class="topbar landing-topbar" aria-label="KillaWork" data-reveal>
@@ -731,7 +731,7 @@
     })();
   </script>
   <script type="module">
-    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260621-busyactions'));
+    import('/auth.js?v=20260605-nav-auth-cta').then(() => import('/ui.js?v=20260621-parallax'));
   </script>
 </body>
 </html>
