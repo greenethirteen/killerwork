@@ -576,7 +576,9 @@ function previewPublishButton(jobId) {
       var oldFont=document.getElementById('kwTemplateFont'); if(oldFont) oldFont.remove();
       if(t && t!=='default'){
         if(FONTS[t]){ var f=document.createElement('link'); f.id='kwTemplateFont'; f.rel='stylesheet'; f.href=FONTS[t]; document.head.appendChild(f); }
-        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css'; document.head.appendChild(l);
+        // Template CSS is served immutable/long-cache, so version the URL to bust
+        // the browser cache whenever the templates change (bump on each edit).
+        var l=document.createElement('link'); l.id='kwTemplateOverlay'; l.rel='stylesheet'; l.href='/templates/'+t+'.css?v=20260621-tmpl2'; document.head.appendChild(l);
       }
     });
   }
