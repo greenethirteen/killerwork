@@ -28,10 +28,10 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--bg
 .work-card{position:relative;aspect-ratio:auto;min-height:0;display:flex;align-items:baseline;gap:24px;padding:24px 6px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;overflow:visible}
 .work-card:after{display:none}
 .work-card:before{counter-increment:kw-idx;content:counter(kw-idx,decimal-leading-zero);font-family:Inter,Arial,sans-serif;font-style:normal;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;flex:0 0 auto;width:2.6em;transition:color .25s}
-.work-card img{position:absolute;right:6px;top:50%;width:min(32vw,400px);height:auto;aspect-ratio:auto;min-height:0;object-fit:contain;border-radius:3px;background:#ece9e1;opacity:0;transform:translateY(-42%);transition:opacity .3s ease,transform .45s cubic-bezier(.2,.7,.2,1);pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
+.work-card img{position:absolute;right:6px;top:50%;margin-top:-150px;width:min(32vw,400px);height:auto;aspect-ratio:auto;min-height:0;object-fit:contain;border-radius:3px;background:#ece9e1;opacity:0;transition:opacity .35s ease;pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
 .work-card span{position:static;inset:auto;display:block;place-items:unset;flex:1;opacity:1;transform:none;padding:0;margin:0;background:transparent;backdrop-filter:none;border-radius:0;color:var(--fg);font-size:clamp(26px,4.4vw,54px);font-weight:600;font-style:normal;letter-spacing:-.025em;line-height:1.02;text-align:left;text-shadow:none;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
 .work-card:hover:before{color:var(--fg)}
-.work-card:hover img{opacity:1;transform:translateY(-50%)}
+.work-card:hover img{opacity:1}
 .work-card:hover span{transform:translateX(20px)}
 .work-card-placeholder{display:none}
 @media(max-width:700px){.work-card{padding:18px 4px}.work-card img{display:none}.work-card span{font-size:clamp(26px,8vw,40px)}}
@@ -42,10 +42,10 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--bg
 .behance-home .work-card{position:relative;aspect-ratio:auto;display:flex;align-items:baseline;gap:24px;padding:24px 6px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;overflow:visible}
 .behance-home .work-card:after{display:none}
 .behance-home .work-card:before{counter-increment:kw-idx;content:counter(kw-idx,decimal-leading-zero);font-family:Inter,Arial,sans-serif;font-style:normal;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;flex:0 0 auto;width:2.6em;transition:color .25s}
-.behance-home .work-card img{position:absolute;right:6px;top:50%;width:min(32vw,400px);height:auto;aspect-ratio:auto;min-height:0;object-fit:contain;border-radius:3px;background:#ece9e1;opacity:0;transform:translateY(-42%);transition:opacity .3s ease,transform .45s cubic-bezier(.2,.7,.2,1);pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
+.behance-home .work-card img{position:absolute;right:6px;top:50%;margin-top:-150px;width:min(32vw,400px);height:auto;aspect-ratio:auto;min-height:0;object-fit:contain;border-radius:3px;background:#ece9e1;opacity:0;transition:opacity .35s ease;pointer-events:none;z-index:3;box-shadow:0 34px 80px rgba(25,20,12,.28)}
 .behance-home .work-card span{position:static;inset:auto;display:block;place-items:unset;flex:1;opacity:1;transform:none;padding:0;background:transparent;backdrop-filter:none;color:var(--fg);font-size:clamp(26px,4.4vw,54px);font-weight:600;font-style:normal;letter-spacing:-.025em;line-height:1.02;text-align:left;text-shadow:none;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
 .behance-home .work-card:hover:before{color:var(--fg)}
-.behance-home .work-card:hover img{opacity:1;transform:translateY(-50%)}
+.behance-home .work-card:hover img{opacity:1}
 .behance-home .work-card:hover span{transform:translateX(20px)}
 .behance-home .work-card-placeholder{display:none}
 @media(max-width:700px){.behance-home .work-card{padding:18px 4px}.behance-home .work-card img{display:none}.behance-home .work-card span{font-size:clamp(26px,8vw,40px)}}
