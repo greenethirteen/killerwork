@@ -882,3 +882,9 @@ body{top:0!important}
 @media(max-width:600px){.tpl-picker-card{padding:18px;border-radius:22px}.tpl-picker-foot{justify-content:stretch}.tpl-continue{width:100%}}
 
 @media(max-width:760px){.backup-points{display:none}}
+.landing-hero-actions{margin-top:26px}
+.landing-hero-cta{font-size:16px;padding:16px 44px}
+.url-field{position:relative;display:block;min-width:0}
+.url-field input{padding-right:96px}
+.try-it-btn{position:absolute;top:50%;right:10px;transform:translateY(-50%);width:auto;padding:9px 15px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.12);color:var(--fg);font-size:13px;font-weight:800;cursor:pointer;transition:background .18s,transform .18s}
+.try-it-btn:hover{background:rgba(255,255,255,.22);transform:translateY(-50%)}

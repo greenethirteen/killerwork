@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Space+Grotesk:wght@400;500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ui.css?v=20260621-parallax" />
+  <link rel="stylesheet" href="/ui.css?v=20260621-create" />
 </head>
 <body class="parallax-home">
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDCKPZ6Z" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
@@ -97,6 +97,7 @@
     <header class="landing-hero" data-reveal>
       <h1 class="landing-hero-title">Creative portfolios, without the <span class="landing-hero-accent">subscription trap</span>.</h1>
       <p class="landing-hero-sub">Pay <b>$9.99</b> once. Not forever.</p>
+      <div class="landing-hero-actions"><a class="button hot landing-hero-cta" href="#import">Create</a></div>
     </header>
     <section id="import" class="dual-switcher" data-active-panel="import" aria-label="Portfolio creation options" data-reveal>
       <article class="glass dual-panel dual-panel-import" data-panel="import" tabindex="0" aria-label="Import your portfolio">
@@ -115,7 +116,10 @@
           </div>
           <div class="savings-badge"><span>Import and pay <b class="save-amt">$9.99</b> once. Not $25 every month.</span></div>
           <form id="importForm" class="url-form">
-            <input id="urlInput" type="url" placeholder="Enter your Behance/Portfolio URL" required data-clarity-mask="true" />
+            <div class="url-field">
+              <input id="urlInput" type="url" placeholder="Enter your Behance/Portfolio URL" required data-clarity-mask="true" />
+              <button id="tryItBtn" class="try-it-btn" type="button">Try it</button>
+            </div>
             <div class="import-action-row">
               <button id="startBtn" type="submit">Import it</button>
               <a class="button see-action-button" href="/see-it-in-action.html" target="_blank" rel="noopener"><span class="see-action-icon" aria-hidden="true">▶</span>How it works</a>
@@ -718,10 +722,29 @@
       picker.querySelectorAll('[data-tpl-close]').forEach(el => el.addEventListener('click', close));
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !picker.classList.contains('hidden')) close(); });
       window.addEventListener('resize', () => { if (!picker.classList.contains('hidden')) fitFrame(); });
-      picker.querySelector('.tpl-continue').addEventListener('click', () => {
+      picker.querySelector('.tpl-continue').addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
         try { localStorage.setItem('killerwork:buildTemplate', chosen); } catch (e) {}
         const q = chosen && chosen !== 'default' ? ('?template=' + encodeURIComponent(chosen)) : '';
-        window.location.href = '/build.html' + q;
+        const dest = '/build.html' + q;
+        // Require sign-up / sign-in before continuing to the build flow.
+        if (window.KillerWorkAuth && window.KillerWorkAuth.requireToken) {
+          const prev = btn.textContent;
+          btn.disabled = true; btn.textContent = 'Signing in…';
+          try {
+            await window.KillerWorkAuth.requireToken();
+          } catch (e) {
+            btn.disabled = false; btn.textContent = prev;
+            return; // user closed the sign-up popup — stay on the picker
+          }
+        }
+        window.location.href = dest;
+      });
+
+      // "Try it" — autofill the import field with a sample portfolio URL.
+      document.getElementById('tryItBtn')?.addEventListener('click', () => {
+        const inp = document.getElementById('urlInput');
+        if (inp) { inp.value = 'https://www.behance.net/gautamwadher'; inp.focus(); }
       });
     })();
   </script>
