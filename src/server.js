@@ -656,12 +656,16 @@ async function serveGeneratedHomePage(req, res, next) {
     const target = path.join(siteDir(req.params.id), 'index.html');
     if (!(await fs.pathExists(target))) return next();
     await refreshStylesIfStale(req.params.id, manifest);
+    // Behance covers come from the low-res profile grid, so the card's thumbnail
+    // (and its "full" src) are both small. The sharp pixels live in the first
+    // downloaded project module image — swap the home card to that on the fly.
     const imageUpgrades = [];
-    for (const p of manifest.projects || []) {
-      const t = p.thumbnail;
-      if (t?.thumbSrc && t?.src) imageUpgrades.push([t.thumbSrc, t.src]);
-      const im = p.images?.[0];
-      if (im?.thumbSrc && im?.src) imageUpgrades.push([im.thumbSrc, im.src]);
+    if (manifest.sourcePlatform === 'behance') {
+      for (const p of manifest.projects || []) {
+        const current = p.thumbnail?.thumbSrc || p.thumbnail?.src || p.images?.[0]?.thumbSrc || p.images?.[0]?.src;
+        const hero = (p.images || []).find(im => im?.src)?.src;
+        if (current && hero && current !== hero) imageUpgrades.push([current, hero]);
+      }
     }
     return sendPortfolioHtmlWithRuntime(res, target, { ...portfolioRuntimeOptions(manifest, 'index.html'), jobId: req.params.id, imageUpgrades });
   } catch (err) {
