@@ -249,6 +249,7 @@ body.publish-modal-open{overflow:hidden}
   .savings-badge span{display:block;min-width:0;max-width:100%;white-space:normal;font-size:15px;line-height:1.16;overflow-wrap:break-word}
   .url-form input,.url-form button{width:100%;max-width:100%;min-width:0}
   .url-form button{display:flex}
+  .url-field .try-it-btn{width:auto;max-width:none;display:inline-flex}
 }
 
 .dual-panel-build p span{display:block}
@@ -544,6 +545,7 @@ html.auth-pending [data-user-badge]{visibility:hidden}
   .dual-switcher[data-active-panel="import"] .dual-panel-import .savings-badge span{white-space:nowrap;font-size:clamp(10px,2.75vw,12px);line-height:1}
   .dual-panel .url-form{gap:10px}
   .url-form input{padding:12px 16px;border-radius:18px;font-size:15px}
+  .url-field input{padding-right:84px}
   .import-action-row{gap:10px}
   .import-action-row button,.import-action-row .button{min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px}
   .dual-actions .button{width:max-content;min-height:44px;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1}
