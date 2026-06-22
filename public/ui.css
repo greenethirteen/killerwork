@@ -890,5 +890,6 @@ body{top:0!important}
 .landing-hero-cta:active{transform:translateY(2px) scale(.98);box-shadow:0 4px 12px rgba(51,207,134,.32),inset 0 1px 0 rgba(255,255,255,.4),inset 0 -2px 6px rgba(0,70,40,.34);filter:none;transition-duration:.05s}
 .url-field{position:relative;display:block;min-width:0}
 .url-field input{padding-right:96px}
-.try-it-btn{position:absolute;top:50%;right:10px;transform:translateY(-50%);width:auto;padding:9px 15px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.12);color:var(--fg);font-size:13px;font-weight:800;cursor:pointer;transition:background .18s,transform .18s}
-.try-it-btn:hover{background:rgba(255,255,255,.22);transform:translateY(-50%)}
+.try-it-btn{position:absolute;top:50%;right:8px;transform:translateY(-50%);width:auto;padding:9px 16px;border:none;border-radius:13px;background:var(--green);color:#07120c;font-size:13px;font-weight:900;letter-spacing:.01em;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:filter .18s,box-shadow .18s}
+.try-it-btn:hover{filter:brightness(1.06);box-shadow:0 4px 12px rgba(140,255,193,.32);transform:translateY(-50%)}
+.try-it-btn:active{filter:brightness(.95);box-shadow:0 1px 4px rgba(0,0,0,.3);transform:translateY(-50%)}
