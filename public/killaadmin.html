@@ -52,6 +52,9 @@
   .refresh-btn:hover { background: rgba(140,255,193,.18); }
   .ts { color: var(--muted); }
   .empty { color: var(--muted); font-size: 12px; padding: 20px 12px; }
+  .del-btn { background: rgba(255,107,107,.12); color: var(--red); border: 1px solid rgba(255,107,107,.28); border-radius: 7px; padding: 4px 12px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .del-btn:hover { background: rgba(255,107,107,.22); }
+  .del-btn:disabled { opacity: .5; cursor: default; }
 </style>
 </head>
 <body>
@@ -70,6 +73,30 @@ function fmtDate(iso) {
   } catch { return iso; }
 }
 function esc(s) { const d = document.createElement('span'); d.textContent = s || ''; return d.innerHTML; }
+function fmtBytes(b) {
+  b = Number(b) || 0;
+  if (b < 1024) return b + ' B';
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let i = -1;
+  do { b /= 1024; i++; } while (b >= 1024 && i < units.length - 1);
+  return b.toFixed(b < 10 ? 1 : 0) + ' ' + units[i];
+}
+
+async function deletePortfolio(id, btn) {
+  if (!confirm('Delete this portfolio permanently?\n\n' + id + '\n\nThis removes its files from disk and breaks any shared link. Cannot be undone.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  try {
+    const res = await fetch('/api/admin/import/' + encodeURIComponent(id), { method: 'DELETE' });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Delete failed');
+    btn.closest('tr').remove();
+  } catch (err) {
+    alert('Could not delete: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
+}
 
 function domainLink(url) {
   if (!url) return '<span class="ts">—</span>';
@@ -116,6 +143,7 @@ function render(d) {
     <div class="card"><div class="card-label">Paid Checkouts</div><div class="card-value green">${fmt(totals.paid)}</div></div>
     <div class="card"><div class="card-label">Abandoned</div><div class="card-value yellow">${fmt(totals.abandoned)}</div></div>
     <div class="card"><div class="card-label">Revenue (USD)</div><div class="card-value green">$${fmt(totals.revenue, 2)}</div></div>
+    <div class="card"><div class="card-label">Disk Used</div><div class="card-value yellow">${fmtBytes(totals.diskBytes)}</div></div>
   </div>`;
 
   // Top source domains
@@ -158,8 +186,8 @@ function render(d) {
   if (imports.length === 0) {
     html += `<p class="empty">No imports found on disk.</p>`;
   } else {
-    const sorted = [...imports].reverse();
-    html += `<table><thead><tr><th>ID</th><th>Source URL</th><th>Name</th><th>Projects</th><th>Published</th></tr></thead><tbody>`;
+    const sorted = [...imports].sort((a, b) => (b.sizeBytes || 0) - (a.sizeBytes || 0));
+    html += `<table><thead><tr><th>ID</th><th>Source URL</th><th>Name</th><th>Projects</th><th>Size</th><th>Published</th><th></th></tr></thead><tbody>`;
     for (const imp of sorted) {
       const srcLink = imp.sourceUrl
         ? `<a href="${esc(imp.sourceUrl)}" target="_blank" rel="noreferrer" title="${esc(imp.sourceUrl)}">${esc(shortUrl(imp.sourceUrl))}</a>`
@@ -172,7 +200,9 @@ function render(d) {
         <td class="url-cell">${srcLink}</td>
         <td>${esc(imp.ownerName || imp.siteTitle) || '<span class="ts">—</span>'}</td>
         <td>${imp.projectCount || '—'}</td>
+        <td class="ts">${fmtBytes(imp.sizeBytes)}</td>
         <td>${pubCell}</td>
+        <td><button class="del-btn" onclick="deletePortfolio('${esc(imp.id)}', this)">Delete</button></td>
       </tr>`;
     }
     html += `</tbody></table>`;

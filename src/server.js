@@ -1400,6 +1400,24 @@ function siteDir(id) {
   return path.join(jobDir(id), 'site');
 }
 
+// Recursively total the byte size of a directory tree. Used by the admin page
+// to show how much disk each generated portfolio is consuming.
+async function dirSizeBytes(dir) {
+  let total = 0;
+  const stack = [dir];
+  while (stack.length) {
+    const cur = stack.pop();
+    let entries;
+    try { entries = await fs.readdir(cur, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      const p = path.join(cur, e.name);
+      if (e.isDirectory()) stack.push(p);
+      else { try { total += (await fs.stat(p)).size; } catch { /* ignore */ } }
+    }
+  }
+  return total;
+}
+
 function editorSnapshotsDir(id) {
   return path.join(jobDir(id), '.editor-snapshots');
 }
@@ -3673,11 +3691,12 @@ app.get('/api/admin/stats', async (req, res) => {
       if (!(await fs.pathExists(mf))) continue;
       try {
         const data = await fs.readJson(mf);
-        manifests.push({ id: entry.name, data });
+        const sizeBytes = await dirSizeBytes(path.join(generatedRoot, entry.name));
+        manifests.push({ id: entry.name, data, sizeBytes });
       } catch { /* skip corrupt manifests */ }
     }
 
-    const imports = manifests.map(({ id, data }) => ({
+    const imports = manifests.map(({ id, data, sizeBytes }) => ({
       id,
       sourceUrl: data.sourceUrl || '',
       sourceDomain: (() => { try { return data.sourceUrl ? new URL(data.sourceUrl).hostname : ''; } catch { return ''; } })(),
@@ -3687,6 +3706,7 @@ app.get('/api/admin/stats', async (req, res) => {
       published: data.published?.subdomain ? data.published.subdomain + '.killa.work' : '',
       publishedAt: data.published?.publishedAt || '',
       projectCount: (data.projects || []).length,
+      sizeBytes: sizeBytes || 0,
     }));
 
     // Domain frequency
@@ -3735,6 +3755,7 @@ app.get('/api/admin/stats', async (req, res) => {
         paid: paid.length,
         abandoned: abandoned.length,
         revenue: paid.reduce((sum, s) => sum + s.amount, 0),
+        diskBytes: imports.reduce((sum, i) => sum + i.sizeBytes, 0),
       },
       topDomains,
       imports,
@@ -3743,6 +3764,26 @@ app.get('/api/admin/stats', async (req, res) => {
     });
   } catch (err) {
     console.error('Admin stats error', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete one generated portfolio (its whole folder: site, assets, zip, manifests)
+// from the volume. Optionally gated by ADMIN_TOKEN if that env var is set.
+app.delete('/api/admin/import/:id', async (req, res) => {
+  try {
+    if (process.env.ADMIN_TOKEN && req.get('x-admin-token') !== process.env.ADMIN_TOKEN) {
+      return res.status(401).json({ error: 'Invalid admin token.' });
+    }
+    let dir;
+    try { dir = jobDir(req.params.id); } catch { return res.status(400).json({ error: 'Invalid portfolio id.' }); }
+    if (!(await fs.pathExists(dir))) return res.status(404).json({ error: 'Portfolio not found.' });
+    const freed = await dirSizeBytes(dir);
+    await fs.remove(dir);
+    console.log(`[admin] deleted portfolio ${req.params.id} (${freed} bytes freed)`);
+    res.json({ ok: true, id: req.params.id, freed });
+  } catch (err) {
+    console.error('Admin delete error', err);
     res.status(500).json({ error: err.message });
   }
 });
