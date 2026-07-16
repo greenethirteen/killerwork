@@ -3,7 +3,9 @@
   const defaultContainerId = 'GTM-NDCKPZ6Z';
   const clarityProjectId = 'x0t08kbqi9';
   const googleAdsId = 'AW-18188860218';
-  const signupConversionLabel = 'h929CMCvj7gcELr2j-FD';
+  const signupAdsId = 'AW-18328049369';
+  // TODO: set this once the sign-up conversion action exists in the new Ads account (AW-18328049369).
+  const signupConversionLabel = '';
   const purchaseConversionLabel = 'Zp-LCJf73rYcELr2j-FD';
   const privateKeys = new Set(['email', 'phone', 'phone_number', 'user_name', 'username', 'full_name', 'first_name', 'last_name']);
   const isDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -55,12 +57,13 @@
     }
     window.gtag('js', new Date());
     window.gtag('config', googleAdsId);
+    window.gtag('config', signupAdsId);
   }
 
   function trackSignupConversion() {
     configureGoogleAds();
     window.gtag('event', 'conversion', {
-      send_to: `${googleAdsId}/${signupConversionLabel}`,
+      send_to: signupConversionLabel ? `${signupAdsId}/${signupConversionLabel}` : signupAdsId,
       value: 1.0,
       currency: 'AED'
     });
