@@ -4,8 +4,7 @@
   const clarityProjectId = 'x0t08kbqi9';
   const googleAdsId = 'AW-18188860218';
   const signupAdsId = 'AW-18328049369';
-  // TODO: set this once the sign-up conversion action exists in the new Ads account (AW-18328049369).
-  const signupConversionLabel = '';
+  const signupConversionLabel = 'XBmoCPiSytEcENmtv6NE';
   const purchaseConversionLabel = 'Zp-LCJf73rYcELr2j-FD';
   const privateKeys = new Set(['email', 'phone', 'phone_number', 'user_name', 'username', 'full_name', 'first_name', 'last_name']);
   const isDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
